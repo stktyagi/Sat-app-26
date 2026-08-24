@@ -4,8 +4,8 @@
 # This file should be version controlled and should not be manually edited.
 
 version:
-  revision: "nixpkgs000000000000000000000000000000000"
-  channel: "stable"
+  revision: "91f8bd75076e9c740aa13cf67eb9ec1a093f68f5"
+  channel: "[user-branch]"
 
 project_type: app
 
@@ -13,26 +13,26 @@ project_type: app
 migration:
   platforms:
     - platform: root
-      create_revision: nixpkgs000000000000000000000000000000000
-      base_revision: nixpkgs000000000000000000000000000000000
+      create_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
+      base_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
     - platform: android
-      create_revision: nixpkgs000000000000000000000000000000000
-      base_revision: nixpkgs000000000000000000000000000000000
+      create_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
+      base_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
     - platform: ios
-      create_revision: nixpkgs000000000000000000000000000000000
-      base_revision: nixpkgs000000000000000000000000000000000
+      create_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
+      base_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
     - platform: linux
-      create_revision: nixpkgs000000000000000000000000000000000
-      base_revision: nixpkgs000000000000000000000000000000000
+      create_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
+      base_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
     - platform: macos
-      create_revision: nixpkgs000000000000000000000000000000000
-      base_revision: nixpkgs000000000000000000000000000000000
+      create_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
+      base_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
     - platform: web
-      create_revision: nixpkgs000000000000000000000000000000000
-      base_revision: nixpkgs000000000000000000000000000000000
+      create_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
+      base_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
     - platform: windows
-      create_revision: nixpkgs000000000000000000000000000000000
-      base_revision: nixpkgs000000000000000000000000000000000
+      create_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
+      base_revision: 91f8bd75076e9c740aa13cf67eb9ec1a093f68f5
 
   # User provided section
 

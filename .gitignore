@@ -1,5 +1,7 @@
 .android-sdk
 .direnv
+.shorebird
+.flutter-sdk
 
 # Logs
 logs
