@@ -7,10 +7,11 @@ import {
   Dimensions,
   Pressable,
   Text,
-  SafeAreaView,
   StyleSheet,
   ActivityIndicator,
+  Modal,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Gesture,
   GestureDetector,
@@ -270,8 +271,8 @@ const StoryContent = React.memo(
             />
           </>
         )}
-        <View style={styles.overlay}>
-          <View style={styles.progressContainer}>
+        <View style={styles.overlay} pointerEvents="box-none">
+          <View style={styles.progressContainer} pointerEvents="box-none">
             {user.stories?.map((story, index) => {
               const isPast = index < storyIndex;
               const isCurrent = index === storyIndex;
@@ -704,44 +705,41 @@ const StoryCubeViewer: React.FC<StoryCubeViewerProps> = ({
   }, []);
 
   return (
-    <GestureHandlerRootView style={styles.safeArea}>
-      <SafeAreaView style={styles.flex}>
-        <GestureDetector gesture={composedGesture}>
-          <View style={styles.container} collapsable={false}>
-          <Animated.View
-            style={[
-              {
-                width: SCREEN_WIDTH * users.length,
-                height: "100%",
-                flexDirection: "row",
-              },
-              animatedContainerStyle,
-            ]}
-          >
-            {users.map((user, index) => (
-              <StoryPage
-                key={String(user.id ?? index)}
-                user={user}
-                index={index}
-                scrollX={scrollX}
-                activeUserIndex={activeUserIndex}
-                storyIndex={storyIndices.get(user.id) ?? 0}
-                onVideoEnd={handleNext}
-                onDeleteStory={handleDeleteStory}
-                onClose={onClose}
-                userProfile={userProfile}
-              />
-            ))}
-          </Animated.View>
-
-          {/* <View style={styles.tapContainer} pointerEvents="box-none">
-            <Pressable style={styles.tapArea} onPress={handlePrevious} />
-            <Pressable style={styles.tapArea} onPress={handleNext} />
-          </View> */}
-        </View>
-        </GestureDetector>
-      </SafeAreaView>
-    </GestureHandlerRootView>
+    <Modal visible={true} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <GestureHandlerRootView style={styles.flex}>
+        <SafeAreaView style={styles.flex}>
+          <GestureDetector gesture={composedGesture}>
+            <View style={styles.container} collapsable={false}>
+            <Animated.View
+              style={[
+                {
+                  width: SCREEN_WIDTH * users.length,
+                  height: "100%",
+                  flexDirection: "row",
+                },
+                animatedContainerStyle,
+              ]}
+            >
+              {users.map((user, index) => (
+                <StoryPage
+                  key={String(user.id ?? index)}
+                  user={user}
+                  index={index}
+                  scrollX={scrollX}
+                  activeUserIndex={activeUserIndex}
+                  storyIndex={storyIndices.get(user.id) ?? 0}
+                  onVideoEnd={handleNext}
+                  onDeleteStory={handleDeleteStory}
+                  onClose={onClose}
+                  userProfile={userProfile}
+                />
+              ))}
+            </Animated.View>
+            </View>
+          </GestureDetector>
+        </SafeAreaView>
+      </GestureHandlerRootView>
+    </Modal>
   );
 };
 
@@ -773,7 +771,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     borderRadius: 12,
   },
-  overlay: { ...StyleSheet.absoluteFillObject, paddingHorizontal: 12 },
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 12,
+    zIndex: 999,
+    elevation: 10,
+  },
   progressContainer: {
     position: "absolute",
     top: 20,

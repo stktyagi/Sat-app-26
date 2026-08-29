@@ -425,6 +425,9 @@ export const getAllPolls = (cb?: (polls: any[]) => void) => {
 export const togglePollStatus = async (_id: string, _isActive: boolean) => {
   console.log('[mock] togglePollStatus');
 };
+export const voteOnPoll = async (_pollId: string, _optionId: string) => {
+  console.log('[mock] voteOnPoll');
+};
 
 export const getCorousal = async () => [] as any[];
 export const createCorousal = async (_data: any) => { console.log('[mock] createCorousal'); };
@@ -480,3 +483,4 @@ export const updateUserMealStatus = async (_userId: string, _mealKey: string, _v
   console.log('[mock] updateUserMealStatus');
 };
 export const checkMealAvailability = async (_mealKey: string) => true;
+
