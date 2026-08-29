@@ -1,5 +1,4 @@
-// src/components/layout/AdminDrawer.tsx
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +6,8 @@ import {
   Modal,
   ScrollView,
   Pressable,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -38,8 +39,50 @@ interface AdminDrawerProps {
   userRoles: string[];
 }
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
+
 const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles }) => {
   const router = useRouter();
+  
+  const [isModalVisible, setIsModalVisible] = useState(visible);
+  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setIsModalVisible(true);
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+          speed: 12, // adjust speed for a snappy feel
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        })
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: -DRAWER_WIDTH,
+          useNativeDriver: true,
+          bounciness: 0,
+          speed: 14,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        setIsModalVisible(false);
+      });
+    }
+  }, [visible, slideAnim, fadeAnim]);
 
   const visibleItems = useMemo(
     () => ALL_ITEMS.filter(item => item.requiredRoles.some(r => userRoles.includes(r))),
@@ -48,33 +91,41 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles }
 
   const navigate = (route: string) => {
     onClose();
-    router.push(route as any);
+    // Allow time for the drawer to close before pushing the route
+    setTimeout(() => {
+      router.push(route as any);
+    }, 250);
   };
+
+  if (!isModalVisible) return null;
 
   return (
     <Modal
-      visible={visible}
+      visible={isModalVisible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
       {/* Backdrop */}
-      <Pressable
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        onPress={onClose}
-      />
+      <Animated.View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', opacity: fadeAnim }}>
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={onClose}
+        />
+      </Animated.View>
 
       {/* Drawer panel */}
-      <View
+      <Animated.View
         style={{
           position: 'absolute',
           top: 0,
           left: 0,
           bottom: 0,
-          width: '75%',
+          width: DRAWER_WIDTH,
           backgroundColor: '#0C3572',
           paddingTop: 60,
           paddingHorizontal: 0,
+          transform: [{ translateX: slideAnim }],
         }}
       >
         {/* Header */}
@@ -106,9 +157,10 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles }
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+      </Animated.View>
     </Modal>
   );
 };
 
 export default AdminDrawer;
+

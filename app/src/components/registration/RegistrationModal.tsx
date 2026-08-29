@@ -145,13 +145,6 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setIsLoading(false);
     }
   };
-    } catch (error: any) {
-      showModalAlert("Error", error.message || "Failed to join team");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleCompleteRegistration = async () => {
     try {
       setIsLoading(true);
