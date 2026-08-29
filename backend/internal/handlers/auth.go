@@ -56,6 +56,7 @@ func (a *API) PostSession(c *gin.Context) {
 		"displayName":          tok.Name,
 		"photoURL":             tok.PhotoURL,
 		"isHostCollegeStudent": isHost,
+		"collegeName":          hostCollegeName(isHost),
 		"referralCode":         models.RandomCode(6),
 	})
 	if err != nil {
@@ -68,4 +69,11 @@ func (a *API) PostSession(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"user": created, "created": true})
+}
+
+func hostCollegeName(isHost bool) string {
+	if isHost {
+		return "Thapar Institute of Engineering and Technology"
+	}
+	return ""
 }

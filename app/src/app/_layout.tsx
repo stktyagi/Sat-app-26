@@ -17,6 +17,7 @@ import { StatusBar } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StoreProvider } from '@/state/StoreContext';
 import { useUserStore } from '@/state/userStore';
+import { useAuthListener } from '@/hooks/useAuthListener';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,6 +35,7 @@ export default function RootLayout() {
   });
 
   const { rehydrateFromStorage } = useUserStore();
+  useAuthListener();
 
   useEffect(() => {
     rehydrateFromStorage();
