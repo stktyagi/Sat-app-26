@@ -472,3 +472,9 @@ export const updateUserCheckingStatus = async (_userId: string, _field: string, 
 };
 export type UserRegistrationData = any;
 export type UserGateData = any;
+
+export const getCurrentEventDay = () => 'day1';
+export const updateUserMealStatus = async (_userId: string, _mealKey: string, _value: boolean) => {
+  console.log('[mock] updateUserMealStatus');
+};
+export const checkMealAvailability = async (_mealKey: string) => true;
