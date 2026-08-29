@@ -31,7 +31,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
   const { userData: userProfile,refreshUserProfile } = useUserStore();
   const categories = ['All', 'Technical', 'Cultural', 'Business', 'Informal'];
 
-  const { events: filteredEvents, loading, error } = useEventsByCategory(selectedCategory);
+  const { events: filteredEvents, loading, error, refresh: refreshEvents } = useEventsByCategory(selectedCategory);
   const { stories, loading: storiesLoading, refresh: refreshStories } = useStories();
 
   const dummyStories = [
@@ -80,11 +80,10 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
   const fetchCorousalData = useCallback(async () => {
     setCorousalLoading(true);
     try {
-      /* Removed API call */
-      console.log('Corousal data:', data);
-      setCorousalData(data);
+      setCorousalData([]);
     } catch (err) {
       console.error('Error fetching corousal data:', err);
+      setCorousalData([]);
     } finally {
       setCorousalLoading(false);
     }
@@ -103,6 +102,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
       await Promise.all([
         fetchCorousalData(),
         refreshStories(),
+        refreshEvents(),
         refreshUserProfile()
       ]);
     } catch (err) {
@@ -110,7 +110,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
     } finally {
       setRefreshing(false);
     }
-  }, [fetchCorousalData, refreshStories, refreshUserProfile]);
+  }, [fetchCorousalData, refreshStories, refreshEvents, refreshUserProfile]);
 
 
 
