@@ -21,8 +21,10 @@ import {
 } from "lucide-react-native";
 import { Input } from "@/components";
 import { useUserStore } from "@/state/userStore";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
-export default function EventsManagement({ navigation }: { navigation: any }) {
+export default function EventsManagement() {
+  const navigation = useAdminNavigation();
   const [events, setEvents] = useState<FirebaseEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<FirebaseEvent[]>([]);
   const [loading, setLoading] = useState(true);

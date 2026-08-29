@@ -6,14 +6,19 @@ import { getEventByIdForAdmin } from "@/api/admin";
 import EventInfo from "./EventInfo";
 import EventRegistrations from "./EventRegistrations";
 import { useUserStore } from "@/state/userStore";
+import { useLocalSearchParams } from "expo-router";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
-interface EventDetailsProps {
-  navigation: any;
-  route: any;
-}
-
-export default function EventDetails({ navigation, route }: EventDetailsProps) {
-  const { eventId, event: passedEvent } = route.params || {};
+export default function EventDetails() {
+  const navigation = useAdminNavigation();
+  const params = useLocalSearchParams();
+  const eventId = String(params.eventId || "");
+  let passedEvent: FirebaseEvent | undefined;
+  try {
+    passedEvent = params.event ? JSON.parse(String(params.event)) : undefined;
+  } catch {
+    passedEvent = undefined;
+  }
   //if the roles include event_admin , admin , outreach_admin , outreach_member , hospitality_admin , hospitality_member , event_coordinator show registrations tab
   const showRegistrationsTab = () => {
     if (!userProfile) return false;
@@ -28,14 +33,14 @@ export default function EventDetails({ navigation, route }: EventDetailsProps) {
       // "event_coordinator",
     ];
     //event_coordinator only if they are coordinator for this event
-    if (userProfile.roles.includes("event_coordinator")) {
-      const isCoordinator = event?.coordinators.some(
+    if (userProfile.roles?.includes("event_coordinator")) {
+      const isCoordinator = event?.coordinators?.some(
         (coordinator) => coordinator.email === userProfile.email
       );
       if (isCoordinator) return true;
     }
 
-    return userProfile.roles.some((role) => allowedRoles.includes(role));
+    return userProfile.roles?.some((role) => allowedRoles.includes(role));
   };
 
   const [event, setEvent] = useState<FirebaseEvent | null>(passedEvent || null);

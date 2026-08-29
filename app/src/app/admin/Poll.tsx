@@ -15,7 +15,6 @@ import {
   togglePollStatus,
 } from "@/api/admin";
 import { Input } from "@/components";
-import { Timestamp } from "@react-native-firebase/firestore";
 import {
   ArrowLeft,
   Upload,
@@ -29,8 +28,10 @@ import {
 } from "lucide-react-native";
 import { createUpdate, getUpdates, deleteUpdate } from "@/api/admin"; // Add getUpdates and deleteUpdate
 import { subscribeToEvents } from "@/api/events";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
-export default function PollScreen({ navigation }: { navigation: any }) {
+export default function PollScreen() {
+  const navigation = useAdminNavigation();
   const [data, setData] = useState<Poll[]>([]);
   const [createData, setCreateData] = useState<Partial<Poll>>({
     options: [""],

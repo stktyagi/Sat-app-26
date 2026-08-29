@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Phone, School, Users, Info } from "lucide-react-native";
+import { UserEventRegistration } from "@/api/admin";
 
 interface RegistrationCardProps {
   registration: UserEventRegistration;

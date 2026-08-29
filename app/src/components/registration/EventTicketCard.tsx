@@ -6,14 +6,14 @@ import DashedHr from '../ui/DashedLine';
 import { useUserStore } from '@/state/userStore';
 
 interface EventTicketCardProps {
-  registration: UserEventRegistration;
+  registration: any;
   eventData: FirebaseEvent | null;
 }
 
 const EventTicketCard: React.FC<EventTicketCardProps> = ({ registration, eventData }) => {
   const { userData } = useUserStore();
   // Generate QR code data: eventId_userId
-  const qrData = `${registration.eventId}_${registration.userId}`;
+  const qrData = registration.qrToken || `${registration.eventId}_${registration.userId}`;
 
   // Format date and time
   const formatDateTime = (dateString: string) => {

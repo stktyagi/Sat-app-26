@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Stack, SplashScreen, useRouter } from "expo-router";
+import { useEffect, useRef } from 'react';
+import { Stack, SplashScreen, useRouter, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import {
   Outfit_100Thin,
@@ -13,7 +13,7 @@ import {
   Outfit_900Black,
 } from "@expo-google-fonts/outfit";
 import '../global.css';
-import { BackHandler, StatusBar } from 'react-native';
+import { BackHandler, StatusBar, ToastAndroid, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StoreProvider } from '@/state/StoreContext';
 import { useUserStore } from '@/state/userStore';
@@ -24,6 +24,8 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
+  const segments = useSegments();
+  const lastExitPress = useRef(0);
   const [fontsLoaded, error] = useFonts({
     Outfit_100Thin,
     Outfit_200ExtraLight,
@@ -49,19 +51,45 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, error]);
 
-  // Intercept Android hardware back button globally.
-  // When there's a screen to pop in the JS stack, go back within the app.
-  // When at the root (tabs), let the OS handle it (exits the app).
+  // Hardware back: pop stack screens, then go to Home tab, then confirm exit.
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (router.canGoBack()) {
         router.back();
-        return true; // consumed — don't exit
+        return true;
       }
-      return false; // let Android exit
+
+      const root = segments[0];
+      const tab = segments[1];
+      const onTabs = !root || root === '(tabs)';
+      const onHomeTab = onTabs && (!tab || tab === 'index');
+
+      if (onTabs && !onHomeTab) {
+        router.replace('/(tabs)');
+        return true;
+      }
+
+      if (onHomeTab) {
+        const now = Date.now();
+        if (now - lastExitPress.current < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+        lastExitPress.current = now;
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Press back again to exit', ToastAndroid.SHORT);
+        }
+        return true;
+      }
+
+      if (router.canGoBack()) {
+        router.back();
+        return true;
+      }
+      return true;
     });
     return () => handler.remove();
-  }, [router]);
+  }, [router, segments]);
 
   if (!fontsLoaded && !error) {
     return null;
@@ -76,6 +104,11 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#DBE2ED' } }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="(auth)" />
+              <Stack.Screen name="admin" />
+              <Stack.Screen name="events" />
+              <Stack.Screen name="profile" />
+              <Stack.Screen name="map" />
+              <Stack.Screen name="store" />
             </Stack>
           </SafeAreaView>
         </AlertProvider>

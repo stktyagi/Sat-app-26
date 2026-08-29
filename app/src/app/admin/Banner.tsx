@@ -18,9 +18,9 @@ import {
 import { launchImageLibrary } from "react-native-image-picker";
 import ImageResizer from "react-native-image-resizer";
 import { Input } from "@/components";
-import { Timestamp } from "@react-native-firebase/firestore";
 import { ArrowLeft, Upload, Trash2, ExternalLink, ImagePlus } from "lucide-react-native";
 import { uploadStoryMedia } from "@/api/admin";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
 // this is the resolution of the prototype image we used, therefore, don't you fucking question the values
 const BANNER_IMAGE_RESOLUTION = [350, 166];
@@ -33,7 +33,8 @@ function fixDomain(url: string) {
   );
 }
 
-export default function Banner({ navigation }: { navigation: any }) {
+export default function Banner() {
+  const navigation = useAdminNavigation();
   const [data, setData] = useState<Corousal[]>([]);
   const [createData, setCreateData] = useState<Partial<Corousal>>({});
   const [creating, setCreating] = useState(false);
@@ -106,7 +107,7 @@ export default function Banner({ navigation }: { navigation: any }) {
         imageUrl: uploadResult.url,
         corousalType: 0,
         isPublic: true,
-        date: Timestamp.now(),
+        date: new Date().toISOString(),
       });
       await loadData();
       setCreateData({});

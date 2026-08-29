@@ -23,12 +23,14 @@ import UserDetailsModal from "@/components/admin/UserDetailsModal";
 import UserQRScannerModal from "@/components/admin/UserQRScannerModal";
 
 import { showAlert } from "@/components";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
 interface UsersProps {
   navigation: any;
 }
 
-const Users: React.FC<UsersProps> = ({ navigation }) => {
+const Users: React.FC = () => {
+  const navigation = useAdminNavigation();
   const [users, setUsers] = useState<AdminUserProfile[]>([]);
   const [searchLoading, setSearchLoading] = useState(false); // Search/filter loading
   const [refreshing, setRefreshing] = useState(false);

@@ -5,11 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUserStore } from "@/state/userStore";
 import Header from '@/components/layout/Header'
+import { getMyEvents } from '@/api/events';
 
 const UserEventsScreen: React.FC = () => {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('all');
-  /* Removed API call */
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { userData: userProfile } = useUserStore();
   const userId = userProfile?.userId || '';
@@ -21,18 +22,13 @@ const UserEventsScreen: React.FC = () => {
   const fetchUserEvents = async () => {
     try {
       setLoading(true);
-      /* Removed API call */
-      // Fetch missing event details
-      const enrichedEvents = await Promise.all(userEvents.map(async (event) => {
-        if (!event.eventName || !event.eventCategory) {
-           /* Removed API call */
-           return {
-             ...event,
-             eventName: event.eventName || eventData?.title || 'Unknown Event',
-             eventCategory: event.eventCategory || eventData?.category || 'Uncategorized',
-           };
-        }
-        return event;
+      const rows = await getMyEvents();
+      const enrichedEvents = rows.map((row) => ({
+        eventId: row.event?.eventId || row.registration?.eventId,
+        eventName: row.event?.title || row.registration?.eventName || 'Unknown Event',
+        eventCategory: row.event?.category || row.registration?.eventCategory || 'Uncategorized',
+        status: row.registration?.status || 'confirmed',
+        ...row.registration,
       }));
       setEvents(enrichedEvents);
     } catch (error) {
@@ -162,7 +158,18 @@ const UserEventsScreen: React.FC = () => {
         ) : (
           <View>
             {filteredEvents.map((event) => (
-              <EventCard key={event.eventId} event={event} />
+              <TouchableOpacity
+                key={event.eventId}
+                onPress={() => router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } })}
+                className="bg-white rounded-2xl p-4 mb-3 border border-[#A0B3D0]"
+              >
+                <Text style={{ fontFamily: 'Outfit_600SemiBold' }} className="text-[#0C3572] text-lg">
+                  {event.eventName}
+                </Text>
+                <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#2175C0] mt-1">
+                  {event.eventCategory} · {event.status}
+                </Text>
+              </TouchableOpacity>
             ))}
           </View>
         )}

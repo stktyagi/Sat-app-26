@@ -20,6 +20,12 @@ import { useUserStore } from '@/state/userStore';
 import { useStore } from "zustand";
 import { showAlert } from "../index";
 import { useRouter } from "expo-router";
+import {
+  registerForEvent,
+  createEventTeam,
+  joinEventTeam,
+  responsesFromFields,
+} from "@/api/events";
 
 interface RegistrationModalProps {
   visible: boolean;
@@ -94,20 +100,20 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return;
     }
 
+    if (event.customFields?.length) {
+      setIsCreateTeamFlow(true);
+      setRegistrationStep("custom-fields");
+      return;
+    }
+
     try {
       setIsLoading(true);
-      /* Removed API call */
-
-      if (result.success) {
-        setCreatedInviteCode(result.inviteCode);
-        setIsCreateTeamFlow(true);
-        showModalAlert("Team Created!");
-        setRegistrationStep("custom-fields"); 
-        // Notify parent that registration state has changed
-        onSuccess();
-      } else {
-        showModalAlert("Error", result.error);
-      }
+      const result = await createEventTeam(event.eventId, teamName.trim(), []);
+      setCreatedInviteCode(result.inviteCode || result.team?.inviteCode);
+      setIsCreateTeamFlow(true);
+      showModalAlert("Team Created!", "Share the invite code with your teammates.");
+      setRegistrationStep("custom-fields");
+      onSuccess();
     } catch (error: any) {
       showModalAlert("Error", error.message || "Failed to create team");
     } finally {
@@ -121,18 +127,24 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return;
     }
 
+    if (event.customFields?.length) {
+      setIsCreateTeamFlow(false);
+      setRegistrationStep("custom-fields");
+      return;
+    }
+
     try {
       setIsLoading(true);
-      /* Removed API call */
-
-      if (result.success) {
-        showModalAlert("Success", "Successfully joined the team!");
-        setRegistrationStep("custom-fields");
-        // Notify parent that registration state has changed
-        onSuccess();
-      } else {
-        showModalAlert("Error", result.error);
-      }
+      await joinEventTeam(event.eventId, teamInviteCode.trim(), []);
+      showModalAlert("Success", "Successfully joined the team!");
+      onSuccess();
+      onClose();
+    } catch (error: any) {
+      showModalAlert("Error", error.message || "Failed to join team");
+    } finally {
+      setIsLoading(false);
+    }
+  };
     } catch (error: any) {
       showModalAlert("Error", error.message || "Failed to join team");
     } finally {
@@ -145,7 +157,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setIsLoading(true);
 
       // Validate team size for team events
-      if (event.eventType === "team" && event.minTeamSize) {
+      if (event.eventType === "team" && event.minTeamSize && createdInviteCode) {
         if (currentTeamSize < event.minTeamSize) {
           showModalAlert(
             "Insufficient Team Size",
@@ -162,7 +174,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
       // Transform custom fields data to response format
       // Map through event.customFields to maintain field metadata
-      const responseData = event.customFields.map((field: any) => ({
+      const responseData = (event.customFields || []).map((field: any) => ({
         fieldId: field.fieldId,
         label: field.label,
         type: field.type,
@@ -172,23 +184,27 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       }));
 
       // Add referral code to registration if provided
-      const registrationData = responseData;
+      const registrationData = responsesFromFields(event.customFields || [], customFieldsData);
 
-      const referredBy = hasReferralCode ? referralCode : undefined;
-      let result;
       if (event.eventType === "team") {
-        /* Removed API call */
-      } else {
-        /* Removed API call */
-      }
-
-      if (result.success) {
-        showModalAlert("Success", "Registration completed successfully!");
+        if (isCreateTeamFlow || teamName.trim()) {
+          const result = await createEventTeam(event.eventId, teamName.trim(), registrationData);
+          setCreatedInviteCode(result.inviteCode || result.team?.inviteCode);
+          showModalAlert("Team Created!", "Share the invite code with your teammates.");
+        } else {
+          await joinEventTeam(event.eventId, teamInviteCode.trim(), registrationData);
+          showModalAlert("Success", "Successfully joined the team!");
+        }
         onSuccess();
         onClose();
-      } else {
-        showModalAlert("Error", result.error);
+        router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
+        return;
       }
+
+      await registerForEvent(event.eventId, registrationData);
+      showModalAlert("Success", "Registration completed successfully!");
+      onSuccess();
+      onClose();
     } catch (error: any) {
       showModalAlert("Error", error.message || "Failed to complete registration");
     } finally {

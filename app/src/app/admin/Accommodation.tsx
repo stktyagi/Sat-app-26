@@ -32,6 +32,7 @@ import {
   fetchOutgoingUsers,
   clearAccommodationCache,
 } from "@/api/admin";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 import type {
   AccommodationStats,
   UserAccommodation,
@@ -52,7 +53,8 @@ const dayMappings: DayMapping[] = [
   { date: 23, backendDay: "4", day: "Sunday" },
 ];
 
-const Accommodation: React.FC<{ navigation: any }> = ({ navigation }) => {
+const Accommodation: React.FC = () => {
+  const navigation = useAdminNavigation();
   const [selectedTab, setSelectedTab] = useState<"incoming" | "outgoing">(
     "incoming"
   );

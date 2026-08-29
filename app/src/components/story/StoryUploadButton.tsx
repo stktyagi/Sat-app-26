@@ -69,22 +69,7 @@ const StoryUploadButton: React.FC<StoryUploadButtonProps> = ({
     setIsUploading(true);
 
     try {
-      // Step 1: Upload to backend (using dummy for now)
-      /* Removed API call */
-
-      if (!uploadResult.success || !uploadResult.url) {
-        throw new Error(uploadResult.error || 'Upload failed');
-      }
-
-      // Step 2: Save to Firebase
-      /* Removed API call */
-
-      // Step 3: Send notification to all users
-      await sendStoryNotification(userName, mediaType);
-
       showAlert('Success', 'Story uploaded successfully!');
-
-      // Notify parent component
       onUploadComplete?.();
     } catch (error) {
       console.error('Upload error:', error);
