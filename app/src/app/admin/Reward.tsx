@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import { Reward } from "@/types/models";
 import { getRewards } from "@/api/admin";
 import { ArrowLeft } from "lucide-react-native";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 function mapData(item: Reward, index: number) {
   return <View></View>;
 }
 
-export default function Banner({ navigation }: { navigation: any }) {
+export default function Banner() {
+  const navigation = useAdminNavigation();
   const [data, setData] = useState<Reward[]>([]);
 
   useEffect(() => {

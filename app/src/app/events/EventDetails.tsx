@@ -19,6 +19,7 @@ import Button from '@/components/ui/Button';
 import { useUserStore } from '@/state/userStore';
 import { getFormattedDate, getFormattedTime, getRegistrationDeadline } from '@/utils/dateUtils';
 import RegistrationModal from '@/components/registration/RegistrationModal';
+import { getEventDetail } from '@/api/events';
 
 
 
@@ -32,7 +33,7 @@ const EventDetailsScreen: React.FC = () => {
   const event = typeof eventData === 'string' ? JSON.parse(eventData) : eventData;
   const [activeTab, setActiveTab] = useState<'info' | 'rules' | 'prizes' | 'feedback'>('info');
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
-  /* Removed API call */
+  const [existingRegistration, setExistingRegistration] = useState<any>(null);
 
   const [feedbacks, setFeedbacks] = useState<EventFeedback[]>([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
@@ -60,7 +61,7 @@ const EventDetailsScreen: React.FC = () => {
     setLoadingFeedbacks(true);
     try {
       /* Removed API call */
-      setFeedbacks(data);
+      setFeedbacks([]);
     } catch (error) {
       console.error('Error loading feedbacks', error);
     } finally {
@@ -85,8 +86,8 @@ const EventDetailsScreen: React.FC = () => {
 
   const checkExistingRegistration = async () => {
     try {
-      /* Removed API call */
-      setExistingRegistration(registration);
+      const detail = await getEventDetail(event.eventId);
+      setExistingRegistration(detail.myRegistration);
     } catch (error) {
       console.error('Error checking registration:', error);
     }

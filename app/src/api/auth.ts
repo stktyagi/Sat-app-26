@@ -59,6 +59,12 @@ export const syncBackendSession = async (
   return response.json();
 };
 
+export const getToken = async (): Promise<string | null> => {
+  const user = auth().currentUser;
+  if (!user) return null;
+  return getIdToken(user, false);
+};
+
 export const fetchCurrentUser = async (firebaseUser: FirebaseUser): Promise<UserProfile> => {
   const response = await authedFetch("/me", firebaseUser);
 

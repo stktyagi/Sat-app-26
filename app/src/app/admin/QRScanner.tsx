@@ -28,6 +28,7 @@ import {
   Calendar,
 } from "lucide-react-native";
 import { useUserStore } from "@/state/userStore";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
 // Dimensions available if needed
 // const { width, height } = Dimensions.get("window");
@@ -38,9 +39,9 @@ interface QRScannerProps {
 }
 
 export default function QRScanner({
-  navigation,
   setShowBottomNav,
-}: QRScannerProps) {
+}: { setShowBottomNav?: (show: boolean) => void }) {
+  const navigation = useAdminNavigation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();

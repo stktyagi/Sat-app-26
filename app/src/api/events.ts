@@ -62,12 +62,104 @@ export async function listEvents(params: { category?: string; q?: string } = {})
 }
 
 export async function getEvent(eventId: string): Promise<FirebaseEvent> {
+  const detail = await getEventDetail(eventId);
+  return detail.event;
+}
+
+export async function getEventDetail(eventId: string): Promise<{
+  event: FirebaseEvent;
+  myRegistration: any | null;
+  myTeam: any | null;
+}> {
   const response = await apiFetch(`/events/${eventId}`, {}, "optional");
   if (!response.ok) {
     throw new Error(await readError(response, "Failed to load event"));
   }
   const data = await response.json();
-  return toFirebaseEvent(data.event);
+  return {
+    event: toFirebaseEvent(data.event),
+    myRegistration: data.myRegistration ?? null,
+    myTeam: data.myTeam ?? null,
+  };
+}
+
+export function responsesFromFields(customFields: any[] = [], values: Record<string, any> = {}) {
+  return customFields.map((field: any) => ({
+    fieldId: field.fieldId,
+    label: field.label,
+    type: field.type,
+    value: values[field.fieldId] ?? (field.type === "multi-select" ? [] : ""),
+  }));
+}
+
+export async function registerForEvent(eventId: string, responses: any[] = []) {
+  const response = await apiFetch(
+    `/events/${eventId}/register`,
+    { method: "POST", body: JSON.stringify({ responses }) },
+    "required",
+  );
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to register"));
+  }
+  return response.json();
+}
+
+export async function createEventTeam(eventId: string, teamName: string, responses: any[] = []) {
+  const response = await apiFetch(
+    `/events/${eventId}/teams`,
+    { method: "POST", body: JSON.stringify({ teamName, responses }) },
+    "required",
+  );
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to create team"));
+  }
+  return response.json();
+}
+
+export async function joinEventTeam(eventId: string, inviteCode: string, responses: any[] = []) {
+  const response = await apiFetch(
+    "/teams/join",
+    { method: "POST", body: JSON.stringify({ eventId, inviteCode, responses }) },
+    "required",
+  );
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to join team"));
+  }
+  return response.json();
+}
+
+export async function getTeam(teamRef: string) {
+  const response = await apiFetch(`/teams/${teamRef}`, {}, "required");
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to load team"));
+  }
+  const data = await response.json();
+  return data.team;
+}
+
+export async function leaveTeam(teamRef: string) {
+  const response = await apiFetch(`/teams/${teamRef}/leave`, { method: "POST" }, "required");
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to leave team"));
+  }
+}
+
+export async function deleteTeam(teamRef: string) {
+  const response = await apiFetch(`/teams/${teamRef}`, { method: "DELETE" }, "required");
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to delete team"));
+  }
+}
+
+export async function removeTeamMember(teamRef: string, userId: string) {
+  const response = await apiFetch(
+    `/teams/${teamRef}/members/${userId}`,
+    { method: "DELETE" },
+    "required",
+  );
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to remove member"));
+  }
 }
 
 export async function getMyEvents(): Promise<Array<{ event: FirebaseEvent; registration: any; team?: any }>> {

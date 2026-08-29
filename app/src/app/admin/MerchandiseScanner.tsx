@@ -21,6 +21,7 @@ import {
 import { getStoreItems, StoreItem } from "@/api/admin";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "@/components/layout/Header";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
 interface MerchandiseScannerProps {
   navigation: any;
@@ -35,9 +36,9 @@ interface ItemWithOrders extends StoreItem {
 }
 
 export default function MerchandiseScanner({
-  navigation,
   setShowBottomNav,
-}: MerchandiseScannerProps) {
+}: { setShowBottomNav?: (show: boolean) => void }) {
+  const navigation = useAdminNavigation();
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(true);
   const [showScanner, setShowScanner] = useState(false);

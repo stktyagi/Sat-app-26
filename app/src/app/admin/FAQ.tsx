@@ -5,9 +5,11 @@ import { FAQ } from "@/types/models";
 import { getFAQs, addFAQWithId, updateFAQ, deleteFAQ } from "@/api/admin";
 import Input from "@/components/ui/Input";
 import { showAlert } from "@/components";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
 
-export default function FAQManagement({ navigation }: { navigation: any }) {
+export default function FAQManagement() {
+  const navigation = useAdminNavigation();
   const [data, setData] = useState<FAQ[]>([]);
   const [createData, setCreateData] = useState<Partial<FAQ>>({
     isPublic: true,

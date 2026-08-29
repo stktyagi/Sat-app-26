@@ -19,6 +19,7 @@ import RegistrationStatusCard from "@/components/registration/RegistrationStatus
 import TeamDetailsCard from "@/components/registration/TeamDetailsCard";
 import EventTicketCard from "@/components/registration/EventTicketCard";
 import TeamSubmissionModal from "@/components/registration/TeamSubmissionModal";
+import { deleteTeam, getEventDetail, getMyEvents, removeTeamMember } from "@/api/events";
 interface MyEventDetailsRouteParams {
   eventId: string;
 }
@@ -31,8 +32,8 @@ const MyEventDetailsScreen: React.FC = () => {
   const userId = userProfile?.userId || "";
 
   const [loading, setLoading] = useState(true);
-  /* Removed API call */
-  /* Removed API call */
+  const [registration, setRegistration] = useState<any>(null);
+  const [teamData, setTeamData] = useState<any>(null);
   const [eventData, setEventData] = useState<FirebaseEvent | null>(null);
   const [submittingTeam, setSubmittingTeam] = useState(false);
   const [isSubmissionModalVisible, setIsSubmissionModalVisible] =
@@ -47,21 +48,21 @@ const MyEventDetailsScreen: React.FC = () => {
   const fetchRegistrationData = async () => {
     try {
       setLoading(true);
-      /* Removed API call */
-      setRegistration(reg);
-      // Fetch event data to get team size requirements
-      // console.log("Fetching event data for eventId:", eventId);
-      /* Removed API call */
-      // console.log("Fetched event data:", event);
-      setEventData(event);
-
-      if (reg && reg.eventType === "team" && reg.teamInviteCode) {
-        /* Removed API call */
-        setTeamData(team);
-      }
+      const detail = await getEventDetail(eventId);
+      setEventData(detail.event);
+      setRegistration(detail.myRegistration);
+      setTeamData(detail.myTeam);
     } catch (error) {
-      console.error("Error fetching registration data:", error);
-      showAlert("Error", "Failed to load registration details");
+      try {
+        const items = await getMyEvents();
+        const row = items.find((item) => item.registration?.eventId === eventId || item.event?.eventId === eventId);
+        setEventData(row?.event ?? null);
+        setRegistration(row?.registration ?? null);
+        setTeamData(row?.team ?? null);
+      } catch (inner) {
+        console.error("Error fetching registration data:", inner);
+        showAlert("Error", "Failed to load registration details");
+      }
     } finally {
       setLoading(false);
     }
@@ -73,9 +74,23 @@ const MyEventDetailsScreen: React.FC = () => {
       return;
     }
 
-    /* Removed API call */
+    showAlert("Remove member", `Remove ${memberName} from the team?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (!teamData?.teamRef) return;
+            await removeTeamMember(teamData.teamRef, memberUserId);
+            await fetchRegistrationData();
+          } catch (error: any) {
+            showAlert("Error", error.message || "Failed to remove member");
+          }
+        },
+      },
+    ]);
   };
-
 
   const handleDeleteTeam = () => {
     if (!teamData) {
@@ -83,7 +98,22 @@ const MyEventDetailsScreen: React.FC = () => {
       return;
     }
 
-    /* Removed API call */
+    showAlert("Delete team", "This will cancel the whole team's registration.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (!teamData?.teamRef) return;
+            await deleteTeam(teamData.teamRef);
+            router.back();
+          } catch (error: any) {
+            showAlert("Error", error.message || "Failed to delete team");
+          }
+        },
+      },
+    ]);
   };
 
   const handleSubmitTeam = async () => {
@@ -200,7 +230,7 @@ const MyEventDetailsScreen: React.FC = () => {
         />
 
         {/* Event Ticket with QR Code - Only show when confirmed */}
-        {registration.status === "confirmed" && (
+        {registration.status !== "rejected" && (
           <View className="mb-4">
             <EventTicketCard registration={registration} eventData={eventData} />
             <Button

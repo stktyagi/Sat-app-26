@@ -16,8 +16,10 @@ import {
 } from "@/api/admin";
 import { Input } from "@/components";
 import { ArrowLeft, Plus, Trash2, Edit, MapPin, Database } from "lucide-react-native";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
-export default function VenueManagement({ navigation }: { navigation: any }) {
+export default function VenueManagement() {
+  const navigation = useAdminNavigation();
   const [data, setData] = useState<Venue[]>([]);
   const [createData, setCreateData] = useState<Partial<Venue>>({});
   const [editingId, setEditingId] = useState<string | null>(null);

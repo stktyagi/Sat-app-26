@@ -289,13 +289,13 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
             <View className="mb-1">
               <FlatList
                 data={[
-                  ...(userProfile?.roles?.includes('admin') || userProfile?.roles?.includes('media') 
-                    ? [{ isUploadButton: true }] 
-                    : [{ isDummyUploadButton: true }]
-                  ),
+                  ...(userProfile?.roles?.includes('admin') || userProfile?.roles?.includes('media')
+                    ? [{ isUploadButton: true }]
+                    : []),
                   ...displayStories
                 ]}
                 renderItem={({ item, index }) => {
+                  const canAddStory = userProfile?.roles?.includes('admin') || userProfile?.roles?.includes('media');
                   if ('isUploadButton' in item && item.isUploadButton) {
                     return (
                       <View className="items-center mr-4">
@@ -310,29 +310,12 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
                     );
                   }
 
-                  if ('isDummyUploadButton' in item && item.isDummyUploadButton) {
-                    return (
-                      <TouchableOpacity className="items-center mr-4" activeOpacity={0.8}>
-                        <View className="p-[2.5px] bg-[#FFD430] rounded-full">
-                          <View className="w-20 h-20 rounded-full bg-white border-[2px] border-black items-center justify-center overflow-hidden">
-                            <Ionicons name="add" size={40} color="black" />
-                          </View>
-                        </View>
-                        <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#0C3572] text-md mt-2">Add Story</Text>
-                      </TouchableOpacity>
-                    );
-                  }
-
-                  const storyIndex = (userProfile?.roles?.includes('admin') || userProfile?.roles?.includes('media'))
-                  ? index - 1
-                  : index - 1; // since we now always have a + button (either real or dummy)
+                  const storyIndex = canAddStory ? index - 1 : index;
                   return renderStoryItem({ item, index: storyIndex });
                 }}
                 keyExtractor={(item, index) =>
                   'isUploadButton' in item && item.isUploadButton
                     ? 'upload-button'
-                    : 'isDummyUploadButton' in item && item.isDummyUploadButton 
-                    ? 'dummy-upload'
                     : (item as any).userId
                 }
                 horizontal

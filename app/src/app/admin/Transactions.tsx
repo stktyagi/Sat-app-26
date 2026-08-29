@@ -20,12 +20,14 @@ import TransactionFiltersComponent from "@/components/admin/TransactionFilters";
 import TransactionSearchBar from "@/components/admin/TransactionSearchBar";
 import TransactionDetailModal from "@/components/admin/TransactionDetailModal";
 import { showAlert } from "@/components";
+import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 
 interface TransactionsProps {
   navigation: any;
 }
 
-const Transactions: React.FC<TransactionsProps> = ({ navigation }) => {
+const Transactions: React.FC = () => {
+  const navigation = useAdminNavigation();
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
