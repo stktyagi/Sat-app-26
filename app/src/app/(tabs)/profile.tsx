@@ -334,12 +334,14 @@ const ProfileScreen = () => {
               iconColor="#0C3572"
             />
 
-            <MenuItem
-              icon="receipt"
-              title="Your Orders"
-              onPress={() => router.push("/profile/UserOrders")}
-              iconColor="#0C3572"
-            />
+            {null && (
+              <MenuItem
+                icon="receipt"
+                title="Your Orders"
+                onPress={() => router.push("/profile/UserOrders")}
+                iconColor="#0C3572"
+              />
+            )}
 
             <MenuItem
               icon="people"
@@ -362,12 +364,14 @@ const ProfileScreen = () => {
               iconColor="#0C3572"
             />
 
-            <MenuItem
-              icon="alert-circle"
-              title="Report a Problem"
-              onPress={() => router.push("/profile/ReportProblem")}
-              iconColor="#0C3572"
-            />
+            {null && (
+              <MenuItem
+                icon="alert-circle"
+                title="Report a Problem"
+                onPress={() => router.push("/profile/ReportProblem")}
+                iconColor="#0C3572"
+              />
+            )}
 
             <MenuItem
               icon="star"

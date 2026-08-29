@@ -250,22 +250,22 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
           />
         </View>
         <View className="min-h-fit px-6">
-          {/* SatWrap Banner */}
-          <TouchableOpacity
-            onPress={() => router.push('/SatWrap')}
-            className="bg-[#0C3572] rounded-2xl py-6 px-6 mb-6 flex-row items-center justify-between"
-            style={{
-               boxShadow: '0px 4px 15px 0px rgba(12, 53, 114, 0.4)', 
-            }}
-          >
-            <View>
-              <Text style={{ fontFamily: 'Outfit_900Black' }} className="text-[#EEB170] text-2xl">SatWrap '26</Text>
-              <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#DBE2ED] mt-1 text-sm">Your Saturnalia journey awaits!</Text>
-            </View>
-            <View className="bg-[#EEB170] w-10 h-10 rounded-full items-center justify-center">
-              <Ionicons name="play" size={20} color="#0C3572" style={{ marginLeft: 2 }} />
-            </View>
-          </TouchableOpacity>
+          {/* SatWrap Banner — temporarily hidden */}
+          {null && (
+            <TouchableOpacity
+              onPress={() => router.push('/SatWrap')}
+              className="bg-[#0C3572] rounded-2xl py-6 px-6 mb-6 flex-row items-center justify-between"
+              style={{ boxShadow: '0px 4px 15px 0px rgba(12, 53, 114, 0.4)' }}
+            >
+              <View>
+                <Text style={{ fontFamily: 'Outfit_900Black' }} className="text-[#EEB170] text-2xl">SatWrap '26</Text>
+                <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#DBE2ED] mt-1 text-sm">Your Saturnalia journey awaits!</Text>
+              </View>
+              <View className="bg-[#EEB170] w-10 h-10 rounded-full items-center justify-center">
+                <Ionicons name="play" size={20} color="#0C3572" style={{ marginLeft: 2 }} />
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Search Bar */}
           <TouchableOpacity
@@ -388,60 +388,44 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
           {/* Mini Map Component */}
           <MiniMap onPress={handleMapPress} />
 
-          {/* Action Hub: SatPlay & SatClick */}
-          <View className="flex-row justify-between items-center mt-8 mb-4">
-            {/* SatPlay Hub */}
-            <TouchableOpacity
-              onPress={() => router.push('/SatPlay')}
-              className="bg-[#FFFFFF] rounded-[28px] flex-1 aspect-square items-center justify-center"
-              style={{
-               boxShadow: '0px 4px 10px 0px rgba(0, 0, 0, 0.2)', 
-            }}
-            >
-              
-                <Image 
-                  source={require("@/assets/rubik.png")} 
-                  style={{ width: 100, height: 100, resizeMode: 'contain' }} 
-                />
-              <Text style={{ fontFamily: 'Outfit_700Bold' }} className="text-[#0C3572] text-xl">SatPlay</Text>
-            </TouchableOpacity>
-
-            {/* Vertical Divider */}
-            <View className="w-[2px] h-16 bg-[#A0B3D0] mx-4 opacity-40 rounded-full" />
-
-            {/* SatClick Hub */}
-            <TouchableOpacity
-              onPress={() => router.push('/SatClick')}
-              className="bg-[#FFFFFF] rounded-[28px] flex-1 aspect-square items-center justify-center"
-              style={{
-               boxShadow: '0px 4px 10px 0px rgba(0, 0, 0, 0.2)', 
-            }}
-            >
-                <Image 
-                  source={require("@/assets/camera.png")} 
-                  style={{ width: 100, height: 100, resizeMode: 'contain' }} 
-                />
-              <Text style={{ fontFamily: 'Outfit_700Bold' }} className="text-[#0C3572] text-xl">SatClick</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* SatPay Offline Hub */}
-          <TouchableOpacity
-            onPress={() => router.push('/SatPayOffline')}
-            className="bg-[#FFFFFF] rounded-[28px] w-full py-5 mb-10 flex-row items-center px-6"
-            style={{
-              boxShadow: '0px 4px 10px 0px rgba(0, 0, 0, 0.2)', 
-            }}
-          >
-            <View className="bg-[#0C3572] w-14 h-14 rounded-full items-center justify-center shadow-sm">
-              <Ionicons name="wifi" size={24} color="#EEB170" />
-            </View>
-            <View className="ml-4 flex-1">
-              <Text style={{ fontFamily: 'Outfit_700Bold' }} className="text-[#0C3572] text-xl">SatPay Offline</Text>
-              <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#0C3572] opacity-70 text-sm mt-1">Pay at stalls without internet</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#A0B3D0" />
-          </TouchableOpacity>
+          {/* Action Hub: SatPlay, SatClick & SatPay — temporarily hidden */}
+          {null && (
+            <>
+              <View className="flex-row justify-between items-center mt-8 mb-4">
+                <TouchableOpacity
+                  onPress={() => router.push('/SatPlay')}
+                  className="bg-[#FFFFFF] rounded-[28px] flex-1 aspect-square items-center justify-center"
+                  style={{ boxShadow: '0px 4px 10px 0px rgba(0, 0, 0, 0.2)' }}
+                >
+                  <Image source={require("@/assets/rubik.png")} style={{ width: 100, height: 100, resizeMode: 'contain' }} />
+                  <Text style={{ fontFamily: 'Outfit_700Bold' }} className="text-[#0C3572] text-xl">SatPlay</Text>
+                </TouchableOpacity>
+                <View className="w-[2px] h-16 bg-[#A0B3D0] mx-4 opacity-40 rounded-full" />
+                <TouchableOpacity
+                  onPress={() => router.push('/SatClick')}
+                  className="bg-[#FFFFFF] rounded-[28px] flex-1 aspect-square items-center justify-center"
+                  style={{ boxShadow: '0px 4px 10px 0px rgba(0, 0, 0, 0.2)' }}
+                >
+                  <Image source={require("@/assets/camera.png")} style={{ width: 100, height: 100, resizeMode: 'contain' }} />
+                  <Text style={{ fontFamily: 'Outfit_700Bold' }} className="text-[#0C3572] text-xl">SatClick</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/SatPayOffline')}
+                className="bg-[#FFFFFF] rounded-[28px] w-full py-5 mb-10 flex-row items-center px-6"
+                style={{ boxShadow: '0px 4px 10px 0px rgba(0, 0, 0, 0.2)' }}
+              >
+                <View className="bg-[#0C3572] w-14 h-14 rounded-full items-center justify-center shadow-sm">
+                  <Ionicons name="wifi" size={24} color="#EEB170" />
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text style={{ fontFamily: 'Outfit_700Bold' }} className="text-[#0C3572] text-xl">SatPay Offline</Text>
+                  <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#0C3572] opacity-70 text-sm mt-1">Pay at stalls without internet</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#A0B3D0" />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
 
