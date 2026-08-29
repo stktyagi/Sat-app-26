@@ -24,6 +24,7 @@ import { getIdToken } from '@react-native-firebase/auth';
 import { API_BASE_URL } from '@/config/api';
 import { useUserStore } from '@/state/userStore';
 import { useRouter, Redirect } from 'expo-router';
+import { handleSignOut } from '@/api/auth';
 
 interface UserProfileFormProps {
   user: any; // Firebase user
@@ -65,6 +66,8 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   user,
   onProfileCreated,
 }) => {
+  const router = useRouter();
+  const { logout } = useUserStore();
   const [isLoading, setIsLoading] = useState(false);
   const [showGraduationDropdown, setShowGraduationDropdown] = useState(false);
   const [deleteFlagChecked, setDeleteFlagChecked] = useState(false);
@@ -194,7 +197,8 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
         <Header
           left={
             <TouchableOpacity
-              onPress={async () => {
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={() => {
                 showAlert(
                   "Sign Out",
                   "Are you sure you want to sign out and use a different account?",
@@ -205,16 +209,19 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
                       style: "destructive",
                       onPress: async () => {
                         try {
-                          /* Removed API call */
+                          await handleSignOut();
+                          logout();
+                          router.replace("/(auth)");
                         } catch (error) {
                           console.error("Sign out error:", error);
+                          showAlert("Error", "Failed to log out properly");
                         }
                       },
                     },
                   ]
                 );
               }}
-              className="flex-row items-center relative z-10"
+              className="flex-row items-center"
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
