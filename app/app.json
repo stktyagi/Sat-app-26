@@ -37,6 +37,8 @@
           "imageWidth": 76
         }
       ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       "@react-native-google-signin/google-signin",
       [
         "@rnmapbox/maps",
@@ -44,7 +46,14 @@
           "RNMapboxMapsDownloadToken": "sk.eyJ1IjoiamFzaGFuMjAwMyIsImEiOiJjbWdiYnEzNG8wZGdxMmtzZWpqMzAybGQyIn0.VjzyzNTQnJa1I-MMuHkk_g"
         }
       ],
-      "expo-build-properties",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "dynamic"
+          }
+        }
+      ],
       "expo-sharing",
       "expo-video",
       "react-native-video"

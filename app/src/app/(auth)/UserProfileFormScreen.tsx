@@ -19,6 +19,11 @@ import { Ionicons } from "@expo/vector-icons";
 import Header from '@/components/Header';
 import { CollegeDropdown } from '@/components/ui/CollegeDropdown';
 import { getDeleteFlag } from '@/utils/versionCheck';
+import { getAuthInstance } from '@/config/firebase';
+import { getIdToken } from '@react-native-firebase/auth';
+import { API_BASE_URL } from '@/config/api';
+import { useUserStore } from '@/state/userStore';
+import { useRouter, Redirect } from 'expo-router';
 
 interface UserProfileFormProps {
   user: any; // Firebase user
@@ -54,6 +59,7 @@ const GRADUATION_YEARS = [
 
 // Regex to check if email belongs to Thapar University
 const THAPAR_EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@thapar\.edu$/i;
+const HOST_COLLEGE_NAME = "Thapar Institute of Engineering and Technology";
 
 export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   user,
@@ -85,6 +91,17 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => ({
+      ...prev,
+      displayName: user.displayName || prev.displayName,
+      email: user.email || prev.email,
+      appleId: user.uid || prev.appleId,
+      isHostCollegeStudent: user.email ? THAPAR_EMAIL_REGEX.test(user.email) : prev.isHostCollegeStudent,
+    }));
+  }, [user]);
 
   useEffect(() => {
     const checkDeleteFlag = async () => {
@@ -119,16 +136,15 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
 
     setIsLoading(true);
     try {
-      const { getIdToken } = await import('@react-native-firebase/auth');
-      const { authInstance } = await import('@/config/firebase');
-      const currentUser = authInstance.currentUser;
-      
+      const currentUser = getAuthInstance().currentUser;
       if (!currentUser) throw new Error("Not authenticated");
       const idToken = await getIdToken(currentUser, true);
-      
-      const { API_BASE_URL } = await import('@/config/api');
-      
-      // We are sending a PATCH request to complete the profile
+
+      const isHost = formData.isHostCollegeStudent || THAPAR_EMAIL_REGEX.test(currentUser.email || "");
+      const collegeName = isHost
+        ? HOST_COLLEGE_NAME
+        : formData.collegeName;
+
       const response = await fetch(`${API_BASE_URL}/me`, {
         method: "PATCH",
         headers: {
@@ -141,8 +157,8 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           graduationYear: formData.graduationYear,
           age: formData.age,
           rollNumber: formData.rollNumber,
-          collegeName: formData.collegeName,
-          referralCode: formData.refferedBy,
+          collegeName,
+          referredBy: formData.refferedBy,
         })
       });
 
@@ -412,13 +428,17 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
 };
 
 export default function UserProfileFormRoute() {
-  const { authUser, setUserData } = require('@/state/userStore').useUserStore();
-  const { useRouter } = require('expo-router');
+  const { authUser, setUserData } = useUserStore();
   const router = useRouter();
+  const firebaseUser = authUser ?? getAuthInstance().currentUser;
+
+  if (!firebaseUser) {
+    return <Redirect href="/(auth)" />;
+  }
 
   return (
     <UserProfileFormScreen
-      user={authUser}
+      user={firebaseUser}
       onProfileCreated={(profile) => {
         setUserData(profile);
         router.replace('/(tabs)');

@@ -1,71 +1,117 @@
-import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
-import { getApp } from "@react-native-firebase/app";
-import authModule, { getAuth, signInWithCredential, signOut, getIdToken, GoogleAuthProvider, OAuthProvider } from "@react-native-firebase/auth";
-import * as AppleAuthentication from "expo-apple-authentication";
 import { Platform } from "react-native";
-// import { UserProfile } from "../types/models"; // Assume this exists or will be created
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
+import { getApp } from "@react-native-firebase/app";
+import {
+  getAuth,
+  signInWithCredential,
+  signOut,
+  getIdToken,
+  GoogleAuthProvider,
+  OAuthProvider,
+} from "@react-native-firebase/auth";
+import type { User as FirebaseUser } from "@react-native-firebase/auth";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 import { API_BASE_URL, GOOGLE_WEB_CLIENT_ID } from "../config/api";
+import { UserProfile } from "../types/models";
 
 export const initializeGoogleSignIn = () => {
   GoogleSignin.configure({
     webClientId: GOOGLE_WEB_CLIENT_ID,
-    offlineAccess: true,
   });
 };
 
-/**
- * Handles backend authentication and profile synchronization
- */
-export const syncBackendSession = async (firebaseUser: any): Promise<{ user: any, created: boolean }> => {
-  if (!firebaseUser) throw new Error("No user returned from Firebase Auth");
-  
+const auth = () => getAuth(getApp());
+
+const authedFetch = async (path: string, firebaseUser: FirebaseUser, init: RequestInit = {}) => {
   const idToken = await getIdToken(firebaseUser, true);
-  
-  const response = await fetch(`${API_BASE_URL}/auth/session`, {
-    method: "POST",
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
     headers: {
-      "Authorization": `Bearer ${idToken}`,
-      "Content-Type": "application/json"
-    }
+      Authorization: `Bearer ${idToken}`,
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
   });
+  return response;
+};
+
+const readError = async (response: Response, fallback: string) => {
+  const errorData = await response.json().catch(() => ({ message: undefined as string | undefined }));
+  return errorData.message || fallback;
+};
+
+export const syncBackendSession = async (
+  firebaseUser: FirebaseUser
+): Promise<{ user: UserProfile; created: boolean }> => {
+  if (!firebaseUser) throw new Error("No user returned from Firebase Auth");
+
+  const response = await authedFetch("/auth/session", firebaseUser, { method: "POST" });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || "Failed to authenticate with backend");
+    throw new Error(await readError(response, "Failed to authenticate with backend"));
   }
 
-  return await response.json(); // returns { user: UserProfile, created: boolean }
+  return response.json();
+};
+
+export const fetchCurrentUser = async (firebaseUser: FirebaseUser): Promise<UserProfile> => {
+  const response = await authedFetch("/me", firebaseUser);
+
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to load profile"));
+  }
+
+  const data = await response.json();
+  return data.user;
 };
 
 export const handleGoogleSignIn = async (): Promise<{
-  firebaseUser: any;
-  profile: any;
+  firebaseUser: FirebaseUser;
+  profile: UserProfile;
   isFirstTime: boolean;
 }> => {
   try {
-    await GoogleSignin.hasPlayServices();
-    const userInfo = await GoogleSignin.signIn();
-    
-    if (!userInfo.data?.idToken) {
-      throw new Error("No ID token received");
+    initializeGoogleSignIn();
+
+    if (Platform.OS === "android") {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     }
 
-    const app = getApp();
-    const auth = getAuth(app);
-    const googleCredential = GoogleAuthProvider.credential(userInfo.data.idToken);
-    const result = await signInWithCredential(auth, googleCredential);
+    const userInfo = await GoogleSignin.signIn();
+
+    if (!isSuccessResponse(userInfo)) {
+      throw new Error("SIGN_IN_CANCELLED");
+    }
+
+    const idToken = userInfo.data.idToken;
+    if (!idToken) {
+      throw new Error("No ID token received from Google");
+    }
+
+    const googleCredential = GoogleAuthProvider.credential(idToken);
+    const result = await signInWithCredential(auth(), googleCredential);
+
+    if (!result.user) {
+      throw new Error("No user returned from Firebase Auth");
+    }
 
     const backendResult = await syncBackendSession(result.user);
 
-    return { 
-      firebaseUser: result.user, 
-      profile: backendResult.user, 
-      isFirstTime: backendResult.created 
+    return {
+      firebaseUser: result.user,
+      profile: backendResult.user,
+      isFirstTime: backendResult.created,
     };
-
   } catch (error: any) {
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+    if (
+      error?.message === "SIGN_IN_CANCELLED" ||
+      error?.code === statusCodes.SIGN_IN_CANCELLED
+    ) {
       throw new Error("SIGN_IN_CANCELLED");
     }
     console.error("Google Sign-In error:", error?.message || error);
@@ -74,8 +120,8 @@ export const handleGoogleSignIn = async (): Promise<{
 };
 
 export const handleAppleSignIn = async (): Promise<{
-  firebaseUser: any;
-  profile: any;
+  firebaseUser: FirebaseUser;
+  profile: UserProfile;
   isFirstTime: boolean;
 }> => {
   try {
@@ -91,23 +137,24 @@ export const handleAppleSignIn = async (): Promise<{
       throw new Error("No identity token received from Apple");
     }
 
-    const app = getApp();
-    const auth = getAuth(app);
-    const appleProvider = new OAuthProvider('apple.com');
+    const appleProvider = new OAuthProvider("apple.com");
     const appleCredential = appleProvider.credential({ idToken: identityToken });
-    const result = await signInWithCredential(auth, appleCredential);
+    const result = await signInWithCredential(auth(), appleCredential);
+
+    if (!result.user) {
+      throw new Error("No user returned from Firebase Auth");
+    }
 
     const backendResult = await syncBackendSession(result.user);
 
-    return { 
-      firebaseUser: result.user, 
-      profile: backendResult.user, 
-      isFirstTime: backendResult.created 
+    return {
+      firebaseUser: result.user,
+      profile: backendResult.user,
+      isFirstTime: backendResult.created,
     };
-
   } catch (error: any) {
-    if (error.code === 'ERR_REQUEST_CANCELED') {
-        throw new Error("SIGN_IN_CANCELLED");
+    if (error.code === "ERR_REQUEST_CANCELED") {
+      throw new Error("SIGN_IN_CANCELLED");
     }
     console.error("Apple Sign-In error:", error?.message || error);
     throw error;
@@ -118,16 +165,8 @@ export const handleSignOut = async (): Promise<void> => {
   try {
     initializeGoogleSignIn();
     await GoogleSignin.signOut();
-    const app = getApp();
-    const auth = getAuth(app);
-    await signOut(auth);
+    await signOut(auth());
   } catch (error) {
     console.error("Sign out error:", error);
   }
-};
-
-export const checkAuthStatus = (): boolean => {
-  const app = getApp();
-  const auth = getAuth(app);
-  return auth.currentUser !== null;
 };

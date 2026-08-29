@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { handleGoogleSignIn, handleAppleSignIn, initializeGoogleSignIn } from '@/api/auth';
 
 const LoginScreen = () => {
-  const { isSigningIn, setSigningIn, setUserData } = useUserStore();
+  const { isSigningIn, setSigningIn, setUserData, setAuthUser } = useUserStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -26,14 +26,13 @@ const LoginScreen = () => {
   }, []);
 
   const handleSignInSuccess = (result: any, provider: string) => {
+    if (result.firebaseUser) {
+      setAuthUser(result.firebaseUser);
+    }
     if (result.profile) {
       setUserData(result.profile);
     }
-    
-    // Determine where to navigate based on the 3 states
-    // 1. First time users (created: true) -> form
-    // 2. Logged in but form incomplete (fullyRegistered: false) -> form
-    // 3. Did both (fullyRegistered: true) -> tabs
+
     if (result.isFirstTime || (result.profile && !result.profile.fullyRegistered)) {
       console.log(`User needs to complete profile (${provider})`);
       router.replace('/(auth)/UserProfileFormScreen');

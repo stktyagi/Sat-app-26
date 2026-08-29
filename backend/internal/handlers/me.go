@@ -29,6 +29,7 @@ type profilePatch struct {
 	GraduationYear      *string   `json:"graduationYear"`
 	Interests           *[]string `json:"interests"`
 	AccommodationNeeded *bool     `json:"accommodationNeeded"`
+	ReferredBy          *string   `json:"referredBy"`
 }
 
 // PatchMe completes or edits the profile. Registration endpoints stay blocked
@@ -86,6 +87,9 @@ func (a *API) PatchMe(c *gin.Context) {
 	}
 	if body.AccommodationNeeded != nil {
 		fields["accommodationNeeded"] = *body.AccommodationNeeded
+	}
+	if body.ReferredBy != nil {
+		fields["referredBy"] = strings.TrimSpace(*body.ReferredBy)
 	}
 
 	if len(fields) == 0 {

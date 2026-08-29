@@ -1,18 +1,12 @@
-// src/hooks/useAuth.ts
-import { useState, useEffect } from 'react';
-import { UserProfile } from '@/types/models';
+import { useUserStore } from "@/state/userStore";
 
 export const useAuth = () => {
-  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  /* Removed API call: getCurrentUser */
+  const { authUser, userData, isAuthReady } = useUserStore();
 
   return {
-    user,
-    userProfile,
-    isLoading,
-    isAuthenticated: !!user,
+    user: authUser,
+    userProfile: userData,
+    isLoading: !isAuthReady,
+    isAuthenticated: !!authUser,
   };
 };
