@@ -14,6 +14,7 @@ import {
 import {
   Gesture,
   GestureDetector,
+  GestureHandlerRootView,
   TapGesture,
 } from "react-native-gesture-handler";
 import Animated, {
@@ -703,9 +704,10 @@ const StoryCubeViewer: React.FC<StoryCubeViewerProps> = ({
   }, []);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <GestureDetector gesture={composedGesture}>
-        <View style={styles.container} collapsable={false}>
+    <GestureHandlerRootView style={styles.safeArea}>
+      <SafeAreaView style={styles.flex}>
+        <GestureDetector gesture={composedGesture}>
+          <View style={styles.container} collapsable={false}>
           <Animated.View
             style={[
               {
@@ -737,8 +739,9 @@ const StoryCubeViewer: React.FC<StoryCubeViewerProps> = ({
             <Pressable style={styles.tapArea} onPress={handleNext} />
           </View> */}
         </View>
-      </GestureDetector>
-    </SafeAreaView>
+        </GestureDetector>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 };
 
@@ -748,6 +751,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     zIndex: 1000,
   },
+  flex: { flex: 1, backgroundColor: "#000" },
   container: { flex: 1, backgroundColor: "#000", overflow: "hidden" },
   storyContainer: {
     width: SCREEN_WIDTH + 1, // tiny overlap to hide seams

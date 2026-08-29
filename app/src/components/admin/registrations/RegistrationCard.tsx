@@ -66,9 +66,9 @@ export default function RegistrationCard({ registration, onViewPayment }: Regist
       <View className="flex-row items-start justify-between mb-3">
         <View className="flex-1 mr-3">
           <Text className="text-[#0C3572] text-lg font-bold mb-1">
-            {registration.user.name || (registration.user as any).displayName || "Unknown User"}
+            {registration.user?.name || registration.user?.displayName || "Unknown User"}
           </Text>
-          <Text className="text-gray-500 text-sm">{registration.user.email}</Text>
+          <Text className="text-gray-500 text-sm">{registration.user?.email}</Text>
         </View>
         <View className="flex-row items-center gap-2">
           {hasPaymentStatus && onViewPayment && (

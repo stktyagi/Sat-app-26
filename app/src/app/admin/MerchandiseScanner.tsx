@@ -377,7 +377,7 @@ export default function MerchandiseScanner({
   // Dashboard View
   return (
     <View className="flex-1 bg-transparent">
-      <Header navigation={navigation} />
+      <Header />
 
       <View className="flex-row items-center justify-between mb-4 px-6 mt-6">
         <TouchableOpacity onPress={() => navigation.goBack()} className="mr-4">

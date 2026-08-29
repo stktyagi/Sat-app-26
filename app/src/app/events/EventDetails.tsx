@@ -30,7 +30,13 @@ interface EventDetailsRouteParams {
 const EventDetailsScreen: React.FC = () => {
   const router = useRouter();
   const { eventData } = useLocalSearchParams();
-  const event = typeof eventData === 'string' ? JSON.parse(eventData) : eventData;
+  const rawEvent = Array.isArray(eventData) ? eventData[0] : eventData;
+  let event: FirebaseEvent | null = null;
+  try {
+    event = typeof rawEvent === 'string' ? JSON.parse(rawEvent) : (rawEvent as FirebaseEvent);
+  } catch {
+    event = null;
+  }
   const [activeTab, setActiveTab] = useState<'info' | 'rules' | 'prizes' | 'feedback'>('info');
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [existingRegistration, setExistingRegistration] = useState<any>(null);
@@ -54,7 +60,7 @@ const EventDetailsScreen: React.FC = () => {
       if (activeTab === 'feedback') {
         loadFeedbacks();
       }
-    }, [event.eventId, userId, activeTab])
+    }, [event?.eventId, userId, activeTab])
   );
 
   const loadFeedbacks = async () => {
@@ -69,12 +75,32 @@ const EventDetailsScreen: React.FC = () => {
     }
   };
 
+  const checkExistingRegistration = async () => {
+    if (!event?.eventId) return;
+    try {
+      const detail = await getEventDetail(event.eventId);
+      setExistingRegistration(detail.myRegistration);
+    } catch (error) {
+      console.error('Error checking registration:', error);
+    }
+  };
+
   const handleSubmitFeedback = async () => {
     if (!feedbackText.trim() || feedbackRating < 1 || feedbackRating > 5) return;
     setSubmittingFeedback(true);
     try {
-      /* Removed API call */
-      setFeedbacks([newFeedback, ...feedbacks]);
+      setFeedbacks((prev) => [
+        {
+          id: `${Date.now()}`,
+          eventId: event?.eventId ?? '',
+          userId,
+          userName: userProfile?.displayName || 'You',
+          rating: feedbackRating,
+          comment: feedbackText.trim(),
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
       setFeedbackText('');
       setFeedbackRating(5);
     } catch (error) {
@@ -84,24 +110,13 @@ const EventDetailsScreen: React.FC = () => {
     }
   };
 
-  const checkExistingRegistration = async () => {
-    try {
-      const detail = await getEventDetail(event.eventId);
-      setExistingRegistration(detail.myRegistration);
-    } catch (error) {
-      console.error('Error checking registration:', error);
-    }
-  };
-
   const handleRegisterClick = () => {
+    if (!event) return;
     if(event.eventType === 'externalLink' && event.externalUrl) {
-      // Open external link
-      // (event.externalUrl, '_blank');
       Linking.openURL(event.externalUrl);
       return;
     }
     if (existingRegistration) {
-      // Navigate to MyEventDetailsScreen
       router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
       return;
     }
@@ -110,18 +125,27 @@ const EventDetailsScreen: React.FC = () => {
   };
 
   const handleRegistrationSuccess = async () => {
-    // Small delay to ensure backend has processed the registration
     await new Promise(resolve => setTimeout(resolve, 500));
     await checkExistingRegistration();
   };
 
   const handleModalClose = async () => {
     setShowRegistrationModal(false);
-    // Refresh registration status when modal closes
     await checkExistingRegistration();
   };
 
-
+  if (!event?.eventId) {
+    return (
+      <View className="flex-1 items-center justify-center px-6">
+        <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#0C3572] text-center">
+          Event details are unavailable.
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} className="mt-4 bg-[#EEB170] px-6 py-3 rounded-xl">
+          <Text style={{ fontFamily: 'Outfit_600SemiBold' }} className="text-[#0C3572]">Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-transparent px-4">

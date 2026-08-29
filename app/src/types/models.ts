@@ -114,6 +114,20 @@ export type Registration = {
   accommodationRequested: boolean;
 };
 
+export interface TeamRegistrationData {
+  teamRef?: string;
+  teamId: string;
+  teamName: string;
+  leaderUserId: string;
+  inviteCode?: string;
+  status?: string;
+  members: Array<{
+    userId: string;
+    name?: string;
+    displayName?: string;
+  }>;
+}
+
 export type Team = {
   id: string;
   name: string;

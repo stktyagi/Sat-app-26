@@ -8,16 +8,12 @@ import {
   Alert,
   Platform,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
-
-
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Button from "../ui/Button";
 import { FirebaseEvent } from '@/types/models';
 import { useUserStore } from '@/state/userStore';
-import { useStore } from "zustand";
 import { showAlert } from "../index";
 import { useRouter } from "expo-router";
 import {
@@ -70,6 +66,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [hasReferralCode, setHasReferralCode] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [currentTeamSize, setCurrentTeamSize] = useState<number>(0);
+  const [isCreateTeamFlow, setIsCreateTeamFlow] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -165,18 +162,6 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         }
       }
 
-      // Transform custom fields data to response format
-      // Map through event.customFields to maintain field metadata
-      const responseData = (event.customFields || []).map((field: any) => ({
-        fieldId: field.fieldId,
-        label: field.label,
-        type: field.type,
-        value:
-          customFieldsData[field.fieldId] ||
-          (field.type === "multi-select" ? [] : ""),
-      }));
-
-      // Add referral code to registration if provided
       const registrationData = responsesFromFields(event.customFields || [], customFieldsData);
 
       if (event.eventType === "team") {
@@ -417,10 +402,13 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return response.match(linkRegex);
     }
     if (field.type == "select") {
-      return field.options.includes(response);
+      return field.options?.includes(response);
     }
-    for (const optionSelected of response) {
-      if (!field.options.includes(optionSelected)) return false;
+    if (field.type == "multi-select") {
+      if (!Array.isArray(response)) return false;
+      for (const optionSelected of response) {
+        if (!field.options?.includes(optionSelected)) return false;
+      }
     }
     return true;
   }
@@ -428,7 +416,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const renderCustomFields = () => {
     const isNonHostStudent = userData && !userData.isHostCollegeStudent;
     let isValid = true;
-    for (const field of event.customFields) {
+    for (const field of event.customFields || []) {
       const response = customFieldsData[field.fieldId];
       isValid = isResponseValid(field, response);
       if (!isValid) break;
@@ -561,7 +549,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           </View>
         )}
 
-        {event.eventType !== "team" && !createdInviteCode ? (
+        {event.eventType !== "team" ? (
           <View className="flex-row space-x-3 flex-1 gap-2 mt-6">
             <Button
               title={isLoading ? "Registering..." : "Complete Registration"}
@@ -572,28 +560,35 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
               disabled={isLoading || !isValid}
             />
           </View>
-        ) : (
+        ) : createdInviteCode ? (
           <View className="flex-row space-x-3 flex-1 gap-2 mt-6">
             <Button
-              title={isLoading ? "Registering..." : "View Registration"}
+              title="View Registration"
               onPress={() => {
+                onClose();
                 router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
-                return;
               }}
               variant="none"
               className="flex-1 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl"
               textClassName="text-[#0C3572]"
               disabled={isLoading}
-          />
-        </View>
+            />
+          </View>
+        ) : (
+          <View className="flex-row space-x-3 flex-1 gap-2 mt-6">
+            <Button
+              title={isLoading ? "Registering..." : "Complete Registration"}
+              onPress={handleCompleteRegistration}
+              variant="none"
+              className="flex-1 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl"
+              textClassName="text-[#0C3572]"
+              disabled={isLoading || !isValid}
+            />
+          </View>
         )}
       </View>
     );
   };
-
-
-
-  const [isCreateTeamFlow, setIsCreateTeamFlow] = useState(false);
 
   return (
     <Modal

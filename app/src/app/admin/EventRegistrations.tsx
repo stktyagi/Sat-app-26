@@ -113,9 +113,9 @@ export default function EventRegistrations({
     if (searchQuery.trim()) {
       const searchLower = searchQuery.trim().toLowerCase();
       filtered = filtered.filter((reg) => {
-        const email = reg.user.email.toLowerCase();
-        const name = (reg.user.name || (reg.user as any).displayName || "").toLowerCase();
-        const phone = reg.user.phoneNumber.toLowerCase();
+        const email = (reg.user?.email || "").toLowerCase();
+        const name = (reg.user?.name || reg.user?.displayName || "").toLowerCase();
+        const phone = (reg.user?.phoneNumber || "").toLowerCase();
         return email.includes(searchLower) || name.includes(searchLower) || phone.includes(searchLower);
       });
     }
@@ -127,9 +127,9 @@ export default function EventRegistrations({
 
     // Apply college filter
     if (selectedCollegeFilter === "thapar") {
-      filtered = filtered.filter((reg) => reg.user.collegeName.toLowerCase().includes("thapar"));
+      filtered = filtered.filter((reg) => (reg.user?.collegeName || "").toLowerCase().includes("thapar"));
     } else if (selectedCollegeFilter === "outside") {
-      filtered = filtered.filter((reg) => !reg.user.collegeName.toLowerCase().includes("thapar"));
+      filtered = filtered.filter((reg) => !(reg.user?.collegeName || "").toLowerCase().includes("thapar"));
     }
 
     return filtered;

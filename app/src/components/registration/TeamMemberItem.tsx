@@ -4,9 +4,10 @@ import { Trash2 } from 'lucide-react-native';
 
 interface TeamMember {
   userId: string;
-  name: string;
-  email: string;
-  collegeName: string;
+  name?: string;
+  displayName?: string;
+  email?: string;
+  collegeName?: string;
 }
 
 interface TeamMemberItemProps {
@@ -33,7 +34,7 @@ const TeamMemberItem: React.FC<TeamMemberItemProps> = ({
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
               <Text style={{ fontFamily: 'Outfit_600SemiBold' }} className="text-white text-lg">
-                {member.name}
+                {member.name || member.displayName || 'Member'}
               </Text>
               {isCurrentUser && (
                 <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#A7A7A7] text-md">

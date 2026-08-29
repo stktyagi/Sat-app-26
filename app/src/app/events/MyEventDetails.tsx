@@ -122,7 +122,7 @@ const MyEventDetailsScreen: React.FC = () => {
     // Validate team size
     if (
       eventData.minTeamSize &&
-      teamData.members.length < eventData.minTeamSize
+      (teamData.members?.length ?? 0) < eventData.minTeamSize
     ) {
       showAlert(
         "Insufficient Team Size",
@@ -223,10 +223,10 @@ const MyEventDetailsScreen: React.FC = () => {
       >
         {/* Status Card */}
         <RegistrationStatusCard
-          status={registration.status}
-          eventCategory={registration.eventCategory}
-          eventType={registration.eventType}
-          registeredAt={registration.registeredAt}
+          status={registration.status || 'pending'}
+          eventCategory={registration.eventCategory || eventData?.category || ''}
+          eventType={(registration.eventType === 'team' ? 'team' : 'individual')}
+          registeredAt={registration.registeredAt || new Date().toISOString()}
         />
 
         {/* Event Ticket with QR Code - Only show when confirmed */}

@@ -107,11 +107,9 @@ export default function EventInfo({
     if (!userProfile) return false;
 
     // Check if user is an event_admin
-    if (userProfile.roles.includes("event_admin") || userProfile.roles.includes("admin")) return true;
+    if (userProfile.roles?.includes("event_admin") || userProfile.roles?.includes("admin")) return true;
 
-    // Check if user is a coordinator for this specific event
-    console.log("Event Coordinators:", event.coordinators);
-    const isCoordinator = event.coordinators.some(
+    const isCoordinator = event.coordinators?.some(
       (coordinator) => coordinator.email === userProfile.email
     );
 
