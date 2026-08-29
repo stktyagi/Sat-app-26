@@ -294,6 +294,7 @@ export interface UserEventRegistration {
   registeredAt: string;
   status?: string;
   teamId?: string;
+  paymentStatus?: string;
   user: {
     email: string;
     name?: string;
@@ -309,6 +310,7 @@ const mapReg = (r: any): UserEventRegistration => ({
   registeredAt: r.registeredAt,
   status: r.status,
   teamId: r.teamId,
+  paymentStatus: r.paymentStatus,
   user: {
     email: r.user?.email ?? r.email ?? '',
     name: r.user?.name ?? r.user?.displayName ?? r.displayName,

@@ -1,48 +1,51 @@
 import { FirebaseEvent } from "@/types/models";
 import { apiFetch, readError } from "./client";
 
-const toFirebaseEvent = (raw: any): FirebaseEvent => ({
-  eventId: raw.eventId || raw.id,
-  title: raw.title ?? "",
-  description: raw.description ?? "",
-  shortDescription: raw.shortDescription ?? "",
-  category: raw.category ?? "",
-  coordinators: (raw.coordinators ?? []).map((c: any) => ({
+const toFirebaseEvent = (raw: any): FirebaseEvent => {
+  const e = raw ?? {};
+  return {
+  eventId: e.eventId || e.id || "",
+  title: e.title ?? "",
+  description: e.description ?? "",
+  shortDescription: e.shortDescription ?? "",
+  category: e.category ?? "",
+  coordinators: (e.coordinators ?? []).map((c: any) => ({
     email: c.email ?? "",
     name: c.name ?? "",
     phone: c.phone ?? "",
     userID: c.userID ?? c.userId ?? "",
   })),
-  coverImage: raw.coverImage ?? "",
-  customFields: raw.customFields ?? [],
-  dateTime: raw.dateTime ?? raw.startDateTime ?? "",
-  endDateTime: raw.endDateTime ?? "",
-  startDateTime: raw.startDateTime ?? raw.dateTime ?? "",
-  eventType: raw.eventType ?? "individual",
-  externalUrl: raw.externalUrl,
-  images: raw.images ?? [],
-  isFeatured: !!raw.isFeatured,
-  isPublic: raw.isPublic !== false,
-  links: Array.isArray(raw.links)
-    ? raw.links.map((l: any) => (typeof l === "string" ? l : l?.url ?? "")).filter(Boolean)
+  coverImage: e.coverImage ?? "",
+  customFields: e.customFields ?? [],
+  dateTime: e.dateTime ?? e.startDateTime ?? "",
+  endDateTime: e.endDateTime ?? "",
+  startDateTime: e.startDateTime ?? e.dateTime ?? "",
+  eventType: e.eventType ?? "individual",
+  externalUrl: e.externalUrl,
+  images: e.images ?? [],
+  isFeatured: !!e.isFeatured,
+  isPublic: e.isPublic !== false,
+  links: Array.isArray(e.links)
+    ? e.links.map((l: any) => (typeof l === "string" ? l : l?.url ?? "")).filter(Boolean)
     : [],
-  maxTeamSize: raw.maxTeamSize,
-  minTeamSize: raw.minTeamSize,
-  paymentRequired: !!raw.paymentRequired,
-  paymentStarted: !!raw.paymentStarted,
-  prizes: raw.prizes ?? "",
-  shortPrizes: raw.shortPrizes ?? "",
-  reelsId: raw.reelsId ?? [],
-  registrationDeadline: raw.registrationDeadline ?? "",
+  maxTeamSize: e.maxTeamSize,
+  minTeamSize: e.minTeamSize,
+  paymentRequired: !!e.paymentRequired,
+  paymentStarted: !!e.paymentStarted,
+  prizes: e.prizes ?? "",
+  shortPrizes: e.shortPrizes ?? "",
+  reelsId: e.reelsId ?? [],
+  registrationDeadline: e.registrationDeadline ?? "",
   registrationFee: {
-    host: raw.registrationFee?.host ?? 0,
-    other: raw.registrationFee?.other ?? 0,
+    host: e.registrationFee?.host ?? 0,
+    other: e.registrationFee?.other ?? 0,
   },
-  rules: raw.rules ?? "",
-  sameCollegeOnly: !!raw.sameCollegeOnly,
-  venueId: raw.venueId,
-  venueName: raw.venueName,
-});
+  rules: e.rules ?? "",
+  sameCollegeOnly: !!e.sameCollegeOnly,
+  venueId: e.venueId,
+  venueName: e.venueName,
+  };
+};
 
 export async function listEvents(params: { category?: string; q?: string } = {}): Promise<FirebaseEvent[]> {
   const query = new URLSearchParams();
@@ -76,6 +79,9 @@ export async function getEventDetail(eventId: string): Promise<{
     throw new Error(await readError(response, "Failed to load event"));
   }
   const data = await response.json();
+  if (!data?.event) {
+    throw new Error("Event not found");
+  }
   return {
     event: toFirebaseEvent(data.event),
     myRegistration: data.myRegistration ?? null,

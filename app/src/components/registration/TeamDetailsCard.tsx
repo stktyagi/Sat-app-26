@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Platform } from "react-native";
 import { showAlert } from "../index";
 import { Copy } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
-import { FirebaseEvent } from '@/types/models';
+import { FirebaseEvent, TeamRegistrationData } from '@/types/models';
 import TeamMemberItem from "./TeamMemberItem";
 import TeamStatusMessage from "./TeamStatusMessage";
 import Button from "../ui/Button";
@@ -65,7 +65,7 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
           style={{ fontFamily: "Outfit_500Medium" }}
           className="text-[#0C3572] text-xl mb-2"
         >
-          {teamData.members.length} / {eventData?.maxTeamSize || "∞"}
+          {teamData.members?.length ?? 0} / {eventData?.maxTeamSize || "∞"}
         </Text>
       </View>
 
@@ -94,7 +94,7 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
        
 
         <Text className="text-[#0C3572] font-semibold mb-2">Members</Text>
-        {teamData.members.map((member) => (
+        {(teamData.members || []).map((member) => (
           <TeamMemberItem
             key={member.userId}
             member={member}
@@ -106,7 +106,7 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
               member.userId !== userId &&
               teamData.status === "pending"
             }
-            onRemove={() => onRemoveMember(member.userId, member.name)}
+            onRemove={() => onRemoveMember(member.userId, member.name || member.displayName || 'member')}
           />
         ))}
       </View>
@@ -119,19 +119,19 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
             <View className="mb-3 bg-gray-900 rounded-lg p-3">
               <Text
                 className={`text-sm font-medium ${
-                  teamData.members.length >= eventData.minTeamSize
+                  (teamData.members?.length ?? 0) >= eventData.minTeamSize
                     ? "text-green-400"
                     : "text-orange-400"
                 }`}
               >
-                Team Size: {teamData.members.length} / {eventData.minTeamSize}-
+                Team Size: {teamData.members?.length ?? 0} / {eventData.minTeamSize}-
                 {eventData.maxTeamSize || "∞"}
               </Text>
-              {teamData.members.length < eventData.minTeamSize && (
+              {(teamData.members?.length ?? 0) < eventData.minTeamSize && (
                 <Text className="text-orange-400 text-xs mt-1">
-                  Need {eventData.minTeamSize - teamData.members.length} more
+                  Need {eventData.minTeamSize - (teamData.members?.length ?? 0)} more
                   member
-                  {eventData.minTeamSize - teamData.members.length !== 1
+                  {eventData.minTeamSize - (teamData.members?.length ?? 0) !== 1
                     ? "s"
                     : ""}{" "}
                   to submit
@@ -144,7 +144,7 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
           {isLeader &&
             eventData &&
             eventData.minTeamSize &&
-            teamData.members.length >= eventData.minTeamSize && (
+            (teamData.members?.length ?? 0) >= eventData.minTeamSize && (
               <Button
                 title={
                   submittingTeam ? "Submitting..." : "Submit Team for Review"
@@ -159,7 +159,7 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
 
           <View className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-3">
             <Text className="text-[#0C3572] text-sm">
-              {teamData.members.length >= (eventData?.minTeamSize || 1)
+              {(teamData.members?.length ?? 0) >= (eventData?.minTeamSize || 1)
                 ? "✓ Your team meets the minimum size requirement. The team leader can now submit for review."
                 : "⚠️ Team is incomplete. Share the invite code with teammates to complete your team."}
             </Text>

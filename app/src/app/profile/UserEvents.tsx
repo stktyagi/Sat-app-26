@@ -139,7 +139,7 @@ const UserEventsScreen: React.FC = () => {
             <Text style={{ fontFamily: 'Outfit_600SemiBold' }} className="text-[#0C3572] text-xl mt-4 mb-2">
               {activeFilter === 'all' ? 'No Events Registered' : `No ${activeFilter} Events`}
             </Text>
-            <Text style={{ fontFamily: 'Outfit_400Medium' }} className="text-[#2175C0] text-center mb-6 leading-6">
+            <Text style={{ fontFamily: 'Outfit_400Regular' }} className="text-[#2175C0] text-center mb-6 leading-6">
               {activeFilter === 'all'
                 ? "You haven't registered for any events yet.\nExplore and register for exciting events!"
                 : `No events with ${activeFilter} status found.`

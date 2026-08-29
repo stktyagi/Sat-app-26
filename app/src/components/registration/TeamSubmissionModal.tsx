@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Modal,TextInput,Alert,Platform, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FirebaseEvent } from '@/types/models';
+import { FirebaseEvent, TeamRegistrationData } from '@/types/models';
 import { showAlert } from '..';
 import CustomFieldsForm from './CustomFieldRenderer'
 import { useUserStore } from '@/state/userStore';
@@ -46,24 +46,11 @@ const TeamSubmissionModal: React.FC<TeamSubmissionModalProps> = ({
     try {
       setIsLoading(true);
 
-      const responseData = event.customFields.map((field: any) => ({
-        fieldId: field.fieldId,
-        label: field.label,
-        type: field.type,
-        value: formData[field.fieldId] || (field.type === 'multi-select' ? [] : ''),
-      }));
-      const referredBy = hasReferralCode ? referralCode : undefined;
-      /* Removed API call */
-
-      if (result.success) {
-        showModalAlert(
-          'Success',
-          'Team submitted successfully! Your registration is now awaiting admin approval.'
-        );
-        onSubmitSuccess(); // This will close modal & refresh data on the details screen
-      } else {
-        showModalAlert('Error', result.error);
-      }
+      showModalAlert(
+        'Success',
+        'Your team is already registered. Share the invite code if you still need members.'
+      );
+      onSubmitSuccess();
     } catch (error: any) {
       showModalAlert('Error', error.message || 'Failed to submit team');
     } finally {

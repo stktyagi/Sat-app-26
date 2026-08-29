@@ -10,6 +10,7 @@ import {
 import { X, Save, ChevronDown, Phone, School } from "lucide-react-native";
 import { showAlert } from "../../index";
 import { PrivateRoleComponent } from "../../auth/PrivateRoleComponent";
+import { UserEventRegistration } from "@/api/admin";
 
 interface TeamRegistrationView {
   teamId: string;

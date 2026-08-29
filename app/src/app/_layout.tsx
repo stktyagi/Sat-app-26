@@ -19,6 +19,7 @@ import { StoreProvider } from '@/state/StoreContext';
 import { useUserStore } from '@/state/userStore';
 import { useAuthListener } from '@/hooks/useAuthListener';
 import { AlertProvider } from '@/components/ui/CustomAlert';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -52,24 +53,33 @@ export default function RootLayout() {
   }, [fontsLoaded, error]);
 
   // Hardware back: pop stack screens, then go to Home tab, then confirm exit.
+  // Do not use canGoBack() first — after login the tabs screen often has auth
+  // in history, and back would leave the app on the login screen.
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (router.canGoBack()) {
-        router.back();
+      const segs = segments as string[];
+      const root = segs[0];
+      const tab = segs[1];
+      const onTabs = !root || root === '(tabs)';
+      const onAuth = root === '(auth)';
+      const onHomeTab = onTabs && (!tab || tab === 'index');
+      const onStack = !!root && root !== '(tabs)' && root !== '(auth)' && root !== 'index';
+
+      if (onStack) {
+        if (router.canGoBack()) {
+          router.back();
+          return true;
+        }
+        router.replace('/(tabs)');
         return true;
       }
-
-      const root = segments[0];
-      const tab = segments[1];
-      const onTabs = !root || root === '(tabs)';
-      const onHomeTab = onTabs && (!tab || tab === 'index');
 
       if (onTabs && !onHomeTab) {
         router.replace('/(tabs)');
         return true;
       }
 
-      if (onHomeTab) {
+      if (onHomeTab || onAuth) {
         const now = Date.now();
         if (now - lastExitPress.current < 2000) {
           BackHandler.exitApp();
@@ -82,10 +92,6 @@ export default function RootLayout() {
         return true;
       }
 
-      if (router.canGoBack()) {
-        router.back();
-        return true;
-      }
       return true;
     });
     return () => handler.remove();
@@ -96,6 +102,7 @@ export default function RootLayout() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <StoreProvider>
         <AlertProvider>
@@ -114,5 +121,6 @@ export default function RootLayout() {
         </AlertProvider>
       </StoreProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
