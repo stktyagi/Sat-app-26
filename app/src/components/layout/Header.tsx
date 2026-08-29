@@ -71,7 +71,7 @@ const Header: React.FC<HeaderType> = ({ userProfile: userProfileProp, setShowBot
           {/* Notifications */}
           <TouchableOpacity
             className={`h-12 w-12 items-center justify-center bg-[#FFFFFF40] rounded-full ${userProfile ? 'flex' : 'invisible'}`}
-            onPress={() => router.push('/Notifications')}
+            onPress={() => router.push('/notifications')}
           >
             <View>
               <Bell size={22} fill="#fff" color="#fff" />
