@@ -18,6 +18,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StoreProvider } from '@/state/StoreContext';
 import { useUserStore } from '@/state/userStore';
 import { useAuthListener } from '@/hooks/useAuthListener';
+import { AlertProvider } from '@/components/ui/CustomAlert';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -54,13 +55,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StoreProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#040D2D' }}>
-          <StatusBar backgroundColor="#040D2D" barStyle="light-content" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#DBE2ED' } }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="(auth)" />
-          </Stack>
-        </SafeAreaView>
+        <AlertProvider>
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#040D2D' }}>
+            <StatusBar backgroundColor="#040D2D" barStyle="light-content" />
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#DBE2ED' } }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(auth)" />
+            </Stack>
+          </SafeAreaView>
+        </AlertProvider>
       </StoreProvider>
     </SafeAreaProvider>
   );

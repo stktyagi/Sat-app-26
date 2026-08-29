@@ -13,10 +13,15 @@ import {
   PanResponder,
   Vibration,
 } from "react-native";
-import Video, { OnLoadData } from "react-native-video";
+import { VideoView, useVideoPlayer } from "expo-video";
+import { useIsFocused } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { Volume2, VolumeX, PauseIcon, ArrowLeft } from "lucide-react-native";
 import { Reel } from '@/types/models';
 import { showAlert } from "../../components";
+import { MOCK_REELS } from "@/mocks/reels";
+import { API_BASE_URL } from "@/config/api";
+
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface ReelItemProps {
@@ -50,9 +55,19 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
     tabBarHeight,
   }) => {
     const isActive = index === currentIndex;
-    const videoRef = useRef<React.ComponentRef<typeof Video> | null>(null);
+    const eventId = reel.event?.id ?? "";
+    const description = reel.description ?? "";
+    const isDescriptionLong = description.length > 50;
 
-    // State definitions
+    const videoSource =
+      typeof reel.videoUrl === "number" || reel.videoUrl
+        ? reel.videoUrl
+        : null;
+
+    const player = useVideoPlayer(videoSource, (p) => {
+      p.loop = true;
+      p.muted = isMuted;
+    });
     const [isLoading, setIsLoading] = useState(true);
     const [paused, setPaused] = useState(false);
     const [showPauseIcon, setShowPauseIcon] = useState(false);
@@ -73,9 +88,7 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
     const [showDescriptionOverlay, setShowDescriptionOverlay] = useState(false);
     const descriptionOverlayOpacity = useRef(new Animated.Value(0)).current;
 
-    // Define how many lines to show when collapsed
     const collapsedLineCount = 1;
-    const isDescriptionLong = reel.description.length > 50;
 
     const toggleDescriptionExpansion = () => {
       if (!isDescriptionExpanded) {
@@ -101,7 +114,38 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
     };
 
     useEffect(() => {
-      // If the screen is not focused or this reel is not the active one, pause it.
+      player.muted = isMuted;
+    }, [isMuted, player]);
+
+    useEffect(() => {
+      const shouldPlay = isActive && isScreenFocused && !paused;
+      try {
+        if (shouldPlay) {
+          player.play();
+        } else {
+          player.pause();
+          if (!isActive) {
+            player.currentTime = 0;
+          }
+        }
+      } catch {
+        // Player may not be ready yet
+      }
+    }, [isActive, isScreenFocused, paused, player]);
+
+    useEffect(() => {
+      const sub = player.addListener("statusChange", ({ status }) => {
+        if (status === "readyToPlay") {
+          setIsLoading(false);
+        }
+        if (status === "loading") {
+          setIsLoading(true);
+        }
+      });
+      return () => sub.remove();
+    }, [player]);
+
+    useEffect(() => {
       const shouldBePaused = !isActive || !isScreenFocused;
       if (showPauseIcon !== shouldBePaused) {
         if (paused) {
@@ -111,28 +155,16 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
         }
       }
 
-      // Reset video to beginning when it becomes inactive
-      if (!isActive && videoRef.current) {
-        // Only seek if we actually have a valid reference to avoid ExoPlayer IllegalStateException on Android
-        // But since we can't use hooks here, let's just catch the error and do a null check
-        try {
-          videoRef.current.seek(0);
-        } catch (e) {
-          console.log("Seek error ignored");
-        }
-      }
-
-      // Show initial hint only on the first reel (index 0)
       if (isActive && isScreenFocused && !showInitialHint && index === 0) {
         setShowInitialHint(true);
         Animated.sequence([
-          Animated.delay(1500), // Wait 1.5 seconds
+          Animated.delay(1500),
           Animated.timing(initialHintOpacity, {
             toValue: 1,
             duration: 300,
             useNativeDriver: true,
           }),
-          Animated.delay(2000), // Show for 2 seconds
+          Animated.delay(2000),
           Animated.timing(initialHintOpacity, {
             toValue: 0,
             duration: 300,
@@ -144,13 +176,12 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
       isActive,
       isScreenFocused,
       showPauseIcon,
+      paused,
       reel.id,
       showInitialHint,
       initialHintOpacity,
-    ]);
-
-    // Video event handlers
-    
+      index,
+    ]); 
 
     const showMuteAnimation = useCallback(() => {
       muteIconOpacity.setValue(1);
@@ -206,22 +237,6 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
       }
     }, [isActive, isScreenFocused, showPauseIcon, pauseIconOpacity]);
 
-    // Video event handlers
-    const onLoad = useCallback((_: OnLoadData) => {
-      setIsLoading(false);
-    }, []);
-
-    const onLoadStart = useCallback(() => setIsLoading(true), []);
-
-    const onEnd = useCallback(() => {
-      videoRef.current?.seek(0);
-    }, []);
-
-    const onError = useCallback((error: any) => {
-      console.error("Video error:", error);
-      setIsLoading(false);
-    }, []);
-
     // Swipe gesture handler
     const panResponder = useRef(
       PanResponder.create({
@@ -258,8 +273,8 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
           ) {
             // Successful swipe left - navigate to event
             Vibration.vibrate(50); // Haptic feedback
-            if (reel.event.id !== "") {
-              onNavigateToEvent(reel.event.id);
+            if (eventId !== "") {
+              onNavigateToEvent(eventId);
             }
           }
 
@@ -294,23 +309,15 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
             className="absolute inset-0 z-10"
           />
 
-                              {Math.abs(index - currentIndex) <= 1 && (
-            <Video
-              ref={videoRef}
-              source={typeof reel.videoUrl === 'number' ? reel.videoUrl : { uri: reel.videoUrl }}
+                              {Math.abs(index - currentIndex) <= 1 && videoSource && (
+            <VideoView
+              player={player}
               style={{
                 height: "100%",
                 width: "100%",
               }}
-              resizeMode="contain"
-              repeat={true}
-              muted={isMuted}
-              paused={showPauseIcon}
-              onLoad={onLoad}
-              onLoadStart={onLoadStart}
-              onEnd={onEnd}
-              onError={onError}
-              progressUpdateInterval={250}
+              contentFit="contain"
+              nativeControls={false}
             />
           )}
 
@@ -364,9 +371,9 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
               <View className="w-4" />
 
               {/* View Event Button */}
-              {reel.event.id !== "" && (
+              {eventId !== "" && (
                 <Pressable
-                  onPress={() => onNavigateToEvent(reel.event.id)}
+                  onPress={() => onNavigateToEvent(eventId)}
                   disabled={isLoadingEvent}
                   className="bg-transparent border border-white/80 rounded-lg px-3 py-1"
                   style={{
@@ -397,7 +404,7 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
                 }`}
               numberOfLines={isDescriptionExpanded ? 0 : collapsedLineCount}
             >
-              {reel.description}
+              {description}
             </Text>
 
             {/* "View More" / "View Less" button, only shown for long descriptions */}
@@ -419,7 +426,7 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
             )}
 
             {/* Swipe hint */}
-            {reel.event.id !== "" && (
+            {eventId !== "" && (
               <View className="mt-4 flex-row items-center">
                 <Text
                   style={{
@@ -439,7 +446,7 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
         </View>
 
         {/* Swipe progress indicator */}
-        {showSwipeHint && reel.event.id !== "" && (
+        {showSwipeHint && eventId !== "" && (
           <Animated.View
             className="absolute right-4 top-1/2 z-30"
             style={{
@@ -522,8 +529,6 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
   }
 );
 
-import { useRouter, usePathname } from "expo-router";
-
 const ReelsScreen: React.FC = () => {
   const router = useRouter();
   const [reels, setReels] = useState<Reel[]>([]);
@@ -533,24 +538,22 @@ const ReelsScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
 
-  // Use hooks for dynamic spacing
-  const tabBarHeight = 80; // Hardcoded fallback for useBottomTabBarHeight
+  const tabBarHeight = 80;
   const insets = useSafeAreaInsets();
   const USABLE_HEIGHT = SCREEN_HEIGHT - insets.top - insets.bottom;
-
-  // Use pathname to determine if this tab is active
-  const pathname = usePathname();
-  const isScreenFocused = pathname === '/reels';
+  const isScreenFocused = useIsFocused();
 
   const flatListRef = useRef<FlatList>(null);
 
-  // Load reels from Firebase
-  /* Removed API call */
+  useEffect(() => {
+    setReels(MOCK_REELS);
+    setIsLoading(false);
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    // The subscription will automatically update reels
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setReels(MOCK_REELS);
+    await new Promise((resolve) => setTimeout(resolve, 400));
     setIsRefreshing(false);
   }, []);
 
@@ -565,11 +568,14 @@ const ReelsScreen: React.FC = () => {
 
       setIsLoadingEvent(true);
       try {
-        // Fetch the full event data
-        /* Removed API call */
-
+        const response = await fetch(`${API_BASE_URL}/events/${eventId}`);
+        if (!response.ok) {
+          showAlert("Error", "Event not found. Please try again later.");
+          return;
+        }
+        const data = await response.json();
+        const eventData = data.event;
         if (eventData) {
-          // Navigate with the full event object
           router.push({ pathname: "/events/EventDetails", params: { eventData: JSON.stringify(eventData) } });
         } else {
           showAlert("Error", "Event not found. Please try again later.");
