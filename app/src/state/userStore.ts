@@ -53,10 +53,25 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (storedUserData) {
         set({ userData: storedUserData });
       }
-      set({ isRehydrating: false });
     } catch (error) {
       console.error('Error rehydrating from storage:', error);
-      set({ isRehydrating: false });
+    } finally {
+      // After rehydration, resolve appStatus based on the current auth state.
+      // This handles the race where onAuthStateChanged fired while isRehydrating
+      // was still true (so setAuthUser/setUserData skipped updating appStatus).
+      const { authUser, userData } = get();
+      if (authUser) {
+        const profile = userData ?? get().userData; // pick up freshly stored profile
+        if (profile?.fullyRegistered) {
+          set({ appStatus: 'authenticated', isRehydrating: false });
+        } else {
+          set({ appStatus: 'needs_profile', isRehydrating: false });
+        }
+      } else {
+        // Auth listener hasn't fired yet or user is signed out; leave appStatus
+        // as 'loading' so the auth listener can set it when it resolves.
+        set({ isRehydrating: false });
+      }
     }
   },
 

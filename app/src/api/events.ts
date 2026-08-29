@@ -91,3 +91,13 @@ export async function getCategories(): Promise<string[]> {
   const data = await response.json();
   return data.categories ?? [];
 }
+
+
+// Aliases for admin screens that used old API names
+export const getEvents = listEvents;
+
+// Old Firestore real-time subscription — replaced with a one-shot poll
+export const subscribeToEvents = (callback: (events: any[]) => void) => {
+  listEvents().then(callback).catch(console.error);
+  return () => {}; // no-op unsubscribe
+};
