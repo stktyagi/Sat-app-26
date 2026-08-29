@@ -14,8 +14,7 @@ import {
   Vibration,
 } from "react-native";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { useIsFocused } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { useRouter, useIsFocused } from "expo-router";
 import { Volume2, VolumeX, PauseIcon, ArrowLeft } from "lucide-react-native";
 import { Reel } from '@/types/models';
 import { showAlert } from "../../components";

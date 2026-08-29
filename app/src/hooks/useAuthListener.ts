@@ -5,7 +5,7 @@ import { useUserStore } from "@/state/userStore";
 import { initializeGoogleSignIn, syncBackendSession } from "@/api/auth";
 
 export const useAuthListener = () => {
-  const { setAuthUser, setUserData, setAuthReady, clearUserState } = useUserStore();
+  const { setAuthUser, setUserData, setAuthReady, setLoadingInitialData, clearUserState } = useUserStore();
 
   useEffect(() => {
     initializeGoogleSignIn();
@@ -17,6 +17,7 @@ export const useAuthListener = () => {
         if (!user) {
           clearUserState();
           setAuthReady(true);
+          setLoadingInitialData(false);
           return;
         }
 
@@ -29,13 +30,15 @@ export const useAuthListener = () => {
           console.error("Failed to restore backend session:", error);
         } finally {
           setAuthReady(true);
+          setLoadingInitialData(false);
         }
       });
     } catch (error) {
       console.error("Firebase Auth is not available. Use a development build.", error);
       setAuthReady(true);
+      setLoadingInitialData(false);
     }
 
     return () => unsubscribe();
-  }, [setAuthUser, setUserData, setAuthReady, clearUserState]);
+  }, [setAuthUser, setUserData, setAuthReady, setLoadingInitialData, clearUserState]);
 };

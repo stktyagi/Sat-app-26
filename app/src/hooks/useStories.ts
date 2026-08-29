@@ -1,11 +1,6 @@
-// src/hooks/useStories.ts
 import { useState, useEffect, useCallback } from 'react';
 import { UserStory } from '@/types/story';
 
-/**
- * Custom hook to manage stories with automatic expiration
- * Fetches stories and filters out expired ones
- */
 export const useStories = () => {
   const [stories, setStories] = useState<UserStory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,27 +10,25 @@ export const useStories = () => {
     try {
       setLoading(true);
       setError(null);
-      /* Removed API call: getActiveStories */
-      setStories(activeStories);
+      // Stories are not part of the current API. Keep the hook settled so
+      // home can render dummy stories instead of an infinite skeleton.
+      setStories([]);
     } catch (err) {
       console.error('Error fetching stories:', err);
       setError('Failed to load stories');
+      setStories([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial fetch
   useEffect(() => {
     fetchStories();
   }, [fetchStories]);
 
-  // Auto-refresh every minute to check for expired stories
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-
-      // Filter out expired stories locally
       setStories((prevStories) =>
         prevStories
           .map((userStory) => ({
@@ -46,7 +39,7 @@ export const useStories = () => {
           }))
           .filter((userStory) => userStory.stories.length > 0)
       );
-    }, 60000); // Check every minute
+    }, 60000);
 
     return () => clearInterval(interval);
   }, []);
@@ -62,8 +55,3 @@ export const useStories = () => {
     refresh,
   };
 };
-
-/**
- * Hook to automatically cleanup expired stories for a specific user
- * Should be called when user opens the app or after uploading a story
- */
