@@ -8,6 +8,9 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@react-native-firebase/*": [
+        "./src/mocks/firebase"
       ]
     }
   },
