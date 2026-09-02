@@ -19,9 +19,7 @@ import Button from '@/components/ui/Button';
 import { useUserStore } from '@/state/userStore';
 import { getFormattedDate, getFormattedTime, getRegistrationDeadline } from '@/utils/dateUtils';
 import RegistrationModal from '@/components/registration/RegistrationModal';
-import { getEventDetail } from '@/api/events';
-
-
+import { useEventDetail } from '@/hooks/useEventDetail';
 
 interface EventDetailsRouteParams {
   eventData: FirebaseEvent;
@@ -39,7 +37,9 @@ const EventDetailsScreen: React.FC = () => {
   }
   const [activeTab, setActiveTab] = useState<'info' | 'rules' | 'prizes' | 'feedback'>('info');
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
-  const [existingRegistration, setExistingRegistration] = useState<any>(null);
+
+  const { data: eventDetailData, refresh: checkExistingRegistration } = useEventDetail(event?.eventId || '');
+  const existingRegistration = eventDetailData?.myRegistration;
 
   const [feedbacks, setFeedbacks] = useState<EventFeedback[]>([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
@@ -50,13 +50,8 @@ const EventDetailsScreen: React.FC = () => {
   const { userData: userProfile } = useUserStore();
   const userId = userProfile?.userId || '';
 
-  useEffect(() => {
-    checkExistingRegistration();
-  }, []);
-
   useFocusEffect(
     React.useCallback(() => {
-      checkExistingRegistration();
       if (activeTab === 'feedback') {
         loadFeedbacks();
       }
@@ -72,16 +67,6 @@ const EventDetailsScreen: React.FC = () => {
       console.error('Error loading feedbacks', error);
     } finally {
       setLoadingFeedbacks(false);
-    }
-  };
-
-  const checkExistingRegistration = async () => {
-    if (!event?.eventId) return;
-    try {
-      const detail = await getEventDetail(event.eventId);
-      setExistingRegistration(detail.myRegistration);
-    } catch (error) {
-      console.error('Error checking registration:', error);
     }
   };
 

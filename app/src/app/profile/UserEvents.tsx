@@ -1,42 +1,27 @@
 // src/screens/App/Profile/UserEventsScreen.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUserStore } from "@/state/userStore";
 import Header from '@/components/layout/Header'
-import { getMyEvents } from '@/api/events';
+import { useMyEvents } from '@/hooks/useMyEvents';
 
 const UserEventsScreen: React.FC = () => {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('all');
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const { userData: userProfile } = useUserStore();
   const userId = userProfile?.userId || '';
 
-  useEffect(() => {
-    fetchUserEvents();
-  }, []);
+  const { data: rows, loading } = useMyEvents();
 
-  const fetchUserEvents = async () => {
-    try {
-      setLoading(true);
-      const rows = await getMyEvents();
-      const enrichedEvents = rows.map((row) => ({
-        eventId: row.event?.eventId || row.registration?.eventId,
-        eventName: row.event?.title || row.registration?.eventName || 'Unknown Event',
-        eventCategory: row.event?.category || row.registration?.eventCategory || 'Uncategorized',
-        status: row.registration?.status || 'confirmed',
-        ...row.registration,
-      }));
-      setEvents(enrichedEvents);
-    } catch (error) {
-      console.error('Error fetching user events:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const events = rows.map((row: any) => ({
+    eventId: row.event?.eventId || row.registration?.eventId,
+    eventName: row.event?.title || row.registration?.eventName || 'Unknown Event',
+    eventCategory: row.event?.category || row.registration?.eventCategory || 'Uncategorized',
+    status: row.registration?.status || 'confirmed',
+    ...row.registration,
+  }));
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Stack, SplashScreen, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments, SplashScreen as ExpoSplashScreen } from "expo-router";
 import { useFonts } from "expo-font";
 import {
   Outfit_100Thin,
@@ -20,8 +20,26 @@ import { useUserStore } from '@/state/userStore';
 import { useAuthListener } from '@/hooks/useAuthListener';
 import { AlertProvider } from '@/components/ui/CustomAlert';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import SplashScreen from '@/components/SplashScreen';
 
-SplashScreen.preventAutoHideAsync();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 60 * 24, // 24 hours
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours
+    },
+  },
+});
+
+const asyncStoragePersister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+});
+
+ExpoSplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
@@ -48,7 +66,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded || error) {
-      SplashScreen.hideAsync();
+      ExpoSplashScreen.hideAsync();
     }
   }, [fontsLoaded, error]);
 
@@ -98,28 +116,30 @@ export default function RootLayout() {
   }, [router, segments]);
 
   if (!fontsLoaded && !error) {
-    return null;
+    return <SplashScreen />;
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
-      <StoreProvider>
-        <AlertProvider>
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#040D2D' }}>
-            <StatusBar backgroundColor="#040D2D" barStyle="light-content" />
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#DBE2ED' } }}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="admin" />
-              <Stack.Screen name="events" />
-              <Stack.Screen name="profile" />
-              <Stack.Screen name="map" />
-              <Stack.Screen name="store" />
-            </Stack>
-          </SafeAreaView>
-        </AlertProvider>
-      </StoreProvider>
+      <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: asyncStoragePersister }}>
+        <StoreProvider>
+          <AlertProvider>
+            <SafeAreaView style={{ flex: 1, backgroundColor: '#040D2D' }}>
+              <StatusBar backgroundColor="#040D2D" barStyle="light-content" />
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#DBE2ED' } }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="admin" />
+                <Stack.Screen name="events" />
+                <Stack.Screen name="profile" />
+                <Stack.Screen name="map" />
+                <Stack.Screen name="store" />
+              </Stack>
+            </SafeAreaView>
+          </AlertProvider>
+        </StoreProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,35 +1,24 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { FirebaseEvent } from '@/types/models';
 import { listEvents } from '@/api/events';
 import { useUserStore } from '@/state/userStore';
 
 export const useEvents = () => {
-  const [events, setEvents] = useState<FirebaseEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const isAuthReady = useUserStore((s) => s.isAuthReady);
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      setError(null);
-      const items = await listEvents();
-      setEvents(items);
-    } catch (err) {
-      console.error('Error fetching events:', err);
-      setError('Failed to load events');
-      setEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const query = useQuery({
+    queryKey: ['events', 'list'],
+    queryFn: () => listEvents(),
+    enabled: isAuthReady,
+    staleTime: 1000 * 60 * 10, // 10 minutes
+  });
 
-  useEffect(() => {
-    if (!isAuthReady) return;
-    setLoading(true);
-    fetchEvents();
-  }, [isAuthReady, fetchEvents]);
-
-  return { events, loading, error, refresh: fetchEvents };
+  return { 
+    events: query.data || [], 
+    loading: query.isLoading, 
+    error: query.error ? query.error.message : null, 
+    refresh: query.refetch 
+  };
 };
 
 export const useEventsByCategory = (selectedCategory: string) => {

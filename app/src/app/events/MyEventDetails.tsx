@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -19,7 +19,9 @@ import RegistrationStatusCard from "@/components/registration/RegistrationStatus
 import TeamDetailsCard from "@/components/registration/TeamDetailsCard";
 import EventTicketCard from "@/components/registration/EventTicketCard";
 import TeamSubmissionModal from "@/components/registration/TeamSubmissionModal";
-import { deleteTeam, getEventDetail, getMyEvents, removeTeamMember } from "@/api/events";
+import { useEventDetail } from "@/hooks/useEventDetail";
+import { useDeleteTeam, useRemoveTeamMember } from "@/hooks/useEventMutations";
+
 interface MyEventDetailsRouteParams {
   eventId: string;
 }
@@ -31,42 +33,17 @@ const MyEventDetailsScreen: React.FC = () => {
   const { userData: userProfile } = useUserStore();
   const userId = userProfile?.userId || "";
 
-  const [loading, setLoading] = useState(true);
-  const [registration, setRegistration] = useState<any>(null);
-  const [teamData, setTeamData] = useState<any>(null);
-  const [eventData, setEventData] = useState<FirebaseEvent | null>(null);
+  const { data: detailData, loading } = useEventDetail(eventId);
+  const eventData = detailData?.event || null;
+  const registration = detailData?.myRegistration || null;
+  const teamData = detailData?.myTeam || null;
+
   const [submittingTeam, setSubmittingTeam] = useState(false);
   const [isSubmissionModalVisible, setIsSubmissionModalVisible] =
     useState(false);
 
-  useEffect(() => {
-    // console.log("teamData changed:", teamData);
-    // console.log("Fetching registration data for eventId:", eventId);
-    fetchRegistrationData();
-  }, [eventId]);
-
-  const fetchRegistrationData = async () => {
-    try {
-      setLoading(true);
-      const detail = await getEventDetail(eventId);
-      setEventData(detail.event);
-      setRegistration(detail.myRegistration);
-      setTeamData(detail.myTeam);
-    } catch (error) {
-      try {
-        const items = await getMyEvents();
-        const row = items.find((item) => item.registration?.eventId === eventId || item.event?.eventId === eventId);
-        setEventData(row?.event ?? null);
-        setRegistration(row?.registration ?? null);
-        setTeamData(row?.team ?? null);
-      } catch (inner) {
-        console.error("Error fetching registration data:", inner);
-        showAlert("Error", "Failed to load registration details");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteTeamMutation = useDeleteTeam();
+  const removeTeamMemberMutation = useRemoveTeamMember();
 
   const handleRemoveMember = (memberUserId: string, memberName: string) => {
     if (!teamData) {
@@ -79,14 +56,14 @@ const MyEventDetailsScreen: React.FC = () => {
       {
         text: "Remove",
         style: "destructive",
-        onPress: async () => {
-          try {
-            if (!teamData?.teamRef) return;
-            await removeTeamMember(teamData.teamRef, memberUserId);
-            await fetchRegistrationData();
-          } catch (error: any) {
-            showAlert("Error", error.message || "Failed to remove member");
-          }
+        onPress: () => {
+          if (!teamData?.teamRef) return;
+          removeTeamMemberMutation.mutate(
+            { teamRef: teamData.teamRef, userId: memberUserId },
+            {
+              onError: (error: any) => showAlert("Error", error.message || "Failed to remove member"),
+            }
+          );
         },
       },
     ]);
@@ -103,14 +80,12 @@ const MyEventDetailsScreen: React.FC = () => {
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => {
-          try {
-            if (!teamData?.teamRef) return;
-            await deleteTeam(teamData.teamRef);
-            router.back();
-          } catch (error: any) {
-            showAlert("Error", error.message || "Failed to delete team");
-          }
+        onPress: () => {
+          if (!teamData?.teamRef) return;
+          deleteTeamMutation.mutate(teamData.teamRef, {
+            onSuccess: () => router.back(),
+            onError: (error: any) => showAlert("Error", error.message || "Failed to delete team"),
+          });
         },
       },
     ]);
