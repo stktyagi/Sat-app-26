@@ -8,7 +8,6 @@ import (
 
 	"backend/internal/apierr"
 	"backend/internal/fb"
-	"backend/internal/models"
 	"backend/internal/store"
 )
 
@@ -19,7 +18,7 @@ import (
 // supplied — that is what lets GET /events add per-user pricing for a signed-in
 // caller while staying public. A token that is present but invalid is always an
 // error, on every route.
-func Auth(clients *fb.Clients, s *store.Store, required bool) gin.HandlerFunc {
+func Auth(clients *fb.Clients, s *store.Store, hostDomain string, required bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw := bearer(c)
 		if raw == "" {
@@ -38,10 +37,9 @@ func Auth(clients *fb.Clients, s *store.Store, required bool) gin.HandlerFunc {
 		}
 
 		info := &TokenInfo{
-			UID:      tok.UID,
-			Email:    claimString(tok.Claims, "email"),
-			Name:     claimString(tok.Claims, "name"),
-			PhotoURL: claimString(tok.Claims, "picture"),
+			UID:   tok.UID,
+			Email: claimString(tok.Claims, "email"),
+			Name:  claimString(tok.Claims, "name"),
 		}
 		c.Set(ctxUID, tok.UID)
 		c.Set(ctxToken, info)
@@ -49,7 +47,10 @@ func Auth(clients *fb.Clients, s *store.Store, required bool) gin.HandlerFunc {
 		user, err := s.GetUser(c.Request.Context(), tok.UID)
 		switch {
 		case err == nil:
-			c.Set(ctxUser, user)
+			// Host-vs-external is derived here, from the domain of the email on
+			// the verified token, rather than read from a stored flag that could
+			// disagree with it. It decides pricing and the sameCollegeOnly gate.
+			c.Set(ctxUser, user.ResolveHostStatus(hostDomain))
 		case errors.Is(err, store.ErrNotFound):
 			// Authenticated but no profile document yet. POST /auth/session
 			// creates it; RequireUser blocks everything else until then.
@@ -90,13 +91,12 @@ func RequireFullyRegistered() gin.HandlerFunc {
 	}
 }
 
-// RequireAdmin guards event mutation. This API models two roles only, so the
-// legacy event-coordinator value found on some live accounts is treated as a
-// plain user.
+// RequireAdmin guards event mutation. Roles are additive, so this is a
+// membership test against the roles array rather than an equality check.
 func RequireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		u := CurrentUser(c)
-		if u == nil || u.Role != models.RoleAdmin {
+		if u == nil || !u.IsAdmin() {
 			apierr.Respond(c, apierr.Forbidden("admin_only", "administrator access required"))
 			return
 		}

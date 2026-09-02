@@ -1,6 +1,10 @@
-package slug
+package slug_test
 
-import "testing"
+import (
+	"testing"
+
+	"backend/internal/slug"
+)
 
 func TestMake(t *testing.T) {
 	cases := []struct{ in, want string }{
@@ -15,8 +19,8 @@ func TestMake(t *testing.T) {
 		{"!!!", ""},
 	}
 	for _, tc := range cases {
-		if got := Make(tc.in); got != tc.want {
-			t.Errorf("Make(%q) = %q, want %q", tc.in, got, tc.want)
+		if got := slug.Make(tc.in); got != tc.want {
+			t.Errorf("slug.Make(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }

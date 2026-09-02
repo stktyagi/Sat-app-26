@@ -35,8 +35,8 @@ type profilePatch struct {
 // until name, phone, roll number and college are all present, at which point
 // fullyRegistered flips to true.
 //
-// isHostCollegeStudent is deliberately not settable here: it is derived from
-// the verified email domain, and it decides pricing.
+// Neither roles nor the host-college flag are settable here: the first is
+// admin-controlled, the second is derived from the verified email domain.
 func (a *API) PatchMe(c *gin.Context) {
 	var body profilePatch
 	if !bind(c, &body) {
@@ -69,16 +69,12 @@ func (a *API) PatchMe(c *gin.Context) {
 		fields["collegeName"] = strings.TrimSpace(*body.CollegeName)
 	}
 	if body.Gender != nil {
-		// The live data holds male, Male, Female and female; normalise on write
-		// so new records are at least internally consistent.
 		fields["gender"] = strings.ToLower(strings.TrimSpace(*body.Gender))
 	}
 	if body.Age != nil {
 		fields["age"] = strings.TrimSpace(*body.Age)
 	}
 	if body.GraduationYear != nil {
-		// Stored as a string. Some legacy documents hold a number instead,
-		// which the coercion layer flattens on read.
 		fields["graduationYear"] = strings.TrimSpace(*body.GraduationYear)
 	}
 	if body.Interests != nil {
@@ -111,6 +107,7 @@ func (a *API) PatchMe(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not update the profile"))
 		return
 	}
+	updated.IsHostCollegeStudent = user.IsHostCollegeStudent
 
 	c.JSON(http.StatusOK, gin.H{"user": updated})
 }

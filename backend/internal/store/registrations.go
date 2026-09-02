@@ -14,15 +14,15 @@ func (s *Store) GetRegistration(ctx context.Context, id string) (*models.Registr
 	if err != nil {
 		return nil, wrap(err)
 	}
-	return models.RegistrationFromDoc(doc.Ref.ID, doc.Data()), nil
+	return decodeRegistration(doc)
 }
 
 // CreateRegistration relies on the deterministic document ID for uniqueness.
 // Create fails if the document already exists, so a duplicate registration is
 // rejected atomically by Firestore rather than by a read-then-write check that
 // two concurrent requests could both pass.
-func (s *Store) CreateRegistration(ctx context.Context, id string, doc map[string]any) error {
-	_, err := s.FS.Collection(ColRegistrations).Doc(id).Create(ctx, doc)
+func (s *Store) CreateRegistration(ctx context.Context, id string, reg *models.Registration) error {
+	_, err := s.FS.Collection(ColRegistrations).Doc(id).Create(ctx, reg)
 	return wrap(err)
 }
 
@@ -33,7 +33,7 @@ func (s *Store) DeleteRegistration(ctx context.Context, id string) error {
 
 // CountRegistrations uses a server-side aggregation, so capacity checks do not
 // stream documents back. This is what lets the schema stay free of a
-// registeredCount field that would need backfilling and could drift.
+// registeredCount field that could drift.
 func (s *Store) CountRegistrations(ctx context.Context, eventID string) (int, error) {
 	q := s.FS.Collection(ColRegistrations).Where("eventId", "==", eventID)
 	res, err := q.NewAggregationQuery().WithCount("n").Get(ctx)
@@ -44,7 +44,7 @@ func (s *Store) CountRegistrations(ctx context.Context, eventID string) (int, er
 	if !ok {
 		return 0, nil
 	}
-	return models.Int(decodeAggValue(v)), nil
+	return int(decodeAggValue(v)), nil
 }
 
 // CountAllRegistrations returns per-event totals in a single pass, which is how
@@ -62,7 +62,9 @@ func (s *Store) CountAllRegistrations(ctx context.Context) (map[string]int, erro
 		if err != nil {
 			return nil, wrap(err)
 		}
-		counts[models.Str(doc.Data()["eventId"])]++
+		if id, ok := doc.Data()["eventId"].(string); ok {
+			counts[id]++
+		}
 	}
 	return counts, nil
 }
@@ -92,7 +94,11 @@ func (s *Store) collectRegistrations(ctx context.Context, q firestore.Query) ([]
 		if err != nil {
 			return nil, wrap(err)
 		}
-		out = append(out, models.RegistrationFromDoc(doc.Ref.ID, doc.Data()))
+		r, err := decodeRegistration(doc)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
 	}
 	return out, nil
 }

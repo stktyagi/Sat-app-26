@@ -2,7 +2,10 @@ package models
 
 import (
 	"fmt"
+	"slices"
 	"strings"
+
+	"backend/internal/isotime"
 )
 
 const (
@@ -10,101 +13,82 @@ const (
 	TeamStatusConfirmed = "confirmed"
 )
 
-// TeamRef is the teamRegistrations document ID, "{eventId}_{inviteCode}", which
-// is how the existing data enforces per-event invite-code uniqueness. Team
-// routes address this value directly.
+// TeamRef is the teamRegistrations document ID, "{eventId}_{INVITECODE}". The
+// event is baked into the ID, so a Create is itself the guard that makes invite
+// codes unique within an event. It is also the value team routes are addressed
+// by, and the value stored on a registration as teamId.
 func TeamRef(eventID, inviteCode string) string {
 	return fmt.Sprintf("%s_%s", eventID, strings.ToUpper(inviteCode))
 }
 
-type TeamMember struct {
-	UserID               string `json:"userId"`
-	Name                 string `json:"name"`
-	DisplayName          string `json:"displayName"`
-	Email                string `json:"email"`
-	PhoneNumber          string `json:"phoneNumber"`
-	RollNumber           string `json:"rollNumber"`
-	CollegeName          string `json:"collegeName"`
-	PhotoURL             string `json:"photoURL"`
-	IsHostCollegeStudent bool   `json:"isHostCollegeStudent"`
-	JoinedAt             string `json:"joinedAt,omitempty"`
-}
-
+// Team holds member user IDs only. Event name and type are not copied here:
+// they are read from the event cache via EventID, and a stored copy would go
+// stale the moment an admin renames the event.
 type Team struct {
-	Ref          string       `json:"teamRef"`
-	TeamID       string       `json:"teamId"`
-	EventID      string       `json:"eventId"`
-	EventName    string       `json:"eventName"`
-	EventType    string       `json:"eventType"`
-	TeamName     string       `json:"teamName"`
-	LeaderUserID string       `json:"leaderUserId"`
-	InviteCode   string       `json:"inviteCode,omitempty"`
-	Status       string       `json:"status"`
-	Members      []TeamMember `json:"members"`
-	Responses    []Response   `json:"responses"`
-	CreatedAt    string       `json:"createdAt"`
-	UpdatedAt    string       `json:"updatedAt,omitempty"`
-	Size         int          `json:"size"`
+	// TeamID is the document ID, which is TeamRef(EventID, InviteCode).
+	TeamID       string     `json:"teamId" firestore:"-"`
+	EventID      string     `json:"eventId"              firestore:"eventId"`
+	TeamName     string     `json:"teamName"             firestore:"teamName"`
+	LeaderUserID string     `json:"leaderUserId"         firestore:"leaderUserId"`
+	InviteCode   string     `json:"inviteCode,omitempty" firestore:"inviteCode"`
+	Status       string     `json:"status"               firestore:"status"`
+	MemberIDs    []string   `json:"memberIds"            firestore:"memberIds"`
+	Responses    []Response `json:"responses"            firestore:"responses"`
+	CreatedAt    string     `json:"createdAt"            firestore:"createdAt"`
+	UpdatedAt    string     `json:"updatedAt"            firestore:"updatedAt"`
+
+	// Computed per response, never stored. Members is hydrated from the users
+	// collection when a caller is entitled to see who else is on the team.
+	Size    int             `json:"size"              firestore:"-"`
+	Members []PublicProfile `json:"members,omitempty" firestore:"-"`
 }
 
-// TeamFromDoc reads both member shapes: the slim record this API writes, and
-// the records from last year which embedded an entire user document per member.
-func TeamFromDoc(ref string, m map[string]any) *Team {
-	t := &Team{
-		Ref:          ref,
-		TeamID:       Str(m["teamId"]),
-		EventID:      Str(m["eventId"]),
-		EventName:    Str(m["eventName"]),
-		EventType:    Str(m["eventType"]),
-		TeamName:     Str(m["teamName"]),
-		LeaderUserID: Str(m["leaderUserId"]),
-		InviteCode:   Str(m["inviteCode"]),
-		Status:       Str(m["status"]),
-		CreatedAt:    Str(m["createdAt"]),
-		UpdatedAt:    Str(m["updatedAt"]),
+// NewTeam builds the document written when a leader opens a team.
+func NewTeam(eventID, inviteCode, teamName, leaderID string, minTeamSize int, responses []Response) *Team {
+	now := isotime.Now()
+	if responses == nil {
+		responses = []Response{}
 	}
-	for _, mem := range MapSlice(m["members"]) {
-		t.Members = append(t.Members, TeamMember{
-			UserID:               Str(mem["userId"]),
-			Name:                 Str(Coalesce(mem["name"], mem["displayName"])),
-			DisplayName:          Str(Coalesce(mem["displayName"], mem["name"])),
-			Email:                Str(mem["email"]),
-			PhoneNumber:          Str(mem["phoneNumber"]),
-			RollNumber:           Str(mem["rollNumber"]),
-			CollegeName:          Str(mem["collegeName"]),
-			PhotoURL:             Str(mem["photoURL"]),
-			IsHostCollegeStudent: Bool(mem["isHostCollegeStudent"]),
-			JoinedAt:             Str(mem["joinedAt"]),
-		})
+	return &Team{
+		TeamID:       TeamRef(eventID, inviteCode),
+		EventID:      eventID,
+		TeamName:     teamName,
+		LeaderUserID: leaderID,
+		InviteCode:   strings.ToUpper(inviteCode),
+		Status:       StatusFor(1, minTeamSize),
+		MemberIDs:    []string{leaderID},
+		Responses:    responses,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
-	for _, resp := range MapSlice(m["responses"]) {
-		t.Responses = append(t.Responses, Response{
-			FieldID: Str(resp["fieldId"]),
-			Label:   Str(resp["label"]),
-			Type:    Str(resp["type"]),
-			Value:   resp["value"],
-		})
-	}
-	if t.Members == nil {
-		t.Members = []TeamMember{}
+}
+
+// Normalise fills the slice fields and recomputes Size.
+func (t *Team) Normalise() {
+	if t.MemberIDs == nil {
+		t.MemberIDs = []string{}
 	}
 	if t.Responses == nil {
 		t.Responses = []Response{}
 	}
-	t.Size = len(t.Members)
-	return t
+	t.Size = len(t.MemberIDs)
 }
 
-func (t *Team) HasMember(userID string) bool {
-	for _, m := range t.Members {
-		if m.UserID == userID {
-			return true
-		}
-	}
-	return false
-}
+func (t *Team) HasMember(userID string) bool { return slices.Contains(t.MemberIDs, userID) }
 
 func (t *Team) IsLeader(userID string) bool { return t.LeaderUserID == userID }
+
+// Without returns the member list with one user removed, leaving the receiver
+// untouched.
+func (t *Team) Without(userID string) []string {
+	kept := make([]string, 0, len(t.MemberIDs))
+	for _, id := range t.MemberIDs {
+		if id != userID {
+			kept = append(kept, id)
+		}
+	}
+	return kept
+}
 
 // StatusFor reports whether a team of this size has met the minimum the event
 // requires.

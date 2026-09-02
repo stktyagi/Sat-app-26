@@ -25,8 +25,8 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	optional := middleware.Auth(clients, s, false)
-	required := middleware.Auth(clients, s, true)
+	optional := middleware.Auth(clients, s, cfg.HostEmailDomain, false)
+	required := middleware.Auth(clients, s, cfg.HostEmailDomain, true)
 
 	v1 := r.Group("/api/v1")
 

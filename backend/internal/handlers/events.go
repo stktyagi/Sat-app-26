@@ -143,8 +143,9 @@ func (a *API) GetEvent(c *gin.Context) {
 		if err == nil {
 			reg.QRToken = a.QR.Sign(reg.ID)
 			body["myRegistration"] = reg
-			if reg.TeamID != "" && reg.TeamInviteCode != "" {
-				if team, err := a.Store.GetTeam(c.Request.Context(), models.TeamRef(reg.EventID, reg.TeamInviteCode)); err == nil {
+			if reg.TeamID != "" {
+				if team, err := a.Store.GetTeam(c.Request.Context(), reg.TeamID); err == nil {
+					a.hydrateMembers(c.Request.Context(), team)
 					body["myTeam"] = team
 				}
 			}
@@ -200,10 +201,11 @@ func (a *API) GetMyEvents(c *gin.Context) {
 			event.EffectiveFee = &fee
 			row["event"] = event
 		}
-		// The team document ID embeds the invite code, so this is a direct read
-		// rather than a query.
-		if reg.TeamID != "" && reg.TeamInviteCode != "" {
-			if team, err := a.Store.GetTeam(ctx, models.TeamRef(reg.EventID, reg.TeamInviteCode)); err == nil {
+		// teamId is the team document ID, so this is a direct read rather than
+		// a query.
+		if reg.TeamID != "" {
+			if team, err := a.Store.GetTeam(ctx, reg.TeamID); err == nil {
+				a.hydrateMembers(ctx, team)
 				row["team"] = team
 			}
 		}

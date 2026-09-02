@@ -5,6 +5,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 
+	"backend/internal/isotime"
 	"backend/internal/models"
 )
 
@@ -13,69 +14,59 @@ func (s *Store) GetUser(ctx context.Context, uid string) (*models.User, error) {
 	if err != nil {
 		return nil, wrap(err)
 	}
-	return models.UserFromDoc(doc.Ref.ID, doc.Data()), nil
+	return decodeUser(doc)
 }
 
-// CreateUser writes a new user document shaped exactly like the existing ones,
-// including the day-keyed accommodation, food and checkInStatus maps that other
-// parts of the platform expect to be present, and the ten-coin signup bonus
-// every sampled account carries.
-func (s *Store) CreateUser(ctx context.Context, uid string, seed map[string]any) (*models.User, error) {
-	now := models.NowString()
-	days := map[string]any{"day00": false, "day0": false, "day1": false, "day2": false, "day3": false, "day4": false}
-
-	doc := map[string]any{
-		"userId":               uid,
-		"role":                 models.RoleUser,
-		"fullyRegistered":      false,
-		"isVerified":           false,
-		"isAmbassador":         false,
-		"accommodationNeeded":  false,
-		"isHostCollegeStudent": false,
-		"displayName":          "",
-		"phoneNumber":          "",
-		"rollNumber":           "",
-		"collegeName":          "",
-		"gender":               "",
-		"age":                  "",
-		"graduationYear":       "",
-		"interests":            []any{},
-		"referredBy":           "",
-		"coins":                10,
-		"coinsHistory": []any{map[string]any{
-			"type": "signup", "coins": 10, "message": "Signup bonus", "date": now,
-		}},
-		"accommodation": days,
-		"food":          copyMap(days),
-		"checkInStatus": map[string]any{"fest": false, "accommodation": false, "Hostel": nil},
-		"createdAt":     now,
-		"updatedAt":     firestore.ServerTimestamp,
-	}
-	for k, v := range seed {
-		doc[k] = v
+// GetUsers reads many users in one round trip. This is what replaces copying a
+// profile snapshot onto every team and registration document: rosters hydrate
+// from the source of truth instead of from a duplicate that can go stale.
+// Missing users are simply absent from the result.
+func (s *Store) GetUsers(ctx context.Context, ids []string) (map[string]*models.User, error) {
+	out := make(map[string]*models.User, len(ids))
+	if len(ids) == 0 {
+		return out, nil
 	}
 
-	if _, err := s.FS.Collection(ColUsers).Doc(uid).Set(ctx, doc); err != nil {
+	refs := make([]*firestore.DocumentRef, 0, len(ids))
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		refs = append(refs, s.FS.Collection(ColUsers).Doc(id))
+	}
+
+	snaps, err := s.FS.GetAll(ctx, refs)
+	if err != nil {
 		return nil, wrap(err)
 	}
-	return s.GetUser(ctx, uid)
+	for _, snap := range snaps {
+		if !snap.Exists() {
+			continue
+		}
+		u, err := decodeUser(snap)
+		if err != nil {
+			return nil, err
+		}
+		out[snap.Ref.ID] = u
+	}
+	return out, nil
 }
 
-// UpdateUser merges fields and always refreshes updatedAt. This collection
-// stores updatedAt as a real Timestamp, unlike events and registrations which
-// use ISO strings.
+// CreateUser writes the profile document at first sign-in. Create fails if one
+// already exists, so a duplicate POST /auth/session cannot reset a profile.
+func (s *Store) CreateUser(ctx context.Context, u *models.User) (*models.User, error) {
+	if _, err := s.FS.Collection(ColUsers).Doc(u.UserID).Create(ctx, u); err != nil {
+		return nil, wrap(err)
+	}
+	return s.GetUser(ctx, u.UserID)
+}
+
 func (s *Store) UpdateUser(ctx context.Context, uid string, fields map[string]any) (*models.User, error) {
-	fields["updatedAt"] = firestore.ServerTimestamp
+	fields["updatedAt"] = isotime.Now()
 	if _, err := s.FS.Collection(ColUsers).Doc(uid).Set(ctx, fields, firestore.MergeAll); err != nil {
 		return nil, wrap(err)
 	}
 	return s.GetUser(ctx, uid)
-}
-
-func copyMap(m map[string]any) map[string]any {
-	out := make(map[string]any, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
-	return out
 }

@@ -1,14 +1,16 @@
-package qr
+package qr_test
 
 import (
 	"strings"
 	"testing"
+
+	"backend/internal/qr"
 )
 
 const registrationID = "3d-printing-workshop_0NxY025770W9cPpzHUtTPoulNVJ3"
 
 func TestSignThenVerifyRoundTrips(t *testing.T) {
-	s := New([]byte("test-secret"))
+	s := qr.New([]byte("test-secret"))
 
 	got, err := s.Verify(s.Sign(registrationID))
 	if err != nil {
@@ -20,13 +22,13 @@ func TestSignThenVerifyRoundTrips(t *testing.T) {
 }
 
 func TestTamperedTokenIsRejected(t *testing.T) {
-	s := New([]byte("test-secret"))
+	s := qr.New([]byte("test-secret"))
 	token := s.Sign(registrationID)
 
 	payload, sig, _ := strings.Cut(token, ".")
 
 	// A different registration ID carrying the original signature.
-	forged := New([]byte("test-secret")).Sign("some-other-event_someoneelse")
+	forged := qr.New([]byte("test-secret")).Sign("some-other-event_someoneelse")
 	forgedPayload, _, _ := strings.Cut(forged, ".")
 	if _, err := s.Verify(forgedPayload + "." + sig); err == nil {
 		t.Error("a swapped payload should not verify")
@@ -38,14 +40,14 @@ func TestTamperedTokenIsRejected(t *testing.T) {
 	}
 
 	// A token signed with a different secret.
-	other := New([]byte("another-secret"))
+	other := qr.New([]byte("another-secret"))
 	if _, err := s.Verify(other.Sign(registrationID)); err == nil {
 		t.Error("a token from a different secret should not verify")
 	}
 }
 
 func TestMalformedTokensAreRejected(t *testing.T) {
-	s := New([]byte("test-secret"))
+	s := qr.New([]byte("test-secret"))
 	for _, token := range []string{"", "nodot", ".", "!!!.!!!", "abc."} {
 		if _, err := s.Verify(token); err == nil {
 			t.Errorf("Verify(%q) should have failed", token)
@@ -56,7 +58,7 @@ func TestMalformedTokensAreRejected(t *testing.T) {
 // The raw registration ID is recoverable from the token, so a scanner built
 // against last year's document IDs still finds the document.
 func TestPayloadCarriesTheRegistrationID(t *testing.T) {
-	s := New([]byte("test-secret"))
+	s := qr.New([]byte("test-secret"))
 	token := s.Sign(registrationID)
 
 	if strings.Count(token, ".") != 1 {
