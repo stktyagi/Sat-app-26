@@ -1,0 +1,106 @@
+{
+  "project_info": {
+    "project_number": "29923356556",
+    "project_id": "saturnalia-dev",
+    "storage_bucket": "saturnalia-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:29923356556:android:31b118656e3c3c61e2b0a9",
+        "android_client_info": {
+          "package_name": "com.jashan.saturnaliaapp2025"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "29923356556-0c8fnubvirl98uuj2udljvlgh78r4vii.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jashan.saturnaliaapp2025",
+            "certificate_hash": "a3aa2bf2219f6fd3f8d771c2a65198a5ef8da038"
+          }
+        },
+        {
+          "client_id": "29923356556-bmft0oaq7qhbdbp4rqgiats20isi4oj2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jashan.saturnaliaapp2025",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "29923356556-lb5si0qbo23mp1r33botcfa81kpaqqsg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jashan.saturnaliaapp2025",
+            "certificate_hash": "70e9da6636e91b559b259dde4d6bd8a013027e8d"
+          }
+        },
+        {
+          "client_id": "29923356556-j3rqeerv84fq35p1ngee1um2d8mcja80.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDi-tfFVHH16fISPOJhhec2q0FT7UgQryc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "29923356556-j3rqeerv84fq35p1ngee1um2d8mcja80.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "29923356556-25h9blovsrh0ohe00q8e4dn01efdi86n.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jashan.saturnalia-app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:29923356556:android:b7f1bd25143f6b89e2b0a9",
+        "android_client_info": {
+          "package_name": "com.jashan_2003.scantur"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "29923356556-j3rqeerv84fq35p1ngee1um2d8mcja80.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDi-tfFVHH16fISPOJhhec2q0FT7UgQryc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "29923356556-j3rqeerv84fq35p1ngee1um2d8mcja80.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "29923356556-25h9blovsrh0ohe00q8e4dn01efdi86n.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jashan.saturnalia-app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

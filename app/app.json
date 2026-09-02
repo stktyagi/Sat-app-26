@@ -8,7 +8,8 @@
     "scheme": "app",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.jashan.saturnaliaapp2025"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,8 +18,9 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.app"
+      "predictiveBackGestureEnabled": true,
+      "package": "com.jashan.saturnaliaapp2025",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -34,7 +36,27 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin",
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsDownloadToken": "sk.eyJ1IjoiamFzaGFuMjAwMyIsImEiOiJjbWdiYnEzNG8wZGdxMmtzZWpqMzAybGQyIn0.VjzyzNTQnJa1I-MMuHkk_g"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "dynamic"
+          }
+        }
+      ],
+      "expo-sharing",
+      "expo-video",
+      "react-native-video"
     ],
     "experiments": {
       "typedRoutes": true,
