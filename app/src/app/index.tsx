@@ -1,17 +1,25 @@
-import { Text, View, StyleSheet } from "react-native";
+import { Redirect } from "expo-router";
+import { View, ActivityIndicator } from "react-native";
+import { useUserStore } from "@/state/userStore";
 
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text>Edit src/app/index.tsx to edit this screen.</Text>
-    </View>
-  );
-}
+  const { authUser, userData, isAuthReady, isRehydrating } = useUserStore();
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+  if (isRehydrating || !isAuthReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#040D2D' }}>
+        <ActivityIndicator size="large" color="#EEB170" />
+      </View>
+    );
+  }
+
+  if (!authUser) {
+    return <Redirect href="/(auth)" />;
+  }
+
+  if (!userData?.fullyRegistered) {
+    return <Redirect href="/(auth)/UserProfileFormScreen" />;
+  }
+
+  return <Redirect href="/(tabs)" />;
+}
