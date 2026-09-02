@@ -9,15 +9,16 @@ import (
 	"backend/internal/apierr"
 	"backend/internal/middleware"
 	"backend/internal/models"
+	"backend/internal/random"
 	"backend/internal/store"
 )
 
-// PostSession is called once after Google sign-in. It verifies the ID token via
-// the auth middleware and makes sure a user document exists, creating one that
-// matches the shape of the existing records.
+// PostSession is called once after Google sign-in and makes sure a profile
+// document exists.
 //
-// The host-vs-external split is decided here from the email domain, because it
-// drives both event pricing and the sameCollegeOnly gate.
+// It stores nothing that can be derived: the host-vs-external split comes from
+// the email domain on every request, and the avatar is generated client-side
+// from the userId, so neither is written here.
 func (a *API) PostSession(c *gin.Context) {
 	ctx := c.Request.Context()
 	tok := middleware.Token(c)
@@ -26,18 +27,10 @@ func (a *API) PostSession(c *gin.Context) {
 		return
 	}
 
-	isHost := models.IsHostEmail(tok.Email, a.Cfg.HostEmailDomain)
-
 	if u := middleware.CurrentUser(c); u != nil {
-		// Existing user. Refresh only the fields Google owns, and never
-		// overwrite a display name the user has since edited.
-		patch := map[string]any{
-			"email":                tok.Email,
-			"isHostCollegeStudent": isHost,
-		}
-		if u.PhotoURL == "" && tok.PhotoURL != "" {
-			patch["photoURL"] = tok.PhotoURL
-		}
+		// Existing user. Refresh only what Google owns, and never overwrite a
+		// display name the user has since edited.
+		patch := map[string]any{"email": tok.Email}
 		if u.DisplayName == "" && tok.Name != "" {
 			patch["displayName"] = tok.Name
 		}
@@ -47,17 +40,12 @@ func (a *API) PostSession(c *gin.Context) {
 			apierr.Respond(c, apierr.Internal("could not update the profile"))
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"user": updated, "created": false})
+		c.JSON(http.StatusOK, gin.H{"user": updated.ResolveHostStatus(a.Cfg.HostEmailDomain), "created": false})
 		return
 	}
 
-	created, err := a.Store.CreateUser(ctx, tok.UID, map[string]any{
-		"email":                tok.Email,
-		"displayName":          tok.Name,
-		"photoURL":             tok.PhotoURL,
-		"isHostCollegeStudent": isHost,
-		"referralCode":         models.RandomCode(6),
-	})
+	seed := models.NewUser(tok.UID, tok.Email, tok.Name, random.Code(6))
+	created, err := a.Store.CreateUser(ctx, seed)
 	if err != nil {
 		if errors.Is(err, store.ErrExists) {
 			apierr.Respond(c, apierr.Conflict("user_exists", "profile already exists"))
@@ -67,5 +55,5 @@ func (a *API) PostSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"user": created, "created": true})
+	c.JSON(http.StatusCreated, gin.H{"user": created.ResolveHostStatus(a.Cfg.HostEmailDomain), "created": true})
 }

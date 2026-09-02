@@ -1,17 +1,18 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"backend/internal/apierr"
 	"backend/internal/middleware"
 	"backend/internal/models"
+	"backend/internal/random"
 	"backend/internal/store"
 )
 
@@ -51,41 +52,20 @@ func (a *API) CreateTeam(c *gin.Context) {
 
 	fee := event.FeeFor(user.IsHostCollegeStudent)
 	regID := models.RegistrationID(event.EventID, user.UserID)
-	now := models.NowString()
 
-	// Invite codes are unique per event because the document ID embeds both.
-	// A collision therefore surfaces as a failed Create, and retrying draws a
+	// Invite codes are unique per event because the document ID embeds both. A
+	// collision therefore surfaces as a failed Create, and retrying draws a
 	// fresh code.
 	for attempt := 0; attempt < 5; attempt++ {
-		code := models.RandomCode(6)
-		ref := models.TeamRef(event.EventID, code)
-		teamID := uuid.NewString()
+		code := random.Code(6)
+		team := models.NewTeam(event.EventID, code, body.TeamName, user.UserID, event.MinTeamSize, body.Responses)
+		reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, code, fee, body.Responses)
 
-		teamDoc := map[string]any{
-			"teamId":       teamID,
-			"eventId":      event.EventID,
-			"eventName":    event.Title,
-			"eventType":    event.EventType,
-			"teamName":     body.TeamName,
-			"leaderUserId": user.UserID,
-			"inviteCode":   code,
-			"status":       models.StatusFor(1, event.MinTeamSize),
-			"members":      []any{user.TeamMember(now)},
-			"responses":    models.ResponsesToDocs(body.Responses),
-			"createdAt":    now,
-			"updatedAt":    now,
-		}
-		regDoc := models.NewRegistrationDoc(user, event, teamID, code, fee, body.Responses)
-
-		err := a.Store.CreateTeamWithLeader(ctx, ref, teamDoc, regID, regDoc)
+		err := a.Store.CreateTeamWithLeader(ctx, team, regID, reg)
 		switch {
 		case err == nil:
-			team, err := a.Store.GetTeam(ctx, ref)
-			if err != nil {
-				apierr.Respond(c, apierr.Internal("team created but could not be read back"))
-				return
-			}
 			a.Cache.Invalidate()
+			a.hydrateMembers(ctx, team)
 			c.JSON(http.StatusCreated, gin.H{"team": team, "inviteCode": code})
 			return
 
@@ -151,10 +131,9 @@ func (a *API) JoinTeam(c *gin.Context) {
 
 	fee := event.FeeFor(user.IsHostCollegeStudent)
 	regID := models.RegistrationID(event.EventID, user.UserID)
-	regDoc := models.NewRegistrationDoc(user, event, team.TeamID, team.InviteCode, fee, body.Responses)
-	member := user.TeamMember(models.NowString())
+	reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, team.InviteCode, fee, body.Responses)
 
-	_, err = a.Store.JoinTeam(ctx, team.Ref, user.UserID, member, regID, regDoc, event.MinTeamSize, event.MaxTeamSize)
+	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize)
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrTeamFull):
@@ -171,12 +150,8 @@ func (a *API) JoinTeam(c *gin.Context) {
 		return
 	}
 	a.Cache.Invalidate()
+	a.hydrateMembers(ctx, updated)
 
-	updated, err := a.Store.GetTeam(ctx, team.Ref)
-	if err != nil {
-		apierr.Respond(c, apierr.Internal("joined but the team could not be read back"))
-		return
-	}
 	c.JSON(http.StatusOK, gin.H{"team": updated})
 }
 
@@ -185,12 +160,7 @@ func (a *API) GetTeam(c *gin.Context) {
 	if !ok {
 		return
 	}
-	user := middleware.CurrentUser(c)
-	// The invite code is what lets someone join, so it stays inside the team.
-	if !team.HasMember(user.UserID) && !user.IsAdmin() {
-		team.InviteCode = ""
-	}
-	c.JSON(http.StatusOK, gin.H{"team": team})
+	a.presentTeam(c, team)
 }
 
 type renameTeamBody struct {
@@ -217,16 +187,11 @@ func (a *API) RenameTeam(c *gin.Context) {
 		return
 	}
 
-	if err := a.Store.UpdateTeam(c.Request.Context(), team.Ref, map[string]any{"teamName": name}); err != nil {
+	if err := a.Store.UpdateTeam(c.Request.Context(), team.TeamID, map[string]any{"teamName": name}); err != nil {
 		apierr.Respond(c, apierr.Internal("could not rename the team"))
 		return
 	}
-	updated, err := a.Store.GetTeam(c.Request.Context(), team.Ref)
-	if err != nil {
-		apierr.Respond(c, apierr.Internal("renamed but the team could not be read back"))
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"team": updated})
+	a.reloadAndRespond(c, team.TeamID, "renamed but the team could not be read back")
 }
 
 // RemoveMember lets the leader drop someone from the team. That member
@@ -266,10 +231,10 @@ func (a *API) LeaveTeam(c *gin.Context) {
 		return
 	}
 	if team.IsLeader(user.UserID) {
-		if len(team.Members) > 1 {
+		if len(team.MemberIDs) > 1 {
 			apierr.Respond(c, apierr.Conflict("leader_cannot_leave",
 				"transfer leadership or remove the other members first").
-				WithDetails(gin.H{"memberCount": len(team.Members)}))
+				WithDetails(gin.H{"memberCount": len(team.MemberIDs)}))
 			return
 		}
 		apierr.Respond(c, apierr.Conflict("delete_instead",
@@ -293,12 +258,12 @@ func (a *API) DeleteTeam(c *gin.Context) {
 		return
 	}
 
-	if err := a.Store.DeleteTeam(c.Request.Context(), team.Ref, user.UserID); err != nil {
+	if err := a.Store.DeleteTeam(c.Request.Context(), team.TeamID, user.UserID); err != nil {
 		switch {
 		case errors.Is(err, store.ErrTeamNotEmpty):
 			apierr.Respond(c, apierr.Conflict("team_not_empty",
 				"remove the other members before deleting the team").
-				WithDetails(gin.H{"memberCount": len(team.Members)}))
+				WithDetails(gin.H{"memberCount": len(team.MemberIDs)}))
 		case errors.Is(err, store.ErrNotLeader):
 			apierr.Respond(c, apierr.Forbidden("leader_only", "only the team leader can delete the team"))
 		default:
@@ -343,16 +308,11 @@ func (a *API) TransferLeader(c *gin.Context) {
 		return
 	}
 
-	if err := a.Store.UpdateTeam(c.Request.Context(), team.Ref, map[string]any{"leaderUserId": body.UserID}); err != nil {
+	if err := a.Store.UpdateTeam(c.Request.Context(), team.TeamID, map[string]any{"leaderUserId": body.UserID}); err != nil {
 		apierr.Respond(c, apierr.Internal("could not transfer leadership"))
 		return
 	}
-	updated, err := a.Store.GetTeam(c.Request.Context(), team.Ref)
-	if err != nil {
-		apierr.Respond(c, apierr.Internal("transferred but the team could not be read back"))
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"team": updated})
+	a.reloadAndRespond(c, team.TeamID, "transferred but the team could not be read back")
 }
 
 func (a *API) applyMemberRemoval(c *gin.Context, team *models.Team, event *models.Event, target string) {
@@ -361,7 +321,7 @@ func (a *API) applyMemberRemoval(c *gin.Context, team *models.Team, event *model
 		minSize = event.MinTeamSize
 	}
 
-	if err := a.Store.RemoveMember(c.Request.Context(), team.Ref, target, minSize); err != nil {
+	if err := a.Store.RemoveMember(c.Request.Context(), team.TeamID, target, minSize); err != nil {
 		if errors.Is(err, store.ErrNotMember) {
 			apierr.Respond(c, apierr.NotFound("not_a_member", "that user is not in this team"))
 			return
@@ -371,12 +331,50 @@ func (a *API) applyMemberRemoval(c *gin.Context, team *models.Team, event *model
 	}
 	a.Cache.Invalidate()
 
-	updated, err := a.Store.GetTeam(c.Request.Context(), team.Ref)
+	a.reloadAndRespond(c, team.TeamID, "updated but the team could not be read back")
+}
+
+// reloadAndRespond re-reads a team after a mutation so the response always
+// reflects what is actually stored.
+func (a *API) reloadAndRespond(c *gin.Context, teamID, failure string) {
+	updated, err := a.Store.GetTeam(c.Request.Context(), teamID)
 	if err != nil {
-		apierr.Respond(c, apierr.Internal("updated but the team could not be read back"))
+		apierr.Respond(c, apierr.Internal(failure))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"team": updated})
+	a.presentTeam(c, updated)
+}
+
+// presentTeam applies the visibility rules and writes the response. The invite
+// code is what lets someone join, and the member roster is other people's
+// details, so both stay inside the team.
+func (a *API) presentTeam(c *gin.Context, team *models.Team) {
+	user := middleware.CurrentUser(c)
+	if team.HasMember(user.UserID) || user.IsAdmin() {
+		a.hydrateMembers(c.Request.Context(), team)
+	} else {
+		team.InviteCode = ""
+	}
+	c.JSON(http.StatusOK, gin.H{"team": team})
+}
+
+// hydrateMembers turns the stored member IDs into displayable profiles with one
+// batch read. Nothing about a member is copied into the team document, so this
+// is the only place the roster is assembled and it can never be stale.
+func (a *API) hydrateMembers(ctx context.Context, team *models.Team) {
+	users, err := a.Store.GetUsers(ctx, team.MemberIDs)
+	if err != nil {
+		return
+	}
+	members := make([]models.PublicProfile, 0, len(team.MemberIDs))
+	for _, id := range team.MemberIDs {
+		u, ok := users[id]
+		if !ok {
+			continue
+		}
+		members = append(members, u.ResolveHostStatus(a.Cfg.HostEmailDomain).Public())
+	}
+	team.Members = members
 }
 
 func (a *API) loadTeam(c *gin.Context) (*models.Team, bool) {
@@ -411,15 +409,17 @@ func (a *API) loadTeamForMutation(c *gin.Context) (*models.Team, *models.Event, 
 // within an event but not across events, so an ambiguous code asks the caller
 // for the event rather than guessing.
 func (a *API) resolveTeamByCode(c *gin.Context, code, eventID string) (*models.Team, *apierr.Error) {
+	ctx := c.Request.Context()
+
 	if eventID != "" {
-		team, err := a.Store.GetTeam(c.Request.Context(), models.TeamRef(eventID, code))
+		team, err := a.Store.GetTeam(ctx, models.TeamRef(eventID, code))
 		if err != nil {
 			return nil, apierr.NotFound("team_not_found", "no team with that invite code")
 		}
 		return team, nil
 	}
 
-	teams, err := a.Store.FindTeamsByInviteCode(c.Request.Context(), code)
+	teams, err := a.Store.FindTeamsByInviteCode(ctx, code)
 	if err != nil {
 		return nil, apierr.Internal("could not look up the invite code")
 	}
@@ -429,9 +429,15 @@ func (a *API) resolveTeamByCode(c *gin.Context, code, eventID string) (*models.T
 	case 1:
 		return teams[0], nil
 	default:
+		// The team carries no copy of the event title, so the names offered to
+		// disambiguate come from the event cache and are always current.
 		options := make([]gin.H, 0, len(teams))
 		for _, t := range teams {
-			options = append(options, gin.H{"eventId": t.EventID, "eventName": t.EventName})
+			name := ""
+			if event, err := a.Cache.Get(ctx, t.EventID); err == nil {
+				name = event.Title
+			}
+			options = append(options, gin.H{"eventId": t.EventID, "eventName": name})
 		}
 		return nil, apierr.Conflict("ambiguous_code",
 			"that code matches teams in more than one event; supply eventId").

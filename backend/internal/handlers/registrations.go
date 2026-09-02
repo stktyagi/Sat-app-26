@@ -45,9 +45,9 @@ func (a *API) Register(c *gin.Context) {
 
 	fee := event.FeeFor(user.IsHostCollegeStudent)
 	id := models.RegistrationID(event.EventID, user.UserID)
-	doc := models.NewRegistrationDoc(user, event, "", "", fee, body.Responses)
+	reg := models.NewRegistration(user.UserID, event.EventID, "", "", fee, body.Responses)
 
-	if err := a.Store.CreateRegistration(ctx, id, doc); err != nil {
+	if err := a.Store.CreateRegistration(ctx, id, reg); err != nil {
 		if errors.Is(err, store.ErrExists) {
 			apierr.Respond(c, apierr.Conflict("already_registered", "you are already registered for this event"))
 			return
@@ -57,14 +57,14 @@ func (a *API) Register(c *gin.Context) {
 	}
 	a.Cache.Invalidate()
 
-	reg, err := a.Store.GetRegistration(ctx, id)
+	saved, err := a.Store.GetRegistration(ctx, id)
 	if err != nil {
 		apierr.Respond(c, apierr.Internal("registration saved but could not be read back"))
 		return
 	}
-	reg.QRToken = a.QR.Sign(reg.ID)
+	saved.QRToken = a.QR.Sign(saved.ID)
 
-	c.JSON(http.StatusCreated, gin.H{"registration": reg})
+	c.JSON(http.StatusCreated, gin.H{"registration": saved})
 }
 
 // Unregister removes an individual registration. Team members leave through the

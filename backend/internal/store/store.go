@@ -11,8 +11,6 @@ import (
 	"backend/internal/config"
 )
 
-// Collection names are inherited from the existing database and must not be
-// renamed: the previous web app and admin panel read the same documents.
 const (
 	ColUsers         = "users"
 	ColEvents        = "events"
@@ -49,9 +47,13 @@ func wrap(err error) error {
 }
 
 // decodeAggValue unwraps the protobuf value an aggregation query returns.
-func decodeAggValue(v any) any {
-	if pv, ok := v.(*firestorepb.Value); ok {
-		return pv.GetIntegerValue()
+func decodeAggValue(v any) int64 {
+	switch t := v.(type) {
+	case *firestorepb.Value:
+		return t.GetIntegerValue()
+	case int64:
+		return t
+	default:
+		return 0
 	}
-	return v
 }

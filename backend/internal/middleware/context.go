@@ -16,10 +16,9 @@ const (
 // TokenInfo carries the claims taken straight off the verified Firebase ID
 // token, which is all that is available before the user document is loaded.
 type TokenInfo struct {
-	UID      string
-	Email    string
-	Name     string
-	PhotoURL string
+	UID   string
+	Email string
+	Name  string
 }
 
 func UID(c *gin.Context) string {

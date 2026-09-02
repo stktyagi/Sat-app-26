@@ -1,111 +1,97 @@
 package models
 
-import "strings"
+import (
+	"slices"
 
-// Roles. The live users collection also contains "event-coordinator" from last
-// year, but this API models two roles only — anyone holding the legacy value is
-// treated as a plain user.
+	"backend/internal/email"
+	"backend/internal/isotime"
+)
+
+// Roles are additive permissions. Every account carries RoleUser; an
+// administrator carries RoleAdmin alongside it, so a check is a membership test
+// rather than an equality test.
 const (
 	RoleUser  = "user"
 	RoleAdmin = "admin"
 )
 
 type User struct {
-	UserID               string   `json:"userId"`
-	Email                string   `json:"email"`
-	DisplayName          string   `json:"displayName"`
-	PhoneNumber          string   `json:"phoneNumber"`
-	RollNumber           string   `json:"rollNumber"`
-	CollegeName          string   `json:"collegeName"`
-	Role                 string   `json:"role"`
-	PhotoURL             string   `json:"photoURL"`
-	Gender               string   `json:"gender"`
-	Age                  string   `json:"age"`
-	GraduationYear       string   `json:"graduationYear"`
-	Interests            []string `json:"interests"`
-	IsHostCollegeStudent bool     `json:"isHostCollegeStudent"`
-	FullyRegistered      bool     `json:"fullyRegistered"`
-	IsVerified           bool     `json:"isVerified"`
-	IsAmbassador         bool     `json:"isAmbassador"`
-	AccommodationNeeded  bool     `json:"accommodationNeeded"`
-	ReferralCode         string   `json:"referralCode"`
-	ReferredBy           string   `json:"referredBy"`
-	Coins                int      `json:"coins"`
-	CreatedAt            string   `json:"createdAt"`
+	UserID              string   `json:"userId"              firestore:"userId"`
+	Email               string   `json:"email"               firestore:"email"`
+	DisplayName         string   `json:"displayName"         firestore:"displayName"`
+	PhoneNumber         string   `json:"phoneNumber"         firestore:"phoneNumber"`
+	RollNumber          string   `json:"rollNumber"          firestore:"rollNumber"`
+	CollegeName         string   `json:"collegeName"         firestore:"collegeName"`
+	Roles               []string `json:"roles"               firestore:"roles"`
+	Gender              string   `json:"gender"              firestore:"gender"`
+	Age                 string   `json:"age"                 firestore:"age"`
+	GraduationYear      string   `json:"graduationYear"      firestore:"graduationYear"`
+	Interests           []string `json:"interests"           firestore:"interests"`
+	FullyRegistered     bool     `json:"fullyRegistered"     firestore:"fullyRegistered"`
+	IsVerified          bool     `json:"isVerified"          firestore:"isVerified"`
+	IsAmbassador        bool     `json:"isAmbassador"        firestore:"isAmbassador"`
+	AccommodationNeeded bool     `json:"accommodationNeeded" firestore:"accommodationNeeded"`
+	ReferralCode        string   `json:"referralCode"        firestore:"referralCode"`
+	ReferredBy          string   `json:"referredBy"          firestore:"referredBy"`
+	Coins               int      `json:"coins"               firestore:"coins"`
+	CreatedAt           string   `json:"createdAt"           firestore:"createdAt"`
+	UpdatedAt           string   `json:"updatedAt"           firestore:"updatedAt"`
+
+	// IsHostCollegeStudent is derived from the verified email domain on every
+	// load, never stored. A stored copy could disagree with the token that is
+	// actually presenting the request, and this value decides both pricing and
+	// the sameCollegeOnly gate.
+	IsHostCollegeStudent bool `json:"isHostCollegeStudent" firestore:"-"`
 }
 
-func (u *User) IsAdmin() bool { return u != nil && u.Role == RoleAdmin }
+// NewUser is the document written at first sign-in. Everything else the profile
+// needs arrives later through PATCH /me.
+func NewUser(uid, address, displayName, referralCode string) *User {
+	now := isotime.Now()
+	return &User{
+		UserID:       uid,
+		Email:        address,
+		DisplayName:  displayName,
+		Roles:        []string{RoleUser},
+		Interests:    []string{},
+		ReferralCode: referralCode,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+}
 
-func UserFromDoc(id string, m map[string]any) *User {
-	u := &User{
-		UserID:               Str(Coalesce(m["userId"], id)),
-		Email:                Str(m["email"]),
-		DisplayName:          Str(Coalesce(m["displayName"], m["name"])),
-		PhoneNumber:          Str(m["phoneNumber"]),
-		RollNumber:           Str(m["rollNumber"]),
-		CollegeName:          Str(m["collegeName"]),
-		Role:                 Str(m["role"]),
-		PhotoURL:             Str(m["photoURL"]),
-		Gender:               Gender(m["gender"]),
-		Age:                  Str(m["age"]),
-		GraduationYear:       Str(m["graduationYear"]),
-		Interests:            StrSlice(m["interests"]),
-		IsHostCollegeStudent: Bool(m["isHostCollegeStudent"]),
-		FullyRegistered:      Bool(m["fullyRegistered"]),
-		IsVerified:           Bool(m["isVerified"]),
-		IsAmbassador:         Bool(m["isAmbassador"]),
-		AccommodationNeeded:  Bool(m["accommodationNeeded"]),
-		ReferralCode:         Str(m["referralCode"]),
-		ReferredBy:           Str(m["referredBy"]),
-		Coins:                Int(m["coins"]),
-		CreatedAt:            Str(m["createdAt"]),
+func (u *User) IsAdmin() bool { return u != nil && slices.Contains(u.Roles, RoleAdmin) }
+
+func (u *User) HasRole(role string) bool { return u != nil && slices.Contains(u.Roles, role) }
+
+// PublicProfile is what one participant may see of another: enough to render a
+// team roster and nothing more. Avatars are generated client-side from the
+// userId, so no photo URL is carried here or stored anywhere.
+type PublicProfile struct {
+	UserID               string `json:"userId"`
+	DisplayName          string `json:"displayName"`
+	CollegeName          string `json:"collegeName"`
+	IsHostCollegeStudent bool   `json:"isHostCollegeStudent"`
+}
+
+func (u *User) Public() PublicProfile {
+	return PublicProfile{
+		UserID:               u.UserID,
+		DisplayName:          u.DisplayName,
+		CollegeName:          u.CollegeName,
+		IsHostCollegeStudent: u.IsHostCollegeStudent,
 	}
-	if u.Role != RoleAdmin {
-		u.Role = RoleUser
-	}
-	if u.Interests == nil {
-		u.Interests = []string{}
+}
+
+// ResolveHostStatus derives the host-vs-external split from the verified email
+// address. It is deliberately a method rather than a stored field: this value
+// decides pricing and the sameCollegeOnly gate, and a stored copy could
+// disagree with the token actually presenting the request.
+//
+// Every path that loads a user calls this before the user is used or returned.
+func (u *User) ResolveHostStatus(hostDomain string) *User {
+	if u != nil {
+		u.IsHostCollegeStudent = email.HasDomain(u.Email, hostDomain)
 	}
 	return u
-}
-
-// RegistrationSnapshot is the denormalised `user` block copied onto every
-// registration document, matching the existing field names exactly.
-func (u *User) RegistrationSnapshot() map[string]any {
-	return map[string]any{
-		"name":        u.DisplayName,
-		"email":       u.Email,
-		"phoneNumber": u.PhoneNumber,
-		"rollNumber":  u.RollNumber,
-		"collegeName": u.CollegeName,
-	}
-}
-
-// TeamMember is the slim member record written into teamRegistrations.members.
-// Last year's documents embedded the entire user document here — all 29 fields
-// including the FCM push token, appleId and coinsHistory — into a document every
-// teammate can read. New writes carry only what a UI actually renders.
-func (u *User) TeamMember(joinedAt string) map[string]any {
-	return map[string]any{
-		"userId":               u.UserID,
-		"name":                 u.DisplayName,
-		"displayName":          u.DisplayName,
-		"email":                u.Email,
-		"phoneNumber":          u.PhoneNumber,
-		"rollNumber":           u.RollNumber,
-		"collegeName":          u.CollegeName,
-		"photoURL":             u.PhotoURL,
-		"isHostCollegeStudent": u.IsHostCollegeStudent,
-		"joinedAt":             joinedAt,
-	}
-}
-
-// IsHostEmail decides the host-vs-external split that drives event pricing and
-// sameCollegeOnly gating.
-func IsHostEmail(email, hostDomain string) bool {
-	at := strings.LastIndex(email, "@")
-	if at < 0 {
-		return false
-	}
-	return strings.EqualFold(strings.TrimSpace(email[at+1:]), hostDomain)
 }

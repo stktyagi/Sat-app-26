@@ -74,9 +74,9 @@ mkuser() {
 # write rather than an API call.
 promote_admin() {
   curl -s -o /dev/null -X PATCH \
-    "http://$FS_HOST/v1/projects/$PROJECT/databases/(default)/documents/users/$1?updateMask.fieldPaths=role" \
+    "http://$FS_HOST/v1/projects/$PROJECT/databases/(default)/documents/users/$1?updateMask.fieldPaths=roles" \
     -H 'Content-Type: application/json' \
-    -d '{"fields":{"role":{"stringValue":"admin"}}}'
+    -d '{"fields":{"roles":{"arrayValue":{"values":[{"stringValue":"user"},{"stringValue":"admin"}]}}}}'
 }
 
 complete_profile() {
@@ -201,7 +201,7 @@ section "teams"
 call POST "/events/$TEAM_ID/teams" "$LEADER_TOKEN" '{"teamName":"Smoke Squad"}'
 expect "leader creates a team" 201
 CODE=$(echo "$BODY" | jget "['inviteCode']")
-TEAM_REF=$(echo "$BODY" | jget "['team']['teamRef']")
+TEAM_REF=$(echo "$BODY" | jget "['team']['teamId']")
 
 call POST "/events/$TEAM_ID/register" "$MEMBER_TOKEN"
 expect "individual endpoint refuses a team event" 400
@@ -243,7 +243,7 @@ section "remove-member path"
 call POST "/events/$TEAM_ID/teams" "$LEADER_TOKEN" '{"teamName":"Second Squad"}'
 expect "leader creates another team" 201
 CODE2=$(echo "$BODY" | jget "['inviteCode']")
-REF2=$(echo "$BODY" | jget "['team']['teamRef']")
+REF2=$(echo "$BODY" | jget "['team']['teamId']")
 
 call POST /teams/join "$MEMBER_TOKEN" "{\"inviteCode\":\"$CODE2\"}"
 expect "member joins" 200
