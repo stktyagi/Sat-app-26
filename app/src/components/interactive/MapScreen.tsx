@@ -50,6 +50,21 @@ const MAPBOX_TOKEN = "pk.eyJ1IjoiamFzaGFuMjAwMyIsImEiOiJjbWdhbHRkNTkwbm1vMmlxdGR
 // TODO: Set your Mapbox public access token here
 Mapbox.setAccessToken(MAPBOX_TOKEN);
 
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3; // metres
+  const φ1 = (lat1 * Math.PI) / 180; // φ, λ in radians
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in metres
+};
+
 export default function MapScreen() {
   const router = useRouter();
   const cameraRef = useRef<Camera>(null);
@@ -66,6 +81,10 @@ export default function MapScreen() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
+  const [fullRouteCoordinates, setFullRouteCoordinates] = useState<[number, number][] | null>(null);
+  const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
+  const [isFollowingUser, setIsFollowingUser] = useState(false);
+  const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const [destination, setDestination] = useState<{lat: number, lng: number, name: string} | null>(null);
   const [userLocation, setUserLocation] = useState<{
     lat: number;
@@ -105,6 +124,7 @@ export default function MapScreen() {
       };
 
       setUserLocation(userLoc);
+      setIsFollowingUser(true);
 
       // Fly to user location
       if (cameraRef.current) {
@@ -115,11 +135,113 @@ export default function MapScreen() {
         });
       }
 
+      // Start watcher
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+      }
+      
+      locationSubscription.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          distanceInterval: 2, // Every 2 meters
+          timeInterval: 2000, // Or every 2 seconds
+        },
+        (loc) => {
+          setUserLocation({
+            lat: loc.coords.latitude,
+            lng: loc.coords.longitude,
+          });
+        }
+      );
+
     } catch (error) {
       console.error("Error getting user location:", error);
       showAlert("Error", "Failed to get your location");
     }
   }, []);
+
+  // Cleanup location watcher on unmount
+  useEffect(() => {
+    return () => {
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+      }
+    };
+  }, []);
+
+  // Handle live tracking and route trimming
+  useEffect(() => {
+    if (!userLocation) return;
+
+    // 1. Camera Tracking
+    if (isFollowingUser && cameraRef.current) {
+      cameraRef.current.setCamera({
+        centerCoordinate: [userLocation.lng, userLocation.lat],
+        animationDuration: 1000,
+      });
+    }
+
+    // 2. Route Trimming
+    if (fullRouteCoordinates && fullRouteCoordinates.length > 0) {
+      let minDistance = Infinity;
+      let closestIndex = currentRouteIndex;
+
+      // Only search forward (lookahead of 20 points) to prevent snapping to past segments if paths cross
+      const lookahead = Math.min(currentRouteIndex + 20, fullRouteCoordinates.length);
+
+      for (let i = currentRouteIndex; i < lookahead; i++) {
+        const coord = fullRouteCoordinates[i];
+        // Mapbox coordinates are [lng, lat]
+        const dist = getDistance(userLocation.lat, userLocation.lng, coord[1], coord[0]);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestIndex = i;
+        }
+      }
+
+      // Advance the user's progress along the route
+      if (closestIndex > currentRouteIndex) {
+        setCurrentRouteIndex(closestIndex);
+      }
+
+      // If user is reasonably close to the path (e.g., within 100 meters), trim it.
+      if (minDistance < 100) {
+        let nextWaypointIndex = closestIndex;
+        
+        // Prevent drawing backwards: determine which segment the user is on
+        if (closestIndex > 0 && closestIndex < fullRouteCoordinates.length - 1) {
+          const prevCoord = fullRouteCoordinates[closestIndex - 1];
+          const nextCoord = fullRouteCoordinates[closestIndex + 1];
+          
+          const distPrev = getDistance(userLocation.lat, userLocation.lng, prevCoord[1], prevCoord[0]);
+          const distNext = getDistance(userLocation.lat, userLocation.lng, nextCoord[1], nextCoord[0]);
+          
+          if (distNext < distPrev) {
+            // User has passed closestIndex and is moving towards nextCoord
+            nextWaypointIndex = closestIndex + 1;
+          }
+        }
+
+        const remainingCoords = fullRouteCoordinates.slice(nextWaypointIndex);
+        // Insert user's exact current location at the start for a smooth connection
+        remainingCoords.unshift([userLocation.lng, userLocation.lat]);
+
+        setRouteGeoJSON({
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "LineString",
+                coordinates: remainingCoords,
+              },
+            },
+          ],
+        });
+      }
+    }
+  }, [userLocation, fullRouteCoordinates, isFollowingUser, currentRouteIndex]);
 
   // Fetch venues from Firebase
   const fetchVenues = useCallback(async () => {
@@ -296,6 +418,9 @@ export default function MapScreen() {
         });
         
         const coords = data.routes[0].geometry.coordinates;
+        setFullRouteCoordinates(coords);
+        setCurrentRouteIndex(0); // Reset index for new route
+        
         const bounds = coords.reduce((acc: any, coord: any) => {
           return {
             ne: [Math.max(acc.ne[0], coord[0]), Math.max(acc.ne[1], coord[1])],
@@ -323,6 +448,8 @@ export default function MapScreen() {
 
   const clearRoute = () => {
     setRouteGeoJSON(null);
+    setFullRouteCoordinates(null);
+    setCurrentRouteIndex(0);
     setDestination(null);
     setSearchQuery("");
     if (userLocation) {
@@ -421,6 +548,7 @@ export default function MapScreen() {
         style={StyleSheet.absoluteFill}
         styleURL="mapbox://styles/mapbox/streets-v12"
         onPress={handleMapPress}
+        onTouchStart={() => setIsFollowingUser(false)}
         onDidFinishLoadingMap={() => setMapLoaded(true)}
       >
         <Camera
@@ -675,12 +803,23 @@ export default function MapScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.controlButton}
-          onPress={getUserLocation}
+          onPress={() => {
+            setIsFollowingUser(true);
+            if (userLocation && cameraRef.current) {
+              cameraRef.current.setCamera({
+                centerCoordinate: [userLocation.lng, userLocation.lat],
+                zoomLevel: 17,
+                animationDuration: 1000,
+              });
+            } else {
+              getUserLocation();
+            }
+          }}
         >
           <Ionicons
             name="location"
             size={22}
-            color={userLocation ? "#4285F4" : "#666"}
+            color={userLocation ? (isFollowingUser ? "#4285F4" : "#333") : "#666"}
           />
         </TouchableOpacity>
       </Animated.View>

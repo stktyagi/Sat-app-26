@@ -191,7 +191,7 @@ const ProfileScreen = () => {
     iconColor: string;
   }) => (
     <TouchableOpacity
-      className="bg-[#2D1E2F]/40 mb-4 p-[2px] rounded-[10px] shadow-sm"
+      className="bg-[#2D1E2F]/40 mb-4 p-[2px] rounded-[10px]"
       onPress={onPress}
     >
       <View className="flex-row items-center border-[1.5px] border-[#6b6474] p-3 rounded-[8px]">

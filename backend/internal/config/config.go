@@ -26,6 +26,7 @@ type Config struct {
 	PaymentsEnforced bool
 
 	UseEmulator bool
+	GroqAPIKey string
 }
 
 func Load() (*Config, error) {
@@ -39,6 +40,7 @@ func Load() (*Config, error) {
 		HostEmailDomain: strings.ToLower(env("HOST_EMAIL_DOMAIN", "thapar.edu")),
 		AllowedOrigins:  splitCSV(env("ALLOWED_ORIGINS", "*")),
 		UseEmulator:     os.Getenv("FIRESTORE_EMULATOR_HOST") != "",
+		GroqAPIKey: os.Getenv("GROQ_API_KEY"),
 	}
 
 	ttl, err := time.ParseDuration(env("EVENT_CACHE_TTL", "60s"))

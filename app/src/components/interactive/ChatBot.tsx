@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import MarkdownText from '../display/MarkdownText';
@@ -186,7 +187,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
       onRequestClose={onClose}
     >
 
-      <View className="flex-1 bg-transparent">
+      <SafeAreaView className="flex-1 bg-[#DBE2ED]" edges={['top', 'bottom']}>
         {/* Header */}
         <View className="flex-row items-center justify-between px-4 mt-5 ">
           <TouchableOpacity onPress={onClose} className="p-2">
@@ -262,7 +263,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
             </View>
           </View>
         </KeyboardAvoidingView>
-      </View>
+      </SafeAreaView>
 
     </Modal>
   );

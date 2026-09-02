@@ -24,8 +24,14 @@ export const useAuthListener = () => {
         setAuthUser(user);
 
         try {
-          const session = await syncBackendSession(user);
-          setUserData(session.user);
+          // Check if we already have the user data in our local Zustand cache
+          const existingUserData = useUserStore.getState().userData;
+          
+          if (!existingUserData) {
+            // Only hit the backend to sync session if we don't have the profile cached
+            const session = await syncBackendSession(user);
+            setUserData(session.user);
+          }
         } catch (error) {
           console.error("Failed to restore backend session:", error);
         } finally {

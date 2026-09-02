@@ -15,6 +15,7 @@ import (
 	"backend/internal/handlers"
 	"backend/internal/qr"
 	"backend/internal/store"
+	"backend/internal/chatbot"
 )
 
 func main() {
@@ -32,7 +33,8 @@ func main() {
 
 	st := store.New(clients.FS, cfg)
 	cache := store.NewEventCache(st, cfg.EventCacheTTL)
-	api := handlers.New(st, cache, qr.New(cfg.QRSecret), cfg)
+	cb := chatbot.NewService(cfg.GroqAPIKey)
+	api := handlers.New(st, cache, qr.New(cfg.QRSecret), cfg, cb)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
