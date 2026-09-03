@@ -7,16 +7,18 @@ import (
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"firebase.google.com/go/v4/messaging"
 	"google.golang.org/api/option"
 
 	"backend/internal/config"
 )
 
-// Clients bundles the two Firebase handles the API needs. Auth verifies the ID
-// tokens the Expo app sends; Firestore is the datastore.
+// Clients bundles the Firebase handles the API needs. Auth verifies the ID
+// tokens the Expo app sends; Firestore is the datastore; Messaging handles FCM.
 type Clients struct {
-	Auth *auth.Client
-	FS   *firestore.Client
+	Auth      *auth.Client
+	FS        *firestore.Client
+	Messaging *messaging.Client
 }
 
 func New(ctx context.Context, cfg *config.Config) (*Clients, error) {
@@ -44,7 +46,12 @@ func New(ctx context.Context, cfg *config.Config) (*Clients, error) {
 		return nil, fmt.Errorf("firestore: %w", err)
 	}
 
-	return &Clients{Auth: authClient, FS: fsClient}, nil
+	messagingClient, err := app.Messaging(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("messaging: %w", err)
+	}
+
+	return &Clients{Auth: authClient, FS: fsClient, Messaging: messagingClient}, nil
 }
 
 func (c *Clients) Close() error { return c.FS.Close() }
