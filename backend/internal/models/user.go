@@ -36,6 +36,7 @@ type User struct {
 	Coins               int      `json:"coins"               firestore:"coins"`
 	CreatedAt           string   `json:"createdAt"           firestore:"createdAt"`
 	UpdatedAt           string   `json:"updatedAt"           firestore:"updatedAt"`
+	FCMToken            string   `json:"fcmToken"            firestore:"fcmToken"`
 
 	// IsHostCollegeStudent is derived from the verified email domain on every
 	// load, never stored. A stored copy could disagree with the token that is

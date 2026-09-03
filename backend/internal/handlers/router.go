@@ -67,5 +67,9 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	admin.DELETE("/admin/events/:id", api.DeleteEvent)
 	admin.GET("/admin/events/:id/registrations", api.ListEventRegistrations)
 
+	// FCM: client registers its token; admins broadcast to audiences.
+	authed.POST("/me/fcm-token", api.UpdateFCMToken)
+	admin.POST("/admin/notifications", api.SendNotification)
+
 	return r
 }
