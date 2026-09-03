@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"backend/internal/cache"
 	"backend/internal/config"
 	"backend/internal/fb"
 	"backend/internal/handlers"
@@ -31,14 +32,23 @@ func main() {
 	}
 	defer clients.Close()
 
+	// NewRedis pings before returning, so an unreachable Redis stops the boot
+	// here rather than turning every later request into a 500.
+	provider, err := cache.NewRedis(ctx, cfg.RedisURL, cfg.RedisNamespace)
+	if err != nil {
+		log.Fatalf("redis: %v", err)
+	}
+	defer provider.Close()
+
 	st := store.New(clients.FS, cfg)
-	cache := store.NewEventCache(st, cfg.EventCacheTTL)
+	events := store.NewEventCache(st, provider, provider, cfg.EventCacheTTL)
+	events.StartInvalidationListener(ctx)
 	cb := chatbot.NewService(cfg.GroqAPIKey)
-	api := handlers.New(st, cache, qr.New(cfg.QRSecret), cfg, cb)
+	api := handlers.New(st, events, qr.New(cfg.QRSecret), cfg, cb)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           handlers.Router(cfg, clients, st, cache, api),
+		Handler:           handlers.Router(cfg, clients, st, events, api),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

@@ -6,11 +6,13 @@
 # emulator, so no Google sign-in is needed, and every write lands in the local
 # Firestore emulator.
 #
-# Prerequisites (neither is installed by this repo):
+# Prerequisites (none of these is installed by this repo):
 #   - a JDK, which the Firestore emulator needs
 #   - firebase-tools:  npm i -g firebase-tools
+#   - Docker, for the Redis the API requires
 #
 # Run, from the repository root:
+#   docker compose up -d redis
 #   firebase emulators:start --only auth,firestore --project saturnalia-dev
 #
 # then, in a second shell:
@@ -19,6 +21,7 @@
 #   FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 \
 #   FIREBASE_PROJECT_ID=saturnalia-dev \
 #   QR_SIGNING_SECRET=smoke-secret \
+#   REDIS_URL=redis://localhost:6379/0 \
 #   go run ./cmd/api
 #
 # then, in a third shell:
