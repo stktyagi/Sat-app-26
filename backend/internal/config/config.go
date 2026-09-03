@@ -19,6 +19,12 @@ type Config struct {
 	AllowedOrigins  []string
 	EventCacheTTL   time.Duration
 
+	// RedisURL is required. The event cache keeps its shared snapshot and its
+	// cross-instance invalidation channel there, so booting without it would
+	// mean every instance silently serving its own stale view.
+	RedisURL       string
+	RedisNamespace string
+
 	// PaymentsEnforced gates the whole payment story. While false, an event
 	// with a non-zero fee still registers normally (the computed amount is
 	// recorded on the registration, but nothing collects it). Flipping this to
@@ -39,6 +45,8 @@ func Load() (*Config, error) {
 		QRSecret:        []byte(os.Getenv("QR_SIGNING_SECRET")),
 		HostEmailDomain: strings.ToLower(env("HOST_EMAIL_DOMAIN", "thapar.edu")),
 		AllowedOrigins:  splitCSV(env("ALLOWED_ORIGINS", "*")),
+		RedisURL:        os.Getenv("REDIS_URL"),
+		RedisNamespace:  env("REDIS_NAMESPACE", "sat26"),
 		UseEmulator:     os.Getenv("FIRESTORE_EMULATOR_HOST") != "",
 		GroqAPIKey: os.Getenv("GROQ_API_KEY"),
 	}
@@ -59,6 +67,9 @@ func Load() (*Config, error) {
 
 	if len(c.QRSecret) == 0 {
 		return nil, fmt.Errorf("QR_SIGNING_SECRET is required")
+	}
+	if c.RedisURL == "" {
+		return nil, fmt.Errorf("REDIS_URL is required")
 	}
 	if !c.UseEmulator {
 		if _, err := os.Stat(c.CredentialsFile); err != nil {
