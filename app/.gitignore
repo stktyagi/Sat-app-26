@@ -41,3 +41,11 @@ example
 # generated native folders
 /ios
 /android
+
+# Firebase / Google service configs (contain secrets)
+google-services.json
+GoogleService-Info.plist
+**/google-services.json
+**/GoogleService-Info.plist
+
+
