@@ -53,11 +53,13 @@ type eventSource interface {
 // under a thousand events.
 //
 // L2 is Redis, shared by every instance. It holds the same snapshot plus the
-// counts, so a cold instance does not repeat the full collection scan — the
-// counts scan reads every registration document, and that grows with signups —
-// and it carries an invalidation channel that drops every instance's L1 at
-// once. Without that channel an admin editing an event on one instance would
-// leave the others serving stale data until their own TTL turned over.
+// counts, so a cold instance does not repeat the load. Counts are one
+// aggregation query per event, so rebuilding them is N concurrent Firestore
+// round trips — paid once per TTL across the whole cluster rather than once
+// per instance. L2 also carries an invalidation channel that drops every
+// instance's L1 at once. Without that channel an admin editing an event on one
+// instance would leave the others serving stale data until their own TTL
+// turned over.
 type EventCache struct {
 	store eventSource
 	l2    cache.Provider

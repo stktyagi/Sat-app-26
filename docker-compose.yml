@@ -1,0 +1,20 @@
+# Redis for the backend's event cache. The API refuses to boot without it —
+# see REDIS_URL in backend/.env.example.
+#
+#   docker compose up -d redis
+#
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: sat26-redis
+    ports:
+      - "6379:6379"
+    # This holds a cache, so persistence is pure overhead: an empty Redis after
+    # a restart just means the next read repopulates it from Firestore.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped

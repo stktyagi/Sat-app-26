@@ -9,6 +9,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// pingTimeout bounds the boot-time reachability check. Without it the ping
+// runs on the caller's context, which is context.Background() in cmd/api, so a
+// host that accepts the connection but never answers would stall the boot for
+// go-redis's dial timeout times its retry count -- defeating the entire point
+// of pinging before returning.
+const pingTimeout = 2 * time.Second
+
 type Redis struct {
 	client    *redis.Client
 	namespace string
@@ -21,9 +28,11 @@ func NewRedis(ctx context.Context, url, namespace string) (*Redis, error) {
 	}
 
 	client := redis.NewClient(opts)
-	if err := client.Ping(ctx).Err(); err != nil {
+	pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+	if err := client.Ping(pingCtx).Err(); err != nil {
 		client.Close()
-		return nil, fmt.Errorf("pinging redis: %w", err)
+		return nil, fmt.Errorf("pinging redis at %s: %w", opts.Addr, err)
 	}
 
 	return &Redis{
@@ -75,7 +84,7 @@ func (r *Redis) Publish(ctx context.Context, channel string, payload []byte) err
 
 func (r *Redis) Subscribe(ctx context.Context, channel string) (<-chan []byte, error) {
 	pubsub := r.client.Subscribe(ctx, r.ns(channel))
-	
+
 	// Wait for subscription confirmation
 	_, err := pubsub.Receive(ctx)
 	if err != nil {
@@ -85,7 +94,7 @@ func (r *Redis) Subscribe(ctx context.Context, channel string) (<-chan []byte, e
 
 	ch := pubsub.Channel()
 	out := make(chan []byte)
-	
+
 	go func() {
 		defer close(out)
 		defer pubsub.Close()
