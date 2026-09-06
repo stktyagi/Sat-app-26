@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"log"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -32,6 +33,7 @@ func Auth(clients *fb.Clients, s *store.Store, hostDomain string, required bool)
 
 		tok, err := clients.Auth.VerifyIDToken(c.Request.Context(), raw)
 		if err != nil {
+			log.Printf("auth: VerifyIDToken failed: %v", err)
 			apierr.Respond(c, apierr.Unauthorized("invalid_token", "could not verify the ID token"))
 			return
 		}
@@ -55,6 +57,7 @@ func Auth(clients *fb.Clients, s *store.Store, hostDomain string, required bool)
 			// Authenticated but no profile document yet. POST /auth/session
 			// creates it; RequireUser blocks everything else until then.
 		default:
+			log.Printf("auth: GetUser(%s) failed: %v", tok.UID, err)
 			apierr.Respond(c, apierr.Internal("could not load the user profile"))
 			return
 		}

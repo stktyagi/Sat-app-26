@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.jashan.saturnaliaapp2025"
+      "bundleIdentifier": "com.gauransh.saturnaliaapp2026"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": true,
-      "package": "com.jashan.saturnaliaapp2025",
+      "package": "com.gauransh.saturnaliaapp2026",
       "googleServicesFile": "./google-services.json"
     },
     "web": {

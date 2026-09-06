@@ -2,8 +2,10 @@ package store
 
 import (
 	"context"
+	"sync"
 
 	"cloud.google.com/go/firestore"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
 
 	"backend/internal/models"
@@ -47,24 +49,29 @@ func (s *Store) CountRegistrations(ctx context.Context, eventID string) (int, er
 	return int(decodeAggValue(v)), nil
 }
 
-// CountAllRegistrations returns per-event totals in a single pass, which is how
-// the cache populates counts for the whole event list at once.
-func (s *Store) CountAllRegistrations(ctx context.Context) (map[string]int, error) {
-	iter := s.FS.Collection(ColRegistrations).Select("eventId").Documents(ctx)
-	defer iter.Stop()
+// CountAllRegistrations returns per-event totals. It uses concurrent
+// aggregation queries rather than downloading the entire registrations
+// collection, drastically reducing Firestore reads.
+func (s *Store) CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error) {
+	counts := make(map[string]int, len(eventIDs))
+	var mu sync.Mutex
+	g, gctx := errgroup.WithContext(ctx)
 
-	counts := map[string]int{}
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, wrap(err)
-		}
-		if id, ok := doc.Data()["eventId"].(string); ok {
-			counts[id]++
-		}
+	for _, id := range eventIDs {
+		id := id
+		g.Go(func() error {
+			n, err := s.CountRegistrations(gctx, id)
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			counts[id] = n
+			mu.Unlock()
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 	return counts, nil
 }

@@ -35,7 +35,7 @@ const (
 // without a live Firestore.
 type eventSource interface {
 	AllEvents(ctx context.Context) ([]*models.Event, error)
-	CountAllRegistrations(ctx context.Context) (map[string]int, error)
+	CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error)
 	GetEvent(ctx context.Context, id string) (*models.Event, error)
 	CountRegistrations(ctx context.Context, eventID string) (int, error)
 }
@@ -253,7 +253,11 @@ func (c *EventCache) loadSource(ctx context.Context) ([]*models.Event, map[strin
 	if err != nil {
 		return nil, nil, err
 	}
-	counts, err := c.store.CountAllRegistrations(ctx)
+	var eventIDs []string
+	for _, e := range events {
+		eventIDs = append(eventIDs, e.EventID)
+	}
+	counts, err := c.store.CountAllRegistrations(ctx, eventIDs)
 	if err != nil {
 		return nil, nil, err
 	}

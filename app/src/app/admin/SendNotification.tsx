@@ -14,6 +14,7 @@ import { useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Bell, Send, TestTube } from 'lucide-react-native';
 import { getToken } from '@/api/auth';
+import { API_BASE_URL } from '@/config/api';
 
 const SendNotification = () => {
   const navigation = useNavigation();
@@ -25,7 +26,7 @@ const SendNotification = () => {
 
 
   // Your actual FCM notification API endpoint
-  const NOTIFICATION_API = 'https://api.saturnalia.in/api/users/sendNotification'; // Replace with your actual backend URL
+  const NOTIFICATION_API = `${API_BASE_URL}/admin/notifications`;
 
   const handleSendNotification = async () => {
     if (!title.trim() || !body.trim()) {
@@ -47,10 +48,9 @@ const SendNotification = () => {
 
               // Prepare notification data according to your API structure
               const notificationData = {
-                type: topic, // 'all', 'events', 'announcements', 'accommodation'
+                audience: topic, // 'all', 'host', 'outside'
                 title: title.trim(),
                 body: body.trim(),
-                password: 'd859063d2f6cd19a5ce293906e36169a6421c5af9f2971983288b2168d7ae888',
               };
 
               // Send to your FCM API endpoint
@@ -66,7 +66,7 @@ const SendNotification = () => {
               const responseData = await response.json();
               console.log('Notification API response:', responseData);
 
-              if (response.ok && responseData.success) {
+              if (response.ok) {
                 showAlert('Success', responseData.message || 'Notification sent successfully!');
                 // Clear form
                 setTitle('');

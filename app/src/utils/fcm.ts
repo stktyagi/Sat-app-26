@@ -1,4 +1,16 @@
 // src/utils/fcm.ts
+import {
+  getMessaging,
+  requestPermission,
+  getToken,
+  deleteToken,
+  onTokenRefresh,
+  onMessage,
+  setBackgroundMessageHandler,
+  hasPermission,
+  AuthorizationStatus,
+  RemoteMessage
+} from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 
 /**
@@ -7,23 +19,19 @@ import { Platform } from 'react-native';
  */
 export async function requestNotificationPermission(): Promise<boolean> {
   try {
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
+    const messagingInstance = getMessaging();
+    const authStatus = await requestPermission(messagingInstance);
+    const enabled =
+      authStatus === AuthorizationStatus.AUTHORIZED ||
+      authStatus === AuthorizationStatus.PROVISIONAL;
     
     if (enabled) {
-      console.log('iOS notification permission granted');
-      if (Platform.OS === 'ios') {
-        /* Removed Firebase API call */
-      }
+      console.log('Notification permission granted');
     } else {
-      console.log('iOS notification permission denied');
+      console.log('Notification permission denied');
     }
     
     return enabled;
-
-    // Android doesn't need explicit permission request for FCM
-    return true;
   } catch (error) {
     console.error('Error requesting notification permission:', error);
     return false;
@@ -45,8 +53,8 @@ export async function getFCMToken(): Promise<string | null> {
     }
 
     // Get FCM token
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
+    const messagingInstance = getMessaging();
+    const fcmToken = await getToken(messagingInstance);
 
     if (fcmToken) {
       console.log('FCM Token retrieved successfully');
@@ -67,8 +75,8 @@ export async function getFCMToken(): Promise<string | null> {
  */
 export async function deleteFCMToken(): Promise<boolean> {
   try {
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
+    const messagingInstance = getMessaging();
+    await deleteToken(messagingInstance);
     console.log('FCM token deleted successfully');
     return true;
   } catch (error) {
@@ -80,11 +88,12 @@ export async function deleteFCMToken(): Promise<boolean> {
 /**
  * Listen for FCM token refresh
  * Call this on app initialization to handle token updates
- * Note: This uses the non-modular API as onTokenRefresh is not available in modular API yet
  */
-export function onTokenRefresh(callback: (token: string) => void): () => void {
-  /* Removed Firebase API call */
-  /* Removed Firebase API call */
+export function setupTokenRefreshListener(callback: (token: string) => void): () => void {
+  const messagingInstance = getMessaging();
+  const unsubscribe = onTokenRefresh(messagingInstance, token => {
+    callback(token);
+  });
   return unsubscribe;
 }
 
@@ -93,22 +102,24 @@ export function onTokenRefresh(callback: (token: string) => void): () => void {
  * Call this to handle notifications when app is in foreground
  */
 export function setupForegroundNotificationHandler(
-  handler: (message: any) => void
+  handler: (message: RemoteMessage) => void
 ): () => void {
-  /* Removed Firebase API call */
-  /* Removed Firebase API call */
-
+  const messagingInstance = getMessaging();
+  const unsubscribe = onMessage(messagingInstance, async remoteMessage => {
+    handler(remoteMessage);
+  });
   return unsubscribe;
 }
 
 /**
  * Setup background message handler
  * Must be called outside of the component lifecycle
- * Note: This uses the non-modular API as setBackgroundMessageHandler is not available in modular API yet
  */
 export function setupBackgroundMessageHandler(): void {
-  /* Removed Firebase API call */
-  /* Removed Firebase API call */
+  const messagingInstance = getMessaging();
+  setBackgroundMessageHandler(messagingInstance, async remoteMessage => {
+    console.log('Message handled in the background!', remoteMessage);
+  });
 }
 
 /**
@@ -116,9 +127,12 @@ export function setupBackgroundMessageHandler(): void {
  */
 export async function checkNotificationPermission(): Promise<boolean> {
   try {
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
+    const messagingInstance = getMessaging();
+    const authStatus = await hasPermission(messagingInstance);
+    return (
+      authStatus === AuthorizationStatus.AUTHORIZED ||
+      authStatus === AuthorizationStatus.PROVISIONAL
+    );
   } catch (error) {
     console.error('Error checking notification permission:', error);
     return false;

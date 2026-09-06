@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -25,6 +26,7 @@ const (
 func (a *API) ListEvents(c *gin.Context) {
 	all, err := a.Cache.All(c.Request.Context())
 	if err != nil {
+		log.Printf("ListEvents error: %v", err)
 		apierr.Respond(c, apierr.Internal("could not load events"))
 		return
 	}
