@@ -28,32 +28,32 @@ const TeamMemberItem: React.FC<TeamMemberItemProps> = ({
   onRemove,
 }) => {
   return (
-    <View className="bg-[#3F3F3F] rounded-lg p-3 mb-2">
+    <View className="bg-[#DBE2ED] border border-[#2175C0] rounded-lg p-3 mb-2">
       <View className="flex-row items-center justify-between">
         <View className="flex-1">
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
-              <Text style={{ fontFamily: 'Outfit_600SemiBold' }} className="text-white text-lg">
+              <Text style={{ fontFamily: 'Outfit_600SemiBold' }} className="text-[#0C3572] text-lg">
                 {member.name || member.displayName || 'Member'}
               </Text>
               {isCurrentUser && (
-                <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#A7A7A7] text-md">
+                <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#2175C0] text-md">
                   (You)
                 </Text>
               )}
             </View>
             {member.userId === leaderUserId && (
-              <View className="bg-[#70632C] px-2 py-1 rounded ml-2">
-                <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#FDCE04] text-xs">
+              <View className="bg-[#F05423] px-2 py-1 rounded ml-2">
+                <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#FFF] text-xs">
                   Leader
                 </Text>
               </View>
             )}
           </View>
-          <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-gray-400 text-xs my-1">
+          <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#2175C0] text-xs my-1">
             {member.email}
           </Text>
-          <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-gray-400 text-xs">
+          <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#2175C0] text-xs">
             {member.collegeName}
           </Text>
         </View>

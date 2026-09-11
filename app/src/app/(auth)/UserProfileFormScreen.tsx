@@ -20,7 +20,7 @@ import Header from '@/components/Header';
 import { CollegeDropdown } from '@/components/ui/CollegeDropdown';
 import { getDeleteFlag } from '@/utils/versionCheck';
 import { getAuthInstance } from '@/config/firebase';
-import { getIdToken } from '@react-native-firebase/auth';
+
 import { API_BASE_URL } from '@/config/api';
 import { useUserStore } from '@/state/userStore';
 import { useRouter, Redirect } from 'expo-router';
@@ -140,14 +140,16 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
     setIsLoading(true);
     try {
       const currentUser = getAuthInstance().currentUser;
-      if (!currentUser) throw new Error("Not authenticated");
-      const idToken = await getIdToken(currentUser, true);
+      console.log("Starting submit, user:", currentUser.uid);
+      const idToken = await currentUser.getIdToken(false);
+      console.log("Got token successfully");
 
       const isHost = formData.isHostCollegeStudent || THAPAR_EMAIL_REGEX.test(currentUser.email || "");
       const collegeName = isHost
         ? HOST_COLLEGE_NAME
         : formData.collegeName;
 
+      console.log("Sending PATCH request to:", `${API_BASE_URL}/me`);
       const response = await fetch(`${API_BASE_URL}/me`, {
         method: "PATCH",
         headers: {
@@ -164,13 +166,18 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           referredBy: formData.refferedBy,
         })
       });
+      console.log("Fetch request completed with status:", response.status);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to update profile");
+        const errorData = await response.json().catch(() => ({} as any));
+        const msg = errorData?.error?.message || errorData?.message || "Failed to update profile";
+        console.error("PATCH /me failed:", response.status, errorData);
+        throw new Error(msg);
       }
 
-      const { user: updatedProfile } = await response.json();
+      const responseBody = await response.json();
+      console.log("PATCH /me response:", responseBody);
+      const updatedProfile = responseBody?.user;
       
       if (onProfileCreated && updatedProfile) {
         onProfileCreated(updatedProfile);
@@ -309,7 +316,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
 
         {/* Academic Information */}
         <View className="mb-6">
-          <Text style={{fontFamily:'Outfit_700SemiBold'}} className="text-xl  text-[#0C3572] mb-4">
+          <Text style={{fontFamily:'Outfit_700Bold'}} className="text-xl  text-[#0C3572] mb-4">
             Academic Information
           </Text>
 

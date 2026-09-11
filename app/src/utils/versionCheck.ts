@@ -86,21 +86,8 @@ export async function fetchAppLinks(): Promise<AppLinks> {
 }
 
 export async function getDeleteFlag(): Promise<boolean> {
-  try {
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
-
-    if (deleteFlag.exists()) {
-      const data = deleteFlag.data();
-      return data?.isDelete || false;
-    }
-
-    return false;
-  } catch (error) {
-    console.error('Error fetching delete flag:', error);
-    return false;
-  }
+  // Firebase implementation removed — feature disabled
+  return false;
 }
 
 /**
@@ -108,35 +95,11 @@ export async function getDeleteFlag(): Promise<boolean> {
  * Collection: app, Document: maintenance
  */
 export async function checkMaintenance(): Promise<MaintenanceInfo> {
-  try {
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
-    /* Removed Firebase API call */
-
-    if (maintenanceDoc.exists()) {
-      const data = maintenanceDoc.data();
-      const platform = Platform.OS as 'ios' | 'android';
-      const isUnderMaintenance = data?.[platform] || false;
-
-
-
-      return {
-        isUnderMaintenance,
-        platform,
-      };
-    }
-
-    return {
-      isUnderMaintenance: false,
-      platform: Platform.OS as 'ios' | 'android',
-    };
-  } catch (error) {
-    console.error('[Maintenance Check] Error checking maintenance status:', error);
-    return {
-      isUnderMaintenance: false,
-      platform: Platform.OS as 'ios' | 'android',
-    };
-  }
+  // Firebase implementation removed — maintenance check disabled
+  return {
+    isUnderMaintenance: false,
+    platform: Platform.OS as 'ios' | 'android',
+  };
 }
 
 /**

@@ -42,6 +42,8 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	authed.PATCH("/me", api.PatchMe)
 	authed.GET("/me/events", api.GetMyEvents)
 
+	authed.POST("/chatbot/ask", api.Chat)
+
 	// Public browsing. The optional token is what lets a signed-in caller see
 	// their own fee and registration without a second request.
 	open := v1.Group("", optional)
@@ -66,6 +68,12 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	admin.PATCH("/admin/events/:id", api.UpdateEvent)
 	admin.DELETE("/admin/events/:id", api.DeleteEvent)
 	admin.GET("/admin/events/:id/registrations", api.ListEventRegistrations)
+
+	// Admin user management: look up by unique email, edit, or delete.
+	admin.GET("/admin/users/by-email/:email", api.AdminGetUser)
+	admin.PATCH("/admin/users/by-email/:email", api.AdminUpdateUser)
+	admin.DELETE("/admin/users/by-email/:email", api.AdminDeleteUser)
+	admin.GET("/admin/users/by-email/:email/registrations", api.AdminGetUserEvents)
 
 	// FCM: client registers its token; admins broadcast to audiences.
 	authed.POST("/me/fcm-token", api.UpdateFCMToken)

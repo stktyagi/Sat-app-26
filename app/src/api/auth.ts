@@ -9,7 +9,6 @@ import {
   getAuth,
   signInWithCredential,
   signOut,
-  getIdToken,
   GoogleAuthProvider,
   OAuthProvider,
 } from "@react-native-firebase/auth";
@@ -28,7 +27,16 @@ export const initializeGoogleSignIn = () => {
 const auth = () => getAuth(getApp());
 
 const authedFetch = async (path: string, firebaseUser: FirebaseUser, init: RequestInit = {}) => {
-  const idToken = await getIdToken(firebaseUser, true);
+  let idToken: string;
+  try {
+    idToken = await firebaseUser.getIdToken(true);
+  } catch (error: any) {
+    // Stale session — user was deleted from Firebase Auth. Sign out locally.
+    if (error?.code === "auth/user-not-found" || error?.code === "auth/user-token-expired") {
+      try { await signOut(auth()); } catch (_) { /* already signed out */ }
+    }
+    throw error;
+  }
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
@@ -41,8 +49,9 @@ const authedFetch = async (path: string, firebaseUser: FirebaseUser, init: Reque
 };
 
 const readError = async (response: Response, fallback: string) => {
-  const errorData = await response.json().catch(() => ({ message: undefined as string | undefined }));
-  return errorData.message || fallback;
+  const errorData = await response.json().catch(() => ({} as any));
+  // Backend returns { error: { code, message } }
+  return errorData?.error?.message || errorData?.message || fallback;
 };
 
 export const syncBackendSession = async (
@@ -62,7 +71,7 @@ export const syncBackendSession = async (
 export const getToken = async (): Promise<string | null> => {
   const user = auth().currentUser;
   if (!user) return null;
-  return getIdToken(user, false);
+  return user.getIdToken(false);
 };
 
 export const fetchCurrentUser = async (firebaseUser: FirebaseUser): Promise<UserProfile> => {
@@ -120,7 +129,12 @@ export const handleGoogleSignIn = async (): Promise<{
     ) {
       throw new Error("SIGN_IN_CANCELLED");
     }
-    console.error("Google Sign-In error:", error?.message || error);
+    console.error("Google Sign-In error:", {
+      message: error?.message,
+      code: error?.code,
+      statusCode: error?.statusCode,
+      toString: error?.toString?.(),
+    });
     throw error;
   }
 };

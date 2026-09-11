@@ -33,16 +33,7 @@ interface UserState {
   logout: () => void;
 }
 
-// HARDCODE ADMIN ROLE FOR TESTING
-const injectAdminRole = (profile: UserProfile | null): UserProfile | null => {
-  if (!profile) return profile;
-  const p = { ...profile };
-  if (!p.roles) p.roles = [];
-  if (!p.roles.includes('admin')) {
-    p.roles = [...p.roles, 'admin'];
-  }
-  return p;
-};
+
 
 export const useUserStore = create<UserState>((set, get) => ({
   appStatus: 'loading',
@@ -62,7 +53,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ isRehydrating: true });
       const storedUserData = await storage.getUserProfile();
       if (storedUserData) {
-        set({ userData: injectAdminRole(storedUserData) });
+        set({ userData: storedUserData });
       }
     } catch (error) {
       console.error('Error rehydrating from storage:', error);
@@ -93,10 +84,9 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       const { fetchCurrentUser } = await import('@/api/auth');
       const userProfile = await fetchCurrentUser(firebaseUser);
-      const profileWithAdmin = injectAdminRole(userProfile);
-      set({ userData: profileWithAdmin });
-      if (profileWithAdmin) {
-        storage.setUserProfile(profileWithAdmin);
+      set({ userData: userProfile });
+      if (userProfile) {
+        storage.setUserProfile(userProfile);
       }
     } catch (error) {
       console.error('Error refreshing user profile:', error);
@@ -123,16 +113,15 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   setUserData: (profile) => {
-    const profileWithAdmin = injectAdminRole(profile);
-    set({ userData: profileWithAdmin });
-    storage.setUserProfile(profileWithAdmin);
+    set({ userData: profile });
+    storage.setUserProfile(profile);
 
     const { authUser, isRehydrating } = get();
     if (isRehydrating) return;
 
-    if (authUser && profileWithAdmin?.fullyRegistered) {
+    if (authUser && profile?.fullyRegistered) {
       set({ appStatus: 'authenticated' });
-    } else if (authUser && !profileWithAdmin?.fullyRegistered) {
+    } else if (authUser && !profile?.fullyRegistered) {
       set({ appStatus: 'needs_profile' });
     }
   },

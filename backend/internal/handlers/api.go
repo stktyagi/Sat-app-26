@@ -1,14 +1,16 @@
 package handlers
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/chatbot"
 	"backend/internal/config"
 	"backend/internal/fb"
 	"backend/internal/qr"
 	"backend/internal/store"
-	"backend/internal/chatbot"
 )
 
 // API carries the dependencies every handler needs.
@@ -28,6 +30,7 @@ func New(s *store.Store, cache *store.EventCache, signer *qr.Signer, cfg *config
 // bind parses a JSON body and reports a uniform error for malformed input.
 func bind(c *gin.Context, dst any) bool {
 	if err := c.ShouldBindJSON(dst); err != nil {
+		log.Printf("[bind] JSON error: %T: %v", err, err)
 		apierr.Respond(c, apierr.BadRequest("invalid_body", err.Error()))
 		return false
 	}

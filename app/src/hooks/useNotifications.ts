@@ -1,11 +1,24 @@
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import { useUserStore } from '@/state/userStore';
-import { getFCMToken } from '@/utils/fcm';
+import { getFCMToken, setupForegroundNotificationHandler } from '@/utils/fcm';
 import { getAuth } from '@react-native-firebase/auth';
 import { API_BASE_URL } from '@/config/api';
 
 export function useNotifications() {
   const { userData: userProfile } = useUserStore();
+
+  useEffect(() => {
+    const unsubscribe = setupForegroundNotificationHandler((message) => {
+      if (message.notification) {
+        Alert.alert(
+          message.notification.title || 'New Notification',
+          message.notification.body || ''
+        );
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (!userProfile) return;

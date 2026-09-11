@@ -36,19 +36,19 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
   };
 
   return (
-    <View className="mb-6 bg-[#2A2A2A] rounded-xl p-5">
+    <View className="mb-6 bg-[#fff] rounded-xl p-5">
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
           <Text
             style={{ fontFamily: "Outfit_500Medium" }}
-            className="text-[#9F9F9F] text-lg"
+            className="text-[#2175C0] text-lg"
           >
             Team Name:
           </Text>
         </View>
         <Text
           style={{ fontFamily: "Outfit_500Medium" }}
-          className="text-[#9F9F9F] text-lg"
+          className="text-[#2175C0] text-lg"
         >
           Team Size:
         </Text>
@@ -70,8 +70,8 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
       </View>
 
       {/* Invite Code */}
-      <Text className="text-[#9F9F9F] text-md mb-1">Invite Code</Text>
-      <View className="flex-row items-center justify-between bg-[#3F3F3F] border-[#FDCE04] border-2 rounded-lg p-3 mb-3">
+      <Text style={{ fontFamily: "Outfit_500Medium" }} className="text-[#2175C0] text-md mb-1">Invite Code</Text>
+      <View className="flex-row items-center justify-between bg-[#DBE2ED] border-[#2175C0] border rounded-lg p-3 mb-3">
         <View className="flex-1">
           <Text
             style={{ fontFamily: "Outfit_700Bold" }}
@@ -82,16 +82,16 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
         </View>
         <TouchableOpacity
           onPress={handleCopyInviteCode}
-          className="p-2 rounded-lg ml-3 bg-[#FDCE04]"
+          className="p-2 rounded-lg ml-3 bg-[#F05423]"
         >
-          <Copy size={20} />
+          <Copy size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
 
       {/* Team Members List */}
-      <View className="my-3 border-dashed border-t border-white pt-4">
-        {Platform.OS === "ios" ? <DashedHr className={'mb-5 -mt-3'} color="#0C3572" height={1} dash={[1,1]} /> : null}
-       
+      <View className="my-3 border-dashed border-t border-[#A0B3D0] pt-4">
+        {Platform.OS === "ios" ? <DashedHr className={'mb-5 -mt-3'} color="#0C3572" height={1} dash={[1, 1]} /> : null}
+
 
         <Text className="text-[#0C3572] font-semibold mb-2">Members</Text>
         {(teamData.members || []).map((member) => (
@@ -116,13 +116,12 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
         <View className="mt-2">
           {/* Team Size Status */}
           {eventData && eventData.minTeamSize && (
-            <View className="mb-3 bg-gray-900 rounded-lg p-3">
+            <View className="mb-3 bg-[#DBE2ED] border border-[#2175C0] rounded-lg p-3">
               <Text
-                className={`text-sm font-medium ${
-                  (teamData.members?.length ?? 0) >= eventData.minTeamSize
+                className={`text-sm font-medium ${(teamData.members?.length ?? 0) >= eventData.minTeamSize
                     ? "text-green-400"
                     : "text-orange-400"
-                }`}
+                  }`}
               >
                 Team Size: {teamData.members?.length ?? 0} / {eventData.minTeamSize}-
                 {eventData.maxTeamSize || "∞"}
@@ -150,14 +149,14 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
                   submittingTeam ? "Submitting..." : "Submit Team for Review"
                 }
                 onPress={onSubmitTeam}
-                variant="none" 
-                className="mb-3 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl" 
+                variant="none"
+                className="mb-3 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl"
                 textClassName="text-[#0C3572]"
                 disabled={submittingTeam}
               />
             )}
 
-          <View className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-3">
+          <View className="bg-[#DBE2ED] border border-[#2175C0] rounded-lg p-3">
             <Text className="text-[#0C3572] text-sm">
               {(teamData.members?.length ?? 0) >= (eventData?.minTeamSize || 1)
                 ? "✓ Your team meets the minimum size requirement. The team leader can now submit for review."

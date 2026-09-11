@@ -48,7 +48,14 @@ func (a *API) PostSession(c *gin.Context) {
 	created, err := a.Store.CreateUser(ctx, seed)
 	if err != nil {
 		if errors.Is(err, store.ErrExists) {
-			apierr.Respond(c, apierr.Conflict("user_exists", "profile already exists"))
+			// Doc exists but middleware didn't load it (race or state inconsistency).
+			// Fetch and return it so sign-in succeeds.
+			existing, getErr := a.Store.GetUser(ctx, tok.UID)
+			if getErr != nil {
+				apierr.Respond(c, apierr.Internal("could not load the existing profile"))
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"user": existing.ResolveHostStatus(a.Cfg.HostEmailDomain), "created": false})
 			return
 		}
 		apierr.Respond(c, apierr.Internal("could not create the profile"))

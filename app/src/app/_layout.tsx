@@ -18,6 +18,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StoreProvider } from '@/state/StoreContext';
 import { useUserStore } from '@/state/userStore';
 import { useAuthListener } from '@/hooks/useAuthListener';
+import { useNotifications } from '@/hooks/useNotifications';
 import { AlertProvider } from '@/components/ui/CustomAlert';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient } from '@tanstack/react-query';
@@ -59,6 +60,7 @@ export default function RootLayout() {
 
   const { rehydrateFromStorage } = useUserStore();
   useAuthListener();
+  useNotifications();
 
   useEffect(() => {
     rehydrateFromStorage();

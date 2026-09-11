@@ -2,8 +2,10 @@ package store
 
 import (
 	"context"
+	"log"
 
 	"cloud.google.com/go/firestore"
+	"google.golang.org/api/iterator"
 
 	"backend/internal/isotime"
 	"backend/internal/models"
@@ -11,6 +13,24 @@ import (
 
 func (s *Store) GetUser(ctx context.Context, uid string) (*models.User, error) {
 	doc, err := s.FS.Collection(ColUsers).Doc(uid).Get(ctx)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return decodeUser(doc)
+}
+
+// GetUserByEmail resolves a profile by its verified email address. The email is
+// unique per account, so the first match is the only one; this is what lets an
+// admin look someone up without knowing their user ID.
+func (s *Store) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	q := s.FS.Collection(ColUsers).Where("email", "==", email).Limit(1)
+	iter := q.Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, wrap(err)
 	}
@@ -69,4 +89,28 @@ func (s *Store) UpdateUser(ctx context.Context, uid string, fields map[string]an
 		return nil, wrap(err)
 	}
 	return s.GetUser(ctx, uid)
+}
+
+// DeleteUser removes a user document and all associated registrations.
+// This is an irreversible operation that should be used with caution.
+func (s *Store) DeleteUser(ctx context.Context, uid string) error {
+	// First delete all registrations for this user to avoid orphaned data
+	regs, err := s.ListUserRegistrations(ctx, uid)
+	if err != nil {
+		return wrap(err)
+	}
+	for _, reg := range regs {
+		if err := s.DeleteRegistration(ctx, reg.ID); err != nil {
+			// Log but continue deleting other registrations
+			log.Printf("failed to delete registration %s: %v", reg.ID, err)
+		}
+	}
+
+	// Now delete the user document itself
+	delRef := s.FS.Collection(ColUsers).Doc(uid)
+	_, delErr := delRef.Delete(ctx)
+	if delErr != nil {
+		return wrap(delErr)
+	}
+	return nil
 }

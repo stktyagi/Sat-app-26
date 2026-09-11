@@ -52,6 +52,7 @@ export async function listEvents(params: { category?: string; q?: string } = {})
   if (params.category && params.category !== "All") query.set("category", params.category);
   if (params.q) query.set("q", params.q);
   query.set("limit", "200");
+  query.set("_cb", Date.now().toString());
 
   const qs = query.toString();
   const path = qs ? `/events?${qs}` : "/events";
@@ -74,7 +75,7 @@ export async function getEventDetail(eventId: string): Promise<{
   myRegistration: any | null;
   myTeam: any | null;
 }> {
-  const response = await apiFetch(`/events/${eventId}`, {}, "optional");
+  const response = await apiFetch(`/events/${eventId}?_cb=${Date.now()}`, {}, "optional");
   if (!response.ok) {
     throw new Error(await readError(response, "Failed to load event"));
   }
@@ -106,6 +107,18 @@ export async function registerForEvent(eventId: string, responses: any[] = []) {
   );
   if (!response.ok) {
     throw new Error(await readError(response, "Failed to register"));
+  }
+  return response.json();
+}
+
+export async function unregisterForEvent(eventId: string) {
+  const response = await apiFetch(
+    `/events/${eventId}/register`,
+    { method: "DELETE" },
+    "required",
+  );
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to cancel registration"));
   }
   return response.json();
 }

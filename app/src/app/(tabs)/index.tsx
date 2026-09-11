@@ -18,6 +18,8 @@ import { Corousal } from '@/types/models';
 import Header from '@/components/layout/Header';
 import { HomeScreenSkeleton } from '@/components/skeletons/HomeScreenSkeleton';
 import { useRouter } from 'expo-router';
+import { API_BASE_URL } from '@/config/api';
+
 
 export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x: boolean) => void }) {
   const router = useRouter();
@@ -280,8 +282,8 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
           </TouchableOpacity>
 
 
-          {/* Stories Section */}
-          {storiesLoading && stories.length === 0 ? (
+          {/* Stories Section - Coming Soon */}
+          {false && (storiesLoading && stories.length === 0 ? (
             <View className="py-10 items-center">
               <ActivityIndicator size="small" color="#FFBA00" />
             </View>
@@ -324,7 +326,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
                 ListEmptyComponent={null}
               />
             </View>
-          )}
+          ))}
 
           {/* Upcoming Events */}
           <View className="mb-6">
@@ -455,7 +457,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
       <ChatBot
         visible={showChatBot}
         onClose={handleCloseChatBot}
-        chatbotApiUrl="https://sat-backend-9sey.onrender.com/api/chatbot/ask"
+        chatbotApiUrl={`${API_BASE_URL}/api/v1/chatbot/ask`}
       />
     </View>
   );

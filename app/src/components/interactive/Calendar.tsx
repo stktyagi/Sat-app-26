@@ -177,7 +177,10 @@ const CalendarScreen = ({ events, loading, error, navigation }: CalendarProps) =
                    <TouchableOpacity
                      className="flex-1 bg-[#9AC5F0] border-[1px] border-[#0C3572] rounded-xl p-3 pb-3"
                      onPress={() => {
-                       navigation.navigate('EventDetails', { eventData: event });
+                       navigation.push({
+                         pathname: "/events/EventDetails",
+                         params: { eventData: JSON.stringify(event) }
+                       });
                      }}
                    >
                      <Text style={{ fontFamily: 'Outfit_600SemiBold' }} className="text-white text-lg">{event.title}</Text>

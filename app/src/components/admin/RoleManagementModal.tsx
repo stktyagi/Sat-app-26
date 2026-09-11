@@ -35,6 +35,22 @@ const ROLE_COLORS = {
   user: "#6B7280",
 };
 
+export const availableRoles = [
+  { id: "admin", label: "Admin" },
+  { id: "event_admin", label: "Event Admin" },
+  { id: "event_coordinator", label: "Event Coordinator" },
+  { id: "outreach_admin", label: "Outreach Admin" },
+  { id: "outreach_member", label: "Outreach Member" },
+  { id: "finance", label: "Finance" },
+  { id: "hospitality_admin", label: "Hospitality Admin" },
+  { id: "hospitality_member", label: "Hospitality Member" },
+  { id: "eb_member", label: "EB Member" },
+  { id: "executive_committee", label: "Executive Committee" },
+  { id: "media", label: "Media" },
+  { id: "core_member", label: "Core Member" },
+  { id: "user", label: "User" },
+];
+
 
 // const ROLE_HIERARCHY = {
 //   admin: 12,

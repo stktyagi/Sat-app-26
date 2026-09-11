@@ -20,7 +20,7 @@ import TeamDetailsCard from "@/components/registration/TeamDetailsCard";
 import EventTicketCard from "@/components/registration/EventTicketCard";
 import TeamSubmissionModal from "@/components/registration/TeamSubmissionModal";
 import { useEventDetail } from "@/hooks/useEventDetail";
-import { useDeleteTeam, useRemoveTeamMember } from "@/hooks/useEventMutations";
+import { useDeleteTeam, useRemoveTeamMember, useUnregisterForEvent } from "@/hooks/useEventMutations";
 
 interface MyEventDetailsRouteParams {
   eventId: string;
@@ -44,6 +44,7 @@ const MyEventDetailsScreen: React.FC = () => {
 
   const deleteTeamMutation = useDeleteTeam();
   const removeTeamMemberMutation = useRemoveTeamMember();
+  const unregisterMutation = useUnregisterForEvent();
 
   const handleRemoveMember = (memberUserId: string, memberName: string) => {
     if (!teamData) {
@@ -85,6 +86,22 @@ const MyEventDetailsScreen: React.FC = () => {
           deleteTeamMutation.mutate(teamData.teamRef, {
             onSuccess: () => router.back(),
             onError: (error: any) => showAlert("Error", error.message || "Failed to delete team"),
+          });
+        },
+      },
+    ]);
+  };
+
+  const handleCancelRegistration = () => {
+    showAlert("Cancel Registration", "Are you sure you want to cancel your registration for this event?", [
+      { text: "No", style: "cancel" },
+      {
+        text: "Yes, Cancel",
+        style: "destructive",
+        onPress: () => {
+          unregisterMutation.mutate(eventId, {
+            onSuccess: () => router.back(),
+            onError: (error: any) => showAlert("Error", error.message || "Failed to cancel registration"),
           });
         },
       },
@@ -200,7 +217,7 @@ const MyEventDetailsScreen: React.FC = () => {
         <RegistrationStatusCard
           status={registration.status || 'pending'}
           eventCategory={registration.eventCategory || eventData?.category || ''}
-          eventType={(registration.eventType === 'team' ? 'team' : 'individual')}
+          eventType={(eventData?.eventType === 'team' ? 'team' : 'individual')}
           registeredAt={registration.registeredAt || new Date().toISOString()}
         />
 
@@ -208,31 +225,12 @@ const MyEventDetailsScreen: React.FC = () => {
         {registration.status !== "rejected" && (
           <View className="mb-4">
             <EventTicketCard registration={registration} eventData={eventData} />
-            <Button
-              onPress={() => {
-                const dateStr = eventData?.startDateTime || eventData?.dateTime;
-                let url = 'https://calendar.google.com/calendar/r';
-                if (dateStr) {
-                  const date = new Date(dateStr);
-                  if (!isNaN(date.getTime())) {
-                    url = `https://calendar.google.com/calendar/r/month/${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
-                  }
-                }
-                Linking.openURL(url);
-              }}
-              variant="outline"
-              className="mt-4 border-[#0C3572] bg-white flex-row items-center justify-center"
-            >
-              <Ionicons name="logo-google" size={18} color="#0C3572" style={{ marginRight: 8 }} />
-              <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#0C3572] font-semibold text-center text-base">
-                View in Google Calendar
-              </Text>
-            </Button>
+
           </View>
         )}
 
         {/* Team Details for Team Events */}
-        {registration.eventType === "team" && teamData && (
+        {eventData?.eventType === "team" && teamData && (
           <TeamDetailsCard
             teamData={teamData}
             eventData={eventData}
@@ -245,7 +243,7 @@ const MyEventDetailsScreen: React.FC = () => {
         )}
 
         {/* Payment Button */}
-        {registration.status === "payment_pending" && (registration.eventType === "individual" || isLeader) && (
+        {registration.status === "payment_pending" && (eventData?.eventType === "individual" || isLeader) && (
           <View className="mb-6">
             <Button
               title="Complete Payment"
@@ -260,7 +258,7 @@ const MyEventDetailsScreen: React.FC = () => {
         )}
 
         {/* Rejected Status Message for Individual Events */}
-        {registration.eventType === "individual" &&
+        {eventData?.eventType === "individual" &&
           registration.status === "rejected" && (
             <View className="mb-6 bg-red-900/20 border border-red-600/30 rounded-lg p-4">
               <Text className="text-red-400 text-sm font-semibold mb-2">
@@ -274,7 +272,7 @@ const MyEventDetailsScreen: React.FC = () => {
           )}
 
         {/* Team Management Actions - Only available for leader when status is pending */}
-        {registration.eventType === "team" &&
+        {eventData?.eventType === "team" &&
           teamData &&
           teamData.status === "pending" &&
           isLeader && (
@@ -287,6 +285,19 @@ const MyEventDetailsScreen: React.FC = () => {
               />
             </View>
           )}
+
+        {/* Individual Event Actions */}
+        {eventData?.eventType === "individual" &&
+          registration.status !== "rejected" && (
+            <View className="mb-6">
+              <Button
+                title="Cancel Registration"
+                onPress={handleCancelRegistration}
+                variant="outline"
+                className="bg-transparent border-[#BA1415] border-2 flex-row items-center justify-center"
+              />
+            </View>
+          )}
       </ScrollView>
       <TeamSubmissionModal
         visible={isSubmissionModalVisible}
@@ -295,7 +306,6 @@ const MyEventDetailsScreen: React.FC = () => {
         teamData={teamData}
         onSubmitSuccess={() => {
           setIsSubmissionModalVisible(false);
-          fetchRegistrationData(); // Refresh data on success
         }}
       />
     </View>

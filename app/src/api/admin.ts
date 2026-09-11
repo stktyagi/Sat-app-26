@@ -139,8 +139,31 @@ export async function adminListUsers(_params?: { q?: string; role?: string }): P
 }
 
 export async function adminUpdateUserRole(userId: string, role: string): Promise<void> {
-  // TODO: replace with real endpoint
   console.log('[mock] updateUserRole', userId, role);
+}
+
+export async function adminUpdateUser(email: string, data: Record<string, any>): Promise<AdminUser> {
+  const res = await apiFetch(`/admin/users/by-email/${encodeURIComponent(email)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to update user'));
+  const json = await res.json();
+  return json.user;
+}
+
+export async function adminDeleteUser(email: string): Promise<void> {
+  const res = await apiFetch(`/admin/users/by-email/${encodeURIComponent(email)}`, {
+    method: 'DELETE',
+  }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to delete user'));
+}
+
+export async function adminGetUserRegistrations(email: string): Promise<any[]> {
+  const res = await apiFetch(`/admin/users/by-email/${encodeURIComponent(email)}/registrations`, {}, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to get user registrations'));
+  const data = await res.json();
+  return data.items || [];
 }
 
 // ─── Accommodation (mock) ─────────────────────────────────────────────────────
@@ -438,17 +461,22 @@ export const uploadStoryMedia = async (uri: string, _type?: string) => ({
   url: uri,
 });
 
-export const fetchUsers = async (_filters?: any, _loadMore?: boolean) => ({
-  users: MOCK_USERS.map((u) => ({
-    ...u,
-    phoneNumber: '',
-    isAmbassador: false,
-    isVerified: true,
-    createdAt: new Date().toISOString(),
-    accommodationNeeded: false,
-  })),
-  hasMore: false,
-});
+export const fetchUsers = async (filters?: any, _loadMore?: boolean) => {
+  const term = filters?.searchTerm?.trim() || '';
+  if (term.includes('@')) {
+    try {
+      const { apiFetch } = await import('./client');
+      const res = await apiFetch(`/admin/users/by-email/${encodeURIComponent(term)}`, {}, 'required');
+      if (res.ok) {
+        const data = await res.json();
+        return { users: [data.user], hasMore: false };
+      }
+    } catch (e) {
+      console.error('fetchUsers error:', e);
+    }
+  }
+  return { users: [], hasMore: false };
+};
 
 export const getUserById = async (userId: string) => {
   const users = (await fetchUsers()).users;

@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import { Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { useUserStore } from "@/state/userStore";
 import Header from '@/components/layout/Header'
 import { useMyEvents } from '@/hooks/useMyEvents';
@@ -13,7 +14,13 @@ const UserEventsScreen: React.FC = () => {
   const { userData: userProfile } = useUserStore();
   const userId = userProfile?.userId || '';
 
-  const { data: rows, loading } = useMyEvents();
+  const { data: rows, loading, refresh } = useMyEvents();
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const events = rows.map((row: any) => ({
     eventId: row.event?.eventId || row.registration?.eventId,

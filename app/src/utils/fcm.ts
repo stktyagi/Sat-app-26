@@ -11,14 +11,24 @@ import {
   AuthorizationStatus,
   RemoteMessage
 } from '@react-native-firebase/messaging';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 
 /**
- * Request notification permissions (iOS only)
- * Android permissions are handled automatically
+ * Request notification permissions
+ * Explicitly requests POST_NOTIFICATIONS on Android 13+
  */
 export async function requestNotificationPermission(): Promise<boolean> {
   try {
+    if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('Android notification permission denied');
+        return false;
+      }
+    }
+
     const messagingInstance = getMessaging();
     const authStatus = await requestPermission(messagingInstance);
     const enabled =

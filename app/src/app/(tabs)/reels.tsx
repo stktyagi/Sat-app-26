@@ -665,6 +665,24 @@ const ReelsScreen: React.FC = () => {
     [USABLE_HEIGHT]
   );
 
+  return (
+    <View className="flex-1 bg-black justify-center items-center px-6">
+      <Text
+        style={{ fontFamily: "Outfit_700Bold" }}
+        className="text-[#FFBA00] text-3xl text-center mb-2"
+      >
+        Coming Soon
+      </Text>
+      <Text
+        style={{ fontFamily: "Outfit_500Medium" }}
+        className="text-gray-300 text-center text-lg mt-2"
+      >
+        Exciting reels are on the way!
+      </Text>
+    </View>
+  );
+
+  /*
   if (isLoading) {
     return (
       <View className="flex-1 bg-black justify-center items-center">
@@ -726,6 +744,7 @@ const ReelsScreen: React.FC = () => {
       />
     </View>
   );
+  */
 };
 
 export default ReelsScreen;

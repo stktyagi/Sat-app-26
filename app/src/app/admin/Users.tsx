@@ -108,6 +108,11 @@ const Users: React.FC = () => {
     setSelectedUser(null);
   };
 
+  const handleUserDelete = (userId: string) => {
+    setUsers((prev) => prev.filter((u) => u.userId !== userId));
+    setUserDetailsModalVisible(false);
+  };
+
   const handleUserUpdate = (userId: string, updatedUser: AdminUserProfile) => {
     console.log("handleUserUpdate called with userId:", userId);
     console.log("Updated user data:", updatedUser);
@@ -358,6 +363,7 @@ const Users: React.FC = () => {
         user={selectedUser}
         onClose={handleUserDetailsModalClose}
         onUserUpdate={handleUserUpdate}
+        onUserDelete={handleUserDelete}
       />
 
       {/* QR Scanner Modal */}

@@ -53,34 +53,40 @@ const SendNotification = () => {
                 body: body.trim(),
               };
 
-              // Send to your FCM API endpoint
-              const response = await fetch(NOTIFICATION_API, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                   Authorization: `Bearer ${token}`,  
-                },
-                body: JSON.stringify(notificationData),
-              });
+              // Add a 5 second delay so you can test background notifications!
+              setTimeout(async () => {
+                try {
+                  const response = await fetch(NOTIFICATION_API, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${token}`,  
+                    },
+                    body: JSON.stringify(notificationData),
+                  });
 
-              const responseData = await response.json();
-              console.log('Notification API response:', responseData);
+                  const responseData = await response.json();
+                  console.log('Notification API response:', responseData);
 
-              if (response.ok) {
-                showAlert('Success', responseData.message || 'Notification sent successfully!');
-                // Clear form
-                setTitle('');
-                setBody('');
-                setTopic('all');
+                  if (response.ok) {
+                    showAlert('Success', responseData.message || 'Notification sent successfully!');
+                    // Clear form
+                    setTitle('');
+                    setBody('');
+                    setTopic('all');
+                  } else {
+                    throw new Error(responseData.message || 'Failed to send notification');
+                  }
+                } catch (error: any) {
+                  console.error('Error sending notification:', error.message);
+                  showAlert('Error', error.message || 'Failed to send notification. Please try again.');
+                } finally {
+                  setSending(false);
+                }
+              }, 5000);
 
-              } else {
-                throw new Error(responseData.message || 'Failed to send notification');
-              }
             } catch (error: any) {
-              console.error('Error sending notification:', error.message);
-              showAlert('Error', error.message || 'Failed to send notification. Please try again.');
-            } finally {
-              setSending(false);
+              // The try-catch here catches synchronous errors before the setTimeout, though the main work is now inside setTimeout.
             }
           },
         },
@@ -105,8 +111,8 @@ const SendNotification = () => {
 
   const topicOptions = [
     { value: 'all', label: 'All Users', description: 'Send to all app users' },
-    { value: 'customers', label: 'Host', description: 'Send to hosts only' },
-    { value: 'salons', label: 'Outside', description: 'Send to outside users' },
+    { value: 'host', label: 'Host', description: 'Send to hosts only' },
+    { value: 'outside', label: 'Outside', description: 'Send to outside users' },
   ];
 
   return (

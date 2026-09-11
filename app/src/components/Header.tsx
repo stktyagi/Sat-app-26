@@ -2,24 +2,38 @@ import React from "react";
 import { View, Image } from "react-native";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
-export default function Header({ left, right }: { left?: React.ReactNode; right? : React.ReactNode }) {
+const SIDE_WIDTH = 60;
+
+export default function Header({ left, right }: { left?: React.ReactNode; right?: React.ReactNode }) {
   return (
     <View
-      className="flex-row items-center bg-[#2D4593] relative justify-between px-4 h-[90px] w-full rounded-b-[2rem] overflow-hidden"
-      style={{ boxShadow: '0px 4px 25px #0C3572' }}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#2D4593',
+        height: 90,
+        width: '100%',
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        overflow: 'hidden',
+        boxShadow: '0px 4px 25px #0C3572',
+      } as any}
     >
-      <View pointerEvents="none" className="absolute top-0" style={{ width: '120%', height: '100%' }}>
+      {/* Background mosaic */}
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: '-10%', width: '120%', height: '100%' }}>
         <Image
           source={require("@/assets/mosaic.png")}
           style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
         />
       </View>
-      <View style={{ zIndex: 20 }}>{left ?? <View />}</View>
-      <View
-        pointerEvents="none"
-        className="absolute left-1/2 -translate-x-1/2 ml-6 items-center justify-center"
-        style={{ width: 180, height: 60, zIndex: 10 }}
-      >
+
+      {/* Left slot — fixed width */}
+      <View style={{ width: SIDE_WIDTH, paddingLeft: 16, zIndex: 20 }}>
+        {left ?? <View />}
+      </View>
+
+      {/* Center logo — flex:1, truly centered */}
+      <View pointerEvents="none" style={{ flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 10, paddingTop: 30 }}>
         <Svg height="150" width="220" style={{ position: 'absolute' }}>
           <Defs>
             <RadialGradient id="grad" cx="50%" cy="50%" rx="50%" ry="50%" fx="50%" fy="50%">
@@ -34,7 +48,11 @@ export default function Header({ left, right }: { left?: React.ReactNode; right?
           style={{ width: 180, height: 60, resizeMode: 'contain' }}
         />
       </View>
-      <View style={{ zIndex: 20 }}>{right ?? <View />}</View>
+
+      {/* Right slot — fixed width, aligned to end */}
+      <View style={{ width: SIDE_WIDTH, paddingRight: 16, zIndex: 20, alignItems: 'flex-end' }}>
+        {right ?? <View />}
+      </View>
     </View>
   );
 }

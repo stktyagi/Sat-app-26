@@ -1,13 +1,14 @@
 import { getApp } from "@react-native-firebase/app";
-import { getAuth, getIdToken } from "@react-native-firebase/auth";
+import { getAuth } from "@react-native-firebase/auth";
 import { API_BASE_URL } from "../config/api";
 
 export async function getIdTokenIfSignedIn(): Promise<string | null> {
   try {
     const user = getAuth(getApp()).currentUser;
     if (!user) return null;
-    return await getIdToken(user, false);
-  } catch {
+    return await user.getIdToken(false);
+  } catch (error) {
+    console.warn("Error getting ID token:", error);
     return null;
   }
 }

@@ -55,3 +55,11 @@ func New(ctx context.Context, cfg *config.Config) (*Clients, error) {
 }
 
 func (c *Clients) Close() error { return c.FS.Close() }
+
+
+func (c *Clients) DeleteUserFromAuth(ctx context.Context, uid string) error {
+	if err := c.Auth.DeleteUser(ctx, uid); err != nil {
+		return fmt.Errorf("delete auth user %s: %w", uid, err)
+	}
+	return nil
+}

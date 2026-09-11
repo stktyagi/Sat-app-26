@@ -11,7 +11,9 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Button from "../ui/Button";
+import Input from "../ui/Input";
 import { FirebaseEvent } from '@/types/models';
 import { useUserStore } from '@/state/userStore';
 import { showAlert } from "../index";
@@ -56,6 +58,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const userData = useUserStore((state) => state.userData);
   const [registrationStep, setRegistrationStep] =
     useState<RegistrationStep>("choice");
+  const insets = useSafeAreaInsets();
   const [teamName, setTeamName] = useState("");
   const [teamInviteCode, setTeamInviteCode] = useState("");
   const [customFieldsData, setCustomFieldsData] = useState<Record<string, any>>(
@@ -151,10 +154,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         if (currentTeamSize < event.minTeamSize) {
           showModalAlert(
             "Insufficient Team Size",
-            `Your team needs at least ${
-              event.minTeamSize
-            } members to submit. Currently you have ${currentTeamSize} member${
-              currentTeamSize !== 1 ? "s" : ""
+            `Your team needs at least ${event.minTeamSize
+            } members to submit. Currently you have ${currentTeamSize} member${currentTeamSize !== 1 ? "s" : ""
             }.\n\nPlease share the invite code with your teammates before submitting.`
           );
           setIsLoading(false);
@@ -165,10 +166,12 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       const registrationData = responsesFromFields(event.customFields || [], customFieldsData);
 
       if (event.eventType === "team") {
-        if (isCreateTeamFlow || teamName.trim()) {
+        if (isCreateTeamFlow) {
           const result = await createEventTeam(event.eventId, teamName.trim(), registrationData);
           setCreatedInviteCode(result.inviteCode || result.team?.inviteCode);
           showModalAlert("Team Created!", "Share the invite code with your teammates.");
+          onSuccess();
+          return;
         } else {
           await joinEventTeam(event.eventId, teamInviteCode.trim(), registrationData);
           showModalAlert("Success", "Successfully joined the team!");
@@ -223,7 +226,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             placeholder={field.placeholder || field.label}
             placeholderTextColor="#666"
             style={{ fontFamily: "Outfit_500Medium" }}
-            className="bg-[#2a2a2a] text-[#0C3572] px-4 py-3 rounded-lg"
+            className="bg-[#DBE2ED] text-[#0C3572] px-4 py-3 rounded-lg border border-[#2175C0]"
             keyboardType={field.type === "link" ? "url" : "default"}
             autoCapitalize={field.type === "link" ? "none" : "sentences"}
           />
@@ -244,7 +247,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
               style={{ fontFamily: "Outfit_500Medium" }}
               placeholder={field.placeholder || field.label}
               placeholderTextColor="#666"
-              className="bg-[#2a2a2a] text-[#0C3572] px-4 py-3 rounded-lg"
+              className="bg-[#DBE2ED] text-[#0C3572] px-4 py-3 rounded-lg border border-[#2175C0]"
               keyboardType="numeric"
             />
             <Text
@@ -293,17 +296,15 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       [field.fieldId]: option,
                     })
                   }
-                  className={`px-4 py-3 rounded-lg border ${
-                    value === option
+                  className={`px-4 py-3 rounded-lg border ${value === option
                       ? "bg-yellow-400/20 border-yellow-400"
-                      : "bg-[#2a2a2a] border-gray-600"
-                  }`}
+                      : "bg-[#DBE2ED] border-[#2175C0]"
+                    }`}
                 >
                   <Text
                     style={{ fontFamily: "Outfit_500Medium" }}
-                    className={`${
-                      value === option ? "text-yellow-400" : "text-[#0C3572]"
-                    }`}
+                    className={`${value === option ? "text-yellow-400" : "text-[#0C3572]"
+                      }`}
                   >
                     {option}
                   </Text>
@@ -337,18 +338,16 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       [field.fieldId]: newValues,
                     });
                   }}
-                  className={`flex-row items-center px-4 py-3 rounded-lg border ${
-                    isSelected
+                  className={`flex-row items-center px-4 py-3 rounded-lg border ${isSelected
                       ? "bg-yellow-400/20 border-yellow-400"
-                      : "bg-[#2a2a2a] border-gray-600"
-                  }`}
+                      : "bg-[#DBE2ED] border-[#2175C0]"
+                    }`}
                 >
                   <View
-                    className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${
-                      isSelected
+                    className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${isSelected
                         ? "bg-yellow-400 border-yellow-400"
-                        : "border-gray-600"
-                    }`}
+                        : "border-[#2175C0]"
+                      }`}
                   >
                     {isSelected && (
                       <Ionicons name="checkmark" size={16} color="#1a1a1a" />
@@ -356,9 +355,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   </View>
                   <Text
                     style={{ fontFamily: "Outfit_500Medium" }}
-                    className={`${
-                      isSelected ? "text-yellow-400" : "text-[#0C3572]"
-                    }`}
+                    className={`${isSelected ? "text-yellow-400" : "text-[#0C3572]"
+                      }`}
                   >
                     {option}
                   </Text>
@@ -451,7 +449,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         )}
 
         {createdInviteCode && (
-          <View className="bg-[#2a2a2a] p-4 rounded-lg mb-4">
+          <View className="bg-[#DBE2ED] p-4 rounded-lg mb-4 border border-[#2175C0]">
             <Text
               style={{ fontFamily: "Outfit_500Medium" }}
               className="text-[#2175C0] mb-2"
@@ -460,7 +458,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             </Text>
             <Text
               style={{ fontFamily: "Outfit_700Bold" }}
-              className="text-yellow-400 text-lg"
+              className="text-[#0C3572] text-lg"
             >
               {createdInviteCode}
             </Text>
@@ -474,11 +472,10 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
               <View className="mt-3 pt-3 border-t border-[#A0B3D0]">
                 <Text
                   style={{ fontFamily: "Outfit_500Medium" }}
-                  className={`text-sm ${
-                    currentTeamSize >= event.minTeamSize
+                  className={`text-sm ${currentTeamSize >= event.minTeamSize
                       ? "text-green-400"
                       : "text-orange-400"
-                  }`}
+                    }`}
                 >
                   Team Size: {currentTeamSize} / {event.minTeamSize}-
                   {event.maxTeamSize || "∞"}
@@ -509,11 +506,10 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
               className="flex-row items-center mb-3"
             >
               <View
-                className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${
-                  hasReferralCode
+                className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${hasReferralCode
                     ? "bg-yellow-400 border-yellow-400"
-                    : "border-gray-600"
-                }`}
+                    : "border-[#2175C0]"
+                  }`}
               >
                 {hasReferralCode && (
                   <Ionicons name="checkmark" size={16} color="#1a1a1a" />
@@ -541,7 +537,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   onChangeText={(text) => setReferralCode(text.toUpperCase())}
                   placeholder="Enter your referral code"
                   placeholderTextColor="#666"
-                  className="bg-[#2a2a2a] text-[#0C3572] px-4 py-3 rounded-lg"
+                  className="bg-[#DBE2ED] text-[#0C3572] px-4 py-3 rounded-lg border border-[#2175C0]"
                   autoCapitalize="characters"
                 />
               </View>
@@ -554,8 +550,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             <Button
               title={isLoading ? "Registering..." : "Complete Registration"}
               onPress={handleCompleteRegistration}
-              variant="none" 
-              className="flex-1 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl" 
+              variant="none"
+              className="flex-1 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl"
               textClassName="text-[#0C3572]"
               disabled={isLoading || !isValid}
             />
@@ -603,127 +599,141 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
 
-          <View className="flex-1 justify-end">
-            <View className="bg-white rounded-t-3xl p-6 max-h-[80%]">
-              {/* Header */}
-              <View className="flex-row justify-between items-center mb-4">
-                <Text
-                  style={{ fontFamily: "Outfit_700Bold" }}
-                  className="text-[#0C3572] text-2xl"
-                >
-                  {renderStepTitle()}
-                </Text>
-                <TouchableOpacity onPress={onClose}>
-                  <Ionicons name="close" size={28} color="#0C3572" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView 
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+          <View
+            className="bg-white rounded-t-3xl p-6"
+            style={{ 
+              maxHeight: "90%",
+              paddingBottom: Math.max(insets.bottom + 16, 24) }}
+          >
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-4">
+              <Text
+                style={{ fontFamily: "Outfit_700Bold" }}
+                className="text-[#0C3572] text-2xl"
               >
-            {/* Team Choice */}
-            {registrationStep === "choice" && (
-              <View>
-                <Button
-                  title="Create New Team"
-                  onPress={() => setRegistrationStep("create-team")}
-                  variant="none" 
-                  className="mb-4 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl" 
-                  textClassName="text-[#0C3572]"
-                />
-                <Button
-                  title="Join Existing Team"
-                  onPress={() => setRegistrationStep("join-team")}
-                  variant="secondary"
-                />
-              </View>
-            )}
-
-            {/* Create Team */}
-            {registrationStep === "create-team" && (
-              <View>
-                <Text className="text-[#2175C0] mb-2">Team Name</Text>
-                <TextInput
-                  value={teamName}
-                  onChangeText={setTeamName}
-                  placeholder="Enter team name"
-                  placeholderTextColor="#666"
-                  className="bg-[#2a2a2a] text-[#0C3572] px-4 py-3 rounded-lg mb-4"
-                />
-                <Text className="text-[#2175C0] text-sm mb-4">
-                  Team size: {event.minTeamSize || 1} - {event.maxTeamSize || 5}{" "}
-                  members
-                </Text>
-                <View className="flex-row space-x-3 flex gap-2">
-                  <Button
-                    title="Back"
-                    onPress={() => setRegistrationStep("choice")}
-                    variant="secondary"
-                    className="flex-1 border border-gray-600"
-                  />
-                  <Button
-                    title={isLoading ? "Creating..." : "Create Team"}
-                    onPress={handleCreateTeam}
-                    variant="none" 
-                    className="flex-1 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl" 
-                    textClassName="text-[#0C3572]"
-                    disabled={isLoading}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* Join Team */}
-            {registrationStep === "join-team" && (
-              <View>
-                <Text
-                  style={{ fontFamily: "Outfit_500Medium" }}
-                  className="text-[#2175C0] mb-2"
-                >
-                  Team Invite Code
-                </Text>
-                <TextInput
-                  value={teamInviteCode}
-                  style={{ fontFamily: "Outfit_500Medium" }}
-                  onChangeText={setTeamInviteCode}
-                  placeholder="Enter team invite code"
-                  placeholderTextColor="#666"
-                  className="bg-[#2a2a2a] text-[#0C3572] px-4 py-3 rounded-lg mb-4"
-                  autoCapitalize="characters"
-                />
-                <Text
-                  style={{ fontFamily: "Outfit_500Medium" }}
-                  className="text-[#2175C0] text-sm mb-4"
-                >
-                  Ask your team leader for the invite code
-                </Text>
-                <View className="flex-row space-x-3 flex gap-2">
-                  <Button
-                    title="Back"
-                    onPress={() => {
-                      setRegistrationStep("choice");
-                      setIsCreateTeamFlow(true);
-                    }}
-                    variant="secondary"
-                    className="flex-1 border border-gray-600"
-                  />
-                  <Button
-                    title={isLoading ? "Joining..." : "Join Team"}
-                    onPress={handleJoinTeam}
-                    variant="none" 
-                    className="flex-1 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl" 
-                    textClassName="text-[#0C3572]"
-                    disabled={isLoading}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* Custom Fields */}
-            {registrationStep === "custom-fields" && renderCustomFields()}
-          </ScrollView>
+                {renderStepTitle()}
+              </Text>
+              <TouchableOpacity onPress={onClose}>
+                <Ionicons name="close" size={28} color="#0C3572" />
+              </TouchableOpacity>
             </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              automaticallyAdjustKeyboardInsets
+              contentContainerStyle={{
+                paddingBottom: 20,
+              }}
+            >
+              {/* Team Choice */}
+              {registrationStep === "choice" && (
+                <View>
+                  <Button
+                    title="Create New Team"
+                    onPress={() => setRegistrationStep("create-team")}
+                    variant="none"
+                    className="mb-4 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl"
+                    textClassName="text-[#0C3572]"
+                  />
+                  <Button
+                    title="Join Existing Team"
+                    onPress={() => setRegistrationStep("join-team")}
+                    variant="secondary"
+                  />
+                </View>
+              )}
+
+              {/* Create Team */}
+              {registrationStep === "create-team" && (
+                <View>
+                  <Text
+  style={{ fontFamily: "Outfit_500Medium" }}
+  className="text-[#2175C0] mb-2"
+>
+  Team Name
+</Text>
+
+<TextInput
+  value={teamName}
+  onChangeText={setTeamName}
+  placeholder="Enter team name"
+  placeholderTextColor="#666"
+  className="bg-[#ffffff90] text-[#0C3572] px-4 py-3 rounded-lg mb-4 border-[#2175C0] border"
+/>
+                  <Text className="text-[#2175C0] text-sm mb-4">
+                    Team size: {event.minTeamSize || 1} - {event.maxTeamSize || 5}{" "}
+                    members
+                  </Text>
+                  <View className="flex-row space-x-3 flex gap-2">
+                    <Button
+                      title="Back"
+                      onPress={() => setRegistrationStep("choice")}
+                      variant="secondary"
+                      className="flex-1 border border-gray-600"
+                    />
+                    <Button
+                      title={isLoading ? "Creating..." : "Create Team"}
+                      onPress={handleCreateTeam}
+                      variant="none"
+                      className="flex-1 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl"
+                      textClassName="text-[#0C3572]"
+                      disabled={isLoading}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Join Team */}
+              {registrationStep === "join-team" && (
+                <View>
+                 <Text
+  style={{ fontFamily: "Outfit_500Medium" }}
+  className="text-[#2175C0] mb-2"
+>
+  Team Invite Code
+</Text>
+
+<TextInput
+  value={teamInviteCode}
+  onChangeText={setTeamInviteCode}
+  placeholder="Enter team invite code"
+  placeholderTextColor="#666"
+  className="bg-[#DBE2ED] text-[#0C3572] px-4 py-3 rounded-lg mb-4 border-[#2175C0] border "
+  autoCapitalize="characters"
+/>
+                  <Text
+                    style={{ fontFamily: "Outfit_500Medium" }}
+                    className="text-[#2175C0] text-sm mb-4"
+                  >
+                    Ask your team leader for the invite code
+                  </Text>
+                  <View className="flex-row space-x-3 flex gap-2">
+                    <Button
+                      title="Back"
+                      onPress={() => {
+                        setRegistrationStep("choice");
+                        setIsCreateTeamFlow(true);
+                      }}
+                      variant="secondary"
+                      className="flex-1 border border-gray-600"
+                    />
+                    <Button
+                      title={isLoading ? "Joining..." : "Join Team"}
+                      onPress={handleJoinTeam}
+                      variant="none"
+                      className="flex-1 bg-[#95aad3] border-[#0C3572] border-2 py-3 rounded-xl"
+                      textClassName="text-[#0C3572]"
+                      disabled={isLoading}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Custom Fields */}
+              {registrationStep === "custom-fields" && renderCustomFields()}
+            </ScrollView>
           </View>
       </KeyboardAvoidingView>
     </Modal>

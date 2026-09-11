@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import {
   X,
@@ -34,6 +35,7 @@ interface UserDetailsModalProps {
   user: AdminUserProfile | UserProfile | null;
   onClose: () => void;
   onUserUpdate?: (userId: string, updatedUser: AdminUserProfile) => void;
+  onUserDelete?: (userId: string) => void;
 }
 
 const ROLE_COLORS = {
@@ -52,15 +54,32 @@ const ROLE_COLORS = {
   user: "#6B7280",
 };
 
+const availableRoles = [
+  { id: "admin", label: "Admin" },
+  { id: "event_admin", label: "Event Admin" },
+  { id: "event_coordinator", label: "Event Coordinator" },
+  { id: "outreach_admin", label: "Outreach Admin" },
+  { id: "outreach_member", label: "Outreach Member" },
+  { id: "finance", label: "Finance" },
+  { id: "hospitality_admin", label: "Hospitality Admin" },
+  { id: "hospitality_member", label: "Hospitality Member" },
+  { id: "eb_member", label: "EB Member" },
+  { id: "executive_committee", label: "Executive Committee" },
+  { id: "media", label: "Media" },
+  { id: "core_member", label: "Core Member" },
+  { id: "user", label: "User" },
+];
+
 const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   visible,
   user,
   onClose,
   onUserUpdate,
+  onUserDelete,
 }) => {
   const [loading, setLoading] = useState(false);
-  /* Removed API call */
-  /* Removed API call */
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loadingRegistrations, setLoadingRegistrations] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [showRoleManagement, setShowRoleManagement] = useState(false);
@@ -101,8 +120,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
     // Fetch registrations
     setLoadingRegistrations(true);
     try {
-      /* Removed API call */
-      setRegistrations(userRegistrations);
+      setRegistrations([]);
     } catch (error) {
       console.error("Error fetching user registrations:", error);
     } finally {
@@ -112,8 +130,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
     // Fetch orders
     setLoadingOrders(true);
     try {
-      /* Removed API call */
-      setOrders(userOrders);
+      setOrders([]);
     } catch (error) {
       console.error("Error fetching user orders:", error);
     } finally {
@@ -131,6 +148,35 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
     });
   };
 
+  const handleDeleteUser = () => {
+    if (!user) return;
+    Alert.alert(
+      "Delete User",
+      `Are you sure you want to delete ${user.displayName}? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const { adminDeleteUser } = await import("@/api/admin");
+              await adminDeleteUser(user.email);
+              showAlert("Success", "User deleted successfully");
+              onUserDelete?.(user.userId);
+            } catch (error: any) {
+              console.error("Error deleting user:", error);
+              showAlert("Error", error.message || "Failed to delete user");
+            } finally {
+              setLoading(false);
+            }
+          } 
+        }
+      ]
+    );
+  };
+
   const handleSaveRoles = async () => {
     if (!user) return;
 
@@ -139,38 +185,33 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
     setLoading(true);
     try {
-      /* Removed API call */
-      console.log("Update result:", result);
+      const { adminUpdateUser } = await import("@/api/admin");
+      await adminUpdateUser(user.email, { roles: selectedRoles });
 
-      if (result.success) {
-        const updatedUser: AdminUserProfile = {
-          ...(user as AdminUserProfile),
-          role: user.role,
-          roles: result.roles || selectedRoles,
-        };
+      const updatedUser: AdminUserProfile = {
+        ...(user as AdminUserProfile),
+        role: user.role,
+        roles: selectedRoles,
+      };
 
-        console.log("Updated user object:", updatedUser);
+      console.log("Updated user object:", updatedUser);
 
-        // Exit role management mode first
-        setShowRoleManagement(false);
+      // Exit role management mode first
+      setShowRoleManagement(false);
 
-        // Update parent component state
-        onUserUpdate?.(user.userId, updatedUser);
+      // Update parent component state
+      onUserUpdate?.(user.userId, updatedUser);
 
-        console.log("Role update completed successfully");
+      console.log("Role update completed successfully");
 
-        // Show success banner instead of modal alert
-        setUpdateSuccess(true);
-        setTimeout(() => {
-          setUpdateSuccess(false);
-        }, 3000);
-      } else {
-        console.error("Role update failed:", result.error);
-        showAlert("Error", result.error || "Failed to update user roles");
-      }
-    } catch (error) {
+      // Show success banner instead of modal alert
+      setUpdateSuccess(true);
+      setTimeout(() => {
+        setUpdateSuccess(false);
+      }, 3000);
+    } catch (error: any) {
       console.error("Error updating roles:", error);
-      showAlert("Error", "Failed to update user roles. Please try again.");
+      showAlert("Error", error.message || "Failed to update user roles. Please try again.");
     } finally {
       setLoading(false);
       console.log("Loading state set to false");
@@ -193,23 +234,23 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/70 justify-end">
-        <View className="bg-[#121212] rounded-t-3xl min-h-[200px] h-[80%]">
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-white rounded-t-3xl min-h-[200px] h-[80%]">
           {/* Header */}
-          <View className="flex-row items-center justify-between px-6 pt-6 pb-4 border-b border-gray-800">
+          <View className="flex-row items-center justify-between px-6 pt-6 pb-4 border-b border-[#2175C0]/10">
             <View className="flex-row items-center flex-1">
-              <User size={24} color="#FFBA00" />
+              <User size={24} color="#F05423" />
               <View className="ml-3 flex-1">
                 <Text
                   style={{ fontFamily: "Outfit_600SemiBold" }}
-                  className="text-white text-xl"
+                  className="text-[#0C3572] text-xl"
                   numberOfLines={1}
                 >
                   {user.displayName}
                 </Text>
                 <Text
                   style={{ fontFamily: "Outfit_400Regular" }}
-                  className="text-gray-400 text-sm"
+                  className="text-[#2175C0] text-sm"
                   numberOfLines={1}
                 >
                   {user.email}
@@ -219,10 +260,10 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
             <TouchableOpacity
               onPress={onClose}
-              className="p-2 rounded-full bg-[#2C2C2C]"
+              className="p-2 rounded-full bg-[#2175C0]/10"
               activeOpacity={0.7}
             >
-              <X size={20} color="#9CA3AF" />
+              <X size={20} color="#2175C0" />
             </TouchableOpacity>
           </View>
 
@@ -248,7 +289,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             <View className="px-6 py-4">
               <Text
                 style={{ fontFamily: "Outfit_600SemiBold" }}
-                className="text-white text-lg mb-4"
+                className="text-[#0C3572] text-lg mb-4"
               >
                 Basic Information
               </Text>
@@ -257,11 +298,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 {/* Email */}
                 <View className="flex-row items-center">
                   <View className="w-8">
-                    <Mail size={16} color="#9CA3AF" />
+                    <Mail size={16} color="#2175C0" />
                   </View>
                   <Text
                     style={{ fontFamily: "Outfit_400Regular" }}
-                    className="text-gray-300 flex-1"
+                    className="text-[#0C3572] flex-1"
                   >
                     {user.email}
                   </Text>
@@ -271,11 +312,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 {user.phoneNumber && (
                   <View className="flex-row items-center">
                     <View className="w-8">
-                      <Phone size={16} color="#9CA3AF" />
+                      <Phone size={16} color="#2175C0" />
                     </View>
                     <Text
                       style={{ fontFamily: "Outfit_400Regular" }}
-                      className="text-gray-300 flex-1"
+                      className="text-[#0C3572] flex-1"
                     >
                       {user.phoneNumber}
                     </Text>
@@ -285,11 +326,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 {/* College */}
                 <View className="flex-row items-center">
                   <View className="w-8">
-                    <Building size={16} color="#9CA3AF" />
+                    <Building size={16} color="#2175C0" />
                   </View>
                   <Text
                     style={{ fontFamily: "Outfit_400Regular" }}
-                    className="text-gray-300 flex-1"
+                    className="text-[#0C3572] flex-1"
                   >
                     {user.collegeName}
                   </Text>
@@ -299,11 +340,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 {fullUser.collegeState && (
                   <View className="flex-row items-center">
                     <View className="w-8">
-                      <MapPin size={16} color="#9CA3AF" />
+                      <MapPin size={16} color="#2175C0" />
                     </View>
                     <Text
                       style={{ fontFamily: "Outfit_400Regular" }}
-                      className="text-gray-300 flex-1"
+                      className="text-[#0C3572] flex-1"
                     >
                       {fullUser.collegeState}
                     </Text>
@@ -314,11 +355,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 {fullUser.graduationYear && (
                   <View className="flex-row items-center">
                     <View className="w-8">
-                      <Calendar size={16} color="#9CA3AF" />
+                      <Calendar size={16} color="#2175C0" />
                     </View>
                     <Text
                       style={{ fontFamily: "Outfit_400Regular" }}
-                      className="text-gray-300 flex-1"
+                      className="text-[#0C3572] flex-1"
                     >
                       Graduation: {fullUser.graduationYear}
                     </Text>
@@ -329,11 +370,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 {fullUser.rollNumber && (
                   <View className="flex-row items-center">
                     <View className="w-8">
-                      <Text className="text-gray-400 text-xs">#</Text>
+                      <Text className="text-[#2175C0] text-xs">#</Text>
                     </View>
                     <Text
                       style={{ fontFamily: "Outfit_400Regular" }}
-                      className="text-gray-300 flex-1"
+                      className="text-[#0C3572] flex-1"
                     >
                       Roll No: {fullUser.rollNumber}
                     </Text>
@@ -343,11 +384,11 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 {/* Coins */}
                 <View className="flex-row items-center">
                   <View className="w-8">
-                    <Coins size={16} color="#FFBA00" />
+                    <Coins size={16} color="#F05423" />
                   </View>
                   <Text
                     style={{ fontFamily: "Outfit_400Regular" }}
-                    className="text-gray-300 flex-1"
+                    className="text-[#0C3572] flex-1"
                   >
                     {user.coins || 0} Coins
                     {fullUser.points !== undefined &&
@@ -403,18 +444,18 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
             {/* Accommodation Section */}
             {user.accommodationNeeded && fullUser.accommodation && (
-              <View className="px-6 py-4 border-t border-gray-800">
+              <View className="px-6 py-4 border-t border-[#2175C0]/10">
                 <View className="flex-row items-center mb-4">
-                  <Home size={18} color="#FFBA00" />
+                  <Home size={18} color="#F05423" />
                   <Text
                     style={{ fontFamily: "Outfit_600SemiBold" }}
-                    className="text-white text-lg ml-2"
+                    className="text-[#0C3572] text-lg ml-2"
                   >
                     Accommodation
                   </Text>
                 </View>
 
-                <View className="bg-[#1A1A1A] rounded-xl p-4">
+                <View className="bg-[#2175C0]/5 rounded-xl p-4">
                   <View className="flex-row flex-wrap gap-2">
                     {Object.entries(fullUser.accommodation).map(
                       ([day, booked]) =>
@@ -437,7 +478,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   {Object.values(fullUser.accommodation).every((v) => !v) && (
                     <Text
                       style={{ fontFamily: "Outfit_400Regular" }}
-                      className="text-gray-400 text-sm"
+                      className="text-[#2175C0] text-sm"
                     >
                       No accommodation booked yet
                     </Text>
@@ -450,21 +491,21 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             {/* This would require additional API - placeholder for now */}
 
             {/* Event Registrations Section */}
-            <View className="px-6 py-4 border-t border-gray-800">
+            <View className="px-6 py-4 border-t border-[#2175C0]/10">
               <View className="flex-row items-center justify-between mb-4">
                 <View className="flex-row items-center">
-                  <Ticket size={18} color="#FFBA00" />
+                  <Ticket size={18} color="#F05423" />
                   <Text
                     style={{ fontFamily: "Outfit_600SemiBold" }}
-                    className="text-white text-lg ml-2"
+                    className="text-[#0C3572] text-lg ml-2"
                   >
                     Event Registrations
                   </Text>
                 </View>
-                <View className="bg-[#2C2C2C] px-3 py-1 rounded-full">
+                <View className="bg-[#2175C0]/10 px-3 py-1 rounded-full">
                   <Text
                     style={{ fontFamily: "Outfit_600SemiBold" }}
-                    className="text-[#FFBA00] text-sm"
+                    className="text-[#F05423] text-sm"
                   >
                     {registrations.length}
                   </Text>
@@ -473,18 +514,18 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
               {loadingRegistrations ? (
                 <View className="py-8 items-center">
-                  <ActivityIndicator size="small" color="#FFBA00" />
+                  <ActivityIndicator size="small" color="#F05423" />
                 </View>
               ) : registrations.length > 0 ? (
                 <View className="space-y-3 flex flex-col gap-3">
                   {registrations.map((reg, index) => (
                     <View
                       key={index}
-                      className="bg-[#1A1A1A] rounded-xl p-4 border border-gray-700"
+                      className="bg-[#2175C0]/5 rounded-xl p-4 border border-[#2175C0]/20"
                     >
                       <Text
                         style={{ fontFamily: "Outfit_600SemiBold" }}
-                        className="text-white text-base mb-2"
+                        className="text-[#0C3572] text-base mb-2"
                       >
                         {reg.eventName}
                       </Text>
@@ -492,7 +533,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       <View className="flex-row items-center justify-between mb-2">
                         <Text
                           style={{ fontFamily: "Outfit_400Regular" }}
-                          className="text-gray-400 text-sm"
+                          className="text-[#2175C0] text-sm"
                         >
                           Type: {reg.eventType}
                         </Text>
@@ -523,7 +564,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       {reg.teamId && (
                         <Text
                           style={{ fontFamily: "Outfit_400Regular" }}
-                          className="text-gray-400 text-sm"
+                          className="text-[#2175C0] text-sm"
                         >
                           Team ID: {reg.teamId}
                         </Text>
@@ -531,7 +572,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
                       <Text
                         style={{ fontFamily: "Outfit_400Regular" }}
-                        className="text-gray-500 text-xs mt-2"
+                        className="text-[#2175C0]/80 text-xs mt-2"
                       >
                         Registered:{" "}
                         {new Date(reg.registeredAt).toLocaleDateString()}
@@ -540,10 +581,10 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   ))}
                 </View>
               ) : (
-                <View className="bg-[#1A1A1A] rounded-xl p-4">
+                <View className="bg-[#2175C0]/5 rounded-xl p-4">
                   <Text
                     style={{ fontFamily: "Outfit_400Regular" }}
-                    className="text-gray-400 text-center"
+                    className="text-[#2175C0] text-center"
                   >
                     No event registrations found
                   </Text>
@@ -552,21 +593,21 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             </View>
 
             {/* Orders Section */}
-            <View className="px-6 py-4 border-t border-gray-800">
+            <View className="px-6 py-4 border-t border-[#2175C0]/10">
               <View className="flex-row items-center justify-between mb-4">
                 <View className="flex-row items-center">
-                  <ShoppingBag size={18} color="#FFBA00" />
+                  <ShoppingBag size={18} color="#F05423" />
                   <Text
                     style={{ fontFamily: "Outfit_600SemiBold" }}
-                    className="text-white text-lg ml-2"
+                    className="text-[#0C3572] text-lg ml-2"
                   >
                     Orders
                   </Text>
                 </View>
-                <View className="bg-[#2C2C2C] px-3 py-1 rounded-full">
+                <View className="bg-[#2175C0]/10 px-3 py-1 rounded-full">
                   <Text
                     style={{ fontFamily: "Outfit_600SemiBold" }}
-                    className="text-[#FFBA00] text-sm"
+                    className="text-[#F05423] text-sm"
                   >
                     {orders.length}
                   </Text>
@@ -575,19 +616,19 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
               {loadingOrders ? (
                 <View className="py-8 items-center">
-                  <ActivityIndicator size="small" color="#FFBA00" />
+                  <ActivityIndicator size="small" color="#F05423" />
                 </View>
               ) : orders.length > 0 ? (
                 <View className="space-y-3 flex flex-col gap-3">
                   {orders.map((order, index) => (
                     <View
                       key={index}
-                      className="bg-[#1A1A1A] rounded-xl p-4 border border-gray-700"
+                      className="bg-[#2175C0]/5 rounded-xl p-4 border border-[#2175C0]/20"
                     >
                       <View className="flex-row items-center justify-between mb-2">
                         <Text
                           style={{ fontFamily: "Outfit_600SemiBold" }}
-                          className="text-white text-base"
+                          className="text-[#0C3572] text-base"
                         >
                           Order #{order.orderId.slice(-6)}
                         </Text>
@@ -620,13 +661,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       <View className="flex-row items-center justify-between mb-2">
                         <Text
                           style={{ fontFamily: "Outfit_400Regular" }}
-                          className="text-gray-400 text-sm"
+                          className="text-[#2175C0] text-sm"
                         >
                           {order.items.length} item(s)
                         </Text>
                         <Text
                           style={{ fontFamily: "Outfit_600SemiBold" }}
-                          className="text-[#FFBA00] text-base"
+                          className="text-[#F05423] text-base"
                         >
                           ₹{order.finalAmount}
                         </Text>
@@ -634,7 +675,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
                       <Text
                         style={{ fontFamily: "Outfit_400Regular" }}
-                        className="text-gray-500 text-xs"
+                        className="text-[#2175C0]/80 text-xs"
                       >
                         {new Date(order.orderDate).toLocaleDateString()}
                       </Text>
@@ -642,10 +683,10 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   ))}
                 </View>
               ) : (
-                <View className="bg-[#1A1A1A] rounded-xl p-4">
+                <View className="bg-[#2175C0]/5 rounded-xl p-4">
                   <Text
                     style={{ fontFamily: "Outfit_400Regular" }}
-                    className="text-gray-400 text-center"
+                    className="text-[#2175C0] text-center"
                   >
                     No orders found
                   </Text>
@@ -656,25 +697,25 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
             <PrivateRoleComponent allowedRoles={['admin']}>
 
             {/* Role Management Section */}
-            <View className="px-6 py-4 border-t border-gray-800">
+            <View className="px-6 py-4 border-t border-[#2175C0]/10">
               <View className="flex-row items-center justify-between mb-4">
                 <View className="flex-row items-center">
-                  <Crown size={18} color="#FFBA00" />
+                  <Crown size={18} color="#F05423" />
                   <Text
                     style={{ fontFamily: "Outfit_600SemiBold" }}
-                    className="text-white text-lg ml-2"
+                    className="text-[#0C3572] text-lg ml-2"
                   >
                     Roles
                   </Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => setShowRoleManagement(!showRoleManagement)}
-                  className="bg-[#2C2C2C] px-4 py-2 rounded-lg"
+                  className="bg-[#2175C0]/10 px-4 py-2 rounded-lg"
                   activeOpacity={0.7}
                 >
                   <Text
                     style={{ fontFamily: "Outfit_500Medium" }}
-                    className="text-[#FFBA00] text-sm"
+                    className="text-[#F05423] text-sm"
                   >
                     {showRoleManagement ? "Cancel" : "Edit Roles"}
                   </Text>
@@ -692,7 +733,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                     return (
                       <View
                         key={roleId}
-                        className="flex-row items-center bg-[#1A1A1A] px-3 py-2 rounded-lg border border-gray-700"
+                        className="flex-row items-center bg-[#2175C0]/5 px-3 py-2 rounded-lg border border-[#2175C0]/20"
                       >
                         <View
                           className="w-2 h-2 rounded-full mr-2"
@@ -700,7 +741,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                         />
                         <Text
                           style={{ fontFamily: "Outfit_500Medium" }}
-                          className="text-gray-300 text-sm"
+                          className="text-[#0C3572] text-sm"
                         >
                           {role?.label || roleId}
                         </Text>
@@ -712,7 +753,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 <View>
                   <Text
                     style={{ fontFamily: "Outfit_400Regular" }}
-                    className="text-gray-400 text-sm mb-4"
+                    className="text-[#2175C0] text-sm mb-4"
                   >
                     Select multiple roles for this user. The highest priority
                     role will be set as the primary role.
@@ -732,8 +773,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                           onPress={() => toggleRole(role.id)}
                           className={`flex-row items-center justify-between p-4 rounded-xl border ${
                             isSelected
-                              ? "bg-[#2C2C2C] border-[#FFBA00]"
-                              : "bg-[#1A1A1A] border-gray-700"
+                              ? "bg-[#2175C0]/10 border-[#F05423]"
+                              : "bg-[#2175C0]/5 border-[#2175C0]/20"
                           }`}
                           disabled={loading}
                           activeOpacity={0.7}
@@ -746,7 +787,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                             <Text
                               style={{ fontFamily: "Outfit_500Medium" }}
                               className={`text-base ${
-                                isSelected ? "text-white" : "text-gray-300"
+                                isSelected ? "text-[#0C3572]" : "text-[#0C3572]"
                               }`}
                             >
                               {role.label}
@@ -754,8 +795,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                           </View>
 
                           {isSelected && (
-                            <View className="w-6 h-6 bg-[#FFBA00] rounded-full items-center justify-center">
-                              <CheckCircle size={14} color="#000" />
+                            <View className="w-6 h-6 bg-[#F05423] rounded-full items-center justify-center">
+                              <CheckCircle size={14} color="#ffffff" />
                             </View>
                           )}
                         </TouchableOpacity>
@@ -766,16 +807,16 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   {/* Save Button */}
                   <TouchableOpacity
                     onPress={handleSaveRoles}
-                    className="mt-4 bg-[#FFBA00] py-3 rounded-xl"
+                    className="mt-4 bg-[#F05423] py-3 rounded-xl"
                     disabled={loading}
                     activeOpacity={0.7}
                   >
                     {loading ? (
-                      <ActivityIndicator size="small" color="#000" />
+                      <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
                       <Text
                         style={{ fontFamily: "Outfit_600SemiBold" }}
-                        className="text-black text-center"
+                        className="text-white text-center"
                       >
                         Save Changes
                       </Text>
@@ -788,15 +829,24 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
           </ScrollView>
 
           {/* Footer */}
-          <View className="px-6 py-4 border-t border-gray-800">
+          <View className="px-6 py-4 border-t border-[#2175C0]/10 flex-row gap-3">
+            <PrivateRoleComponent allowedRoles={['admin']}>
+              <TouchableOpacity
+                onPress={handleDeleteUser}
+                className="flex-1 bg-red-600/20 border border-red-500/50 py-3 rounded-xl mr-3"
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontFamily: "Outfit_600SemiBold" }} className="text-red-400 text-center">Delete</Text>
+              </TouchableOpacity>
+            </PrivateRoleComponent>
             <TouchableOpacity
               onPress={onClose}
-              className="bg-[#2C2C2C] py-3 rounded-xl"
+              className="flex-1 bg-[#2175C0]/10 py-3 rounded-xl"
               activeOpacity={0.7}
             >
               <Text
                 style={{ fontFamily: "Outfit_600SemiBold" }}
-                className="text-white text-center"
+                className="text-[#0C3572] text-center"
               >
                 Close
               </Text>
