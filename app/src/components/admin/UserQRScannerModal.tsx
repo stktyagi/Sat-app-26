@@ -77,46 +77,49 @@ const UserQRScannerModal: React.FC<UserQRScannerModalProps> = ({
       <Modal
         visible={visible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={onClose}
       >
-        <View className="flex-1 bg-black/90 justify-center items-center px-6">
-          <View className="bg-[#1A1A1A] rounded-2xl p-6 w-full max-w-sm">
+        <View className="flex-1 bg-black/50 justify-center items-center px-6">
+          <View className="bg-white border border-[#2175C0]/20 rounded-3xl p-8 w-full max-w-sm shadow-xl">
+            <View className="bg-[#2175C0]/10 w-16 h-16 rounded-full items-center justify-center mx-auto mb-6">
+              <QrCode size={32} color="#2175C0" />
+            </View>
             <Text
-              style={{ fontFamily: "Outfit_600SemiBold" }}
-              className="text-white text-lg text-center mb-4"
+              style={{ fontFamily: "Outfit_700Bold" }}
+              className="text-[#0C3572] text-2xl text-center mb-3"
             >
-              Camera Permission Required
+              Camera Access
             </Text>
             <Text
               style={{ fontFamily: "Outfit_400Regular" }}
-              className="text-gray-400 text-center mb-6"
+              className="text-gray-600 text-center mb-8 text-base leading-6"
             >
-              Camera permission is required to scan user QR codes
+              We need camera access to quickly scan user QR codes securely.
             </Text>
-            <View className="flex-row gap-3">
+            <View className="flex-row gap-4">
               <TouchableOpacity
-                className="flex-1 bg-[#2C2C2C] px-6 py-3 rounded-xl"
+                className="flex-1 bg-white border border-[#2175C0] px-4 py-3.5 rounded-xl justify-center items-center"
                 onPress={onClose}
                 activeOpacity={0.7}
               >
                 <Text
                   style={{ fontFamily: "Outfit_600SemiBold" }}
-                  className="text-white text-center"
+                  className="text-[#2175C0] text-base"
                 >
                   Cancel
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="flex-1 bg-[#FFBA00] px-6 py-3 rounded-xl"
+                className="flex-1 bg-[#EEB170] px-4 py-3.5 rounded-xl justify-center items-center shadow-sm"
                 onPress={requestPermission}
                 activeOpacity={0.7}
               >
                 <Text
-                  style={{ fontFamily: "Outfit_600SemiBold" }}
-                  className="text-[#121212] text-center"
+                  style={{ fontFamily: "Outfit_700Bold" }}
+                  className="text-[#121212] text-base"
                 >
-                  Grant Permission
+                  Grant Access
                 </Text>
               </TouchableOpacity>
             </View>

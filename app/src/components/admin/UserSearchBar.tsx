@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  Text,
 } from "react-native";
 import { Search, X } from "lucide-react-native";
 
@@ -38,12 +39,13 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
   };
 
   return (
-    <View className="bg-[#2C2C2C] rounded-xl mx-4 mb-4 mt-4 flex-row items-center px-4 py-3">
+    <View className="bg-white border border-[#2175C0] rounded-xl mx-4 mb-4 mt-4 flex-row items-center px-4 py-3 shadow-sm">
+      <Search size={20} color="#2175C0" className="opacity-90" />
       <TextInput
-        className="flex-1 text-white text-base"
-        style={{ fontFamily: "Outfit_500Medium" }}
+        className="flex-1 text-[#3B3B3B] text-base ml-3"
+        style={{ fontFamily: "Outfit_500Medium", backgroundColor: "transparent" }}
         placeholder={placeholder}
-        placeholderTextColor="#6B7280"
+        placeholderTextColor="#9CA3AF"
         value={localSearchTerm}
         onChangeText={setLocalSearchTerm}
         autoCapitalize="none"
@@ -55,24 +57,28 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
       {localSearchTerm.length > 0 && (
         <TouchableOpacity
           onPress={handleClear}
-          className="ml-2 p-1 rounded-full bg-[#3C3C3C]"
+          className="mx-2 p-1 rounded-full bg-gray-100"
           disabled={loading}
           style={{ opacity: loading ? 0.5 : 1 }}
         >
-          <X size={16} color="#9CA3AF" />
+          <X size={16} color="#6B7280" />
         </TouchableOpacity>
       )}
 
       <TouchableOpacity
         onPress={handleSearch}
-        className="ml-2 p-2 rounded-lg bg-[#FFBA00]"
+        className="ml-1 px-4 py-2 rounded-lg bg-[#EEB170] flex-row items-center justify-center"
         disabled={loading || localSearchTerm.trim().length === 0}
-        style={{ opacity: loading || localSearchTerm.trim().length === 0 ? 0.5 : 1 }}
+        style={{ 
+          opacity: loading || localSearchTerm.trim().length === 0 ? 0.5 : 1,
+        }}
       >
         {loading ? (
-          <ActivityIndicator size="small" color="#1A1A1A" />
+          <ActivityIndicator size="small" color="#121212" />
         ) : (
-          <Search size={20} color="#1A1A1A" />
+          <Text style={{ fontFamily: "Outfit_600SemiBold" }} className="text-[#121212] text-sm">
+            Search
+          </Text>
         )}
       </TouchableOpacity>
     </View>

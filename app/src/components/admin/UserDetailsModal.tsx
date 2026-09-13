@@ -29,6 +29,7 @@ import { AdminUserProfile } from '@/types/adminTypes';
 import { UserProfile } from '@/types/models';
 import { showAlert } from "../index";
 import { PrivateRoleComponent } from "../auth/PrivateRoleComponent";
+import { adminGetUserRegistrations, adminUpdateUser, adminDeleteUser } from "@/api/admin";
 
 interface UserDetailsModalProps {
   visible: boolean;
@@ -120,14 +121,23 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
     // Fetch registrations
     setLoadingRegistrations(true);
     try {
-      setRegistrations([]);
+      const regsResponse = await adminGetUserRegistrations(user.email);
+      
+      const mappedRegs = regsResponse.map((item: any) => ({
+        eventName: item.event?.title || 'Unknown Event',
+        eventType: item.event?.eventType || item.event?.category || 'Unknown',
+        status: item.registration?.status || 'pending',
+        teamId: item.registration?.teamId || null,
+        registeredAt: item.registration?.createdAt || new Date().toISOString()
+      }));
+      setRegistrations(mappedRegs);
     } catch (error) {
       console.error("Error fetching user registrations:", error);
     } finally {
       setLoadingRegistrations(false);
     }
 
-    // Fetch orders
+    // Fetch orders (mocked for now as per admin.ts)
     setLoadingOrders(true);
     try {
       setOrders([]);
@@ -161,7 +171,6 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
           onPress: async () => {
             setLoading(true);
             try {
-              const { adminDeleteUser } = await import("@/api/admin");
               await adminDeleteUser(user.email);
               showAlert("Success", "User deleted successfully");
               onUserDelete?.(user.userId);
@@ -185,7 +194,6 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
     setLoading(true);
     try {
-      const { adminUpdateUser } = await import("@/api/admin");
       await adminUpdateUser(user.email, { roles: selectedRoles });
 
       const updatedUser: AdminUserProfile = {
