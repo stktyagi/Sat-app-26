@@ -52,6 +52,26 @@ func decodeRegistration(snap *firestore.DocumentSnapshot) (*models.Registration,
 	return &r, nil
 }
 
+func decodeFaq(snap *firestore.DocumentSnapshot) (*models.Faq, error) {
+	var f models.Faq
+	if err := snap.DataTo(&f); err != nil {
+		return nil, err
+	}
+	f.ID = snap.Ref.ID
+	return &f, nil
+}
+
+func decodeVenue(snap *firestore.DocumentSnapshot) (*models.Venue, error) {
+	var v models.Venue
+	if err := snap.DataTo(&v); err != nil {
+		return nil, err
+	}
+	if v.VenueID == "" {
+		v.VenueID = snap.Ref.ID
+	}
+	return &v, nil
+}
+
 func decodeTeam(snap *firestore.DocumentSnapshot) (*models.Team, error) {
 	var t models.Team
 	if err := snap.DataTo(&t); err != nil {

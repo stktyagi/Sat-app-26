@@ -17,6 +17,7 @@ const (
 	ColRegistrations = "userEventRegistrations"
 	ColTeams         = "teamRegistrations"
 	ColVenues        = "venues"
+	ColFaqs          = "faqs"
 )
 
 var (

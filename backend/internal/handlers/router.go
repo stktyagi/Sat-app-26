@@ -50,6 +50,8 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	open.GET("/events", api.ListEvents)
 	open.GET("/events/categories", api.GetCategories)
 	open.GET("/events/:id", api.GetEvent)
+	open.GET("/faqs", api.ListFaqs)
+	open.GET("/venues", api.ListVenues)
 
 	registered.POST("/events/:id/register", api.Register)
 	authed.DELETE("/events/:id/register", api.Unregister)
@@ -68,6 +70,14 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	admin.PATCH("/admin/events/:id", api.UpdateEvent)
 	admin.DELETE("/admin/events/:id", api.DeleteEvent)
 	admin.GET("/admin/events/:id/registrations", api.ListEventRegistrations)
+
+	admin.POST("/admin/faqs", api.CreateFaq)
+	admin.PATCH("/admin/faqs/:id", api.UpdateFaq)
+	admin.DELETE("/admin/faqs/:id", api.DeleteFaq)
+
+	admin.POST("/admin/venues", api.CreateVenue)
+	admin.PATCH("/admin/venues/:id", api.UpdateVenue)
+	admin.DELETE("/admin/venues/:id", api.DeleteVenue)
 
 	// Admin user management: look up by unique email, edit, or delete.
 	admin.GET("/admin/users/by-email/:email", api.AdminGetUser)

@@ -9,6 +9,7 @@ import (
 	"backend/internal/chatbot"
 	"backend/internal/config"
 	"backend/internal/fb"
+	"backend/internal/models"
 	"backend/internal/qr"
 	"backend/internal/store"
 )
@@ -17,14 +18,16 @@ import (
 type API struct {
 	Store   *store.Store
 	Cache   *store.EventCache
+	Faqs    *store.ListCache[*models.Faq]
+	Venues  *store.ListCache[*models.Venue]
 	QR      *qr.Signer
 	Cfg     *config.Config
 	Chatbot *chatbot.Service
 	Clients *fb.Clients
 }
 
-func New(s *store.Store, cache *store.EventCache, signer *qr.Signer, cfg *config.Config, cb *chatbot.Service, clients *fb.Clients) *API {
-	return &API{Store: s, Cache: cache, QR: signer, Cfg: cfg, Chatbot: cb, Clients: clients}
+func New(s *store.Store, cache *store.EventCache, faqs *store.ListCache[*models.Faq], venues *store.ListCache[*models.Venue], signer *qr.Signer, cfg *config.Config, cb *chatbot.Service, clients *fb.Clients) *API {
+	return &API{Store: s, Cache: cache, Faqs: faqs, Venues: venues, QR: signer, Cfg: cfg, Chatbot: cb, Clients: clients}
 }
 
 // bind parses a JSON body and reports a uniform error for malformed input.

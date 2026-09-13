@@ -44,7 +44,9 @@ func main() {
 	events := store.NewEventCache(st, provider, provider, cfg.EventCacheTTL)
 	events.StartInvalidationListener(ctx)
 	cb := chatbot.NewService(cfg.GroqAPIKey)
-	api := handlers.New(st, events, qr.New(cfg.QRSecret), cfg, cb, clients)
+	faqs := store.NewListCache(provider, store.KeyFaqs, cfg.EventCacheTTL, st.AllFaqs)
+	venues := store.NewListCache(provider, store.KeyVenues, cfg.EventCacheTTL, st.AllVenues)
+	api := handlers.New(st, events, faqs, venues, qr.New(cfg.QRSecret), cfg, cb, clients)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
