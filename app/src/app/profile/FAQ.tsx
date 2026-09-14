@@ -14,6 +14,7 @@ import {
   HelpCircle,
 } from "lucide-react-native";
 import { FAQ } from "@/types/models";
+import { listPublicFAQs } from "@/api/faq";
 import Header from "@/components/layout/Header";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -29,7 +30,7 @@ export default function FAQScreen() {
 
   const loadFAQs = async () => {
     try {
-      const publicFAQs: FAQ[] = [];
+      const publicFAQs = await listPublicFAQs();
       setFaqs(publicFAQs);
     } catch (error) {
       console.error("Error loading FAQs:", error);

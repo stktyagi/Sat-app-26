@@ -255,10 +255,8 @@ export interface Update {
 }
 
 export interface FAQ {
-  faqId: string;
   question: string;
   answer: string;
   order: number;
-  isPublic: boolean;
-  createdAt: any;
+
 }
