@@ -201,14 +201,14 @@ const EventDetailsScreen: React.FC = () => {
           Prizes
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={() => setActiveTab('feedback')}
               className={`py-2 px-4 ${activeTab === 'feedback' ? 'border-b-2 border-[#EEB170]' : ''}`}
             >
               <Text style={{ fontFamily: 'Outfit_500Medium' }} className={`${activeTab === 'feedback' ? 'text-[#EEB170]' : 'text-[#2175C0]'}`}>
           Feedback
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>

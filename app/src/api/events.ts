@@ -105,6 +105,7 @@ export async function registerForEvent(eventId: string, responses: any[] = []) {
     { method: "POST", body: JSON.stringify({ responses }) },
     "required",
   );
+  console.log(response)
   if (!response.ok) {
     throw new Error(await readError(response, "Failed to register"));
   }

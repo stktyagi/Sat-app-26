@@ -30,8 +30,8 @@ import SplashScreen from '@/components/SplashScreen';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 60 * 24, // 24 hours
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours
+      staleTime: 1, // 24 hours
+      gcTime: 1, // 24 hours
     },
   },
 });
