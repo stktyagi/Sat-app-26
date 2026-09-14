@@ -66,6 +66,7 @@ func (a *API) CreateTeam(c *gin.Context) {
 		case err == nil:
 			a.Cache.Invalidate()
 			a.hydrateMembers(ctx, team)
+			team.Size = len(team.Members)
 			c.JSON(http.StatusCreated, gin.H{"team": team, "inviteCode": code})
 			return
 
