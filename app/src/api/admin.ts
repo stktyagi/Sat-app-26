@@ -195,24 +195,31 @@ export async function clearAccommodationCache(): Promise<void> {
 // ─── Venues (mock) ────────────────────────────────────────────────────────────
 
 export async function listVenues(): Promise<AdminVenue[]> {
-  return [
-    { id: 'main-auditorium', name: 'Main Auditorium', location: 'Campus' },
-    { id: 'cos-complex', name: 'COS Complex', location: 'Campus' },
-  ];
+  // return [
+  //   { id: 'main-auditorium', name: 'Main Auditorium', location: 'Campus' },
+  //   { id: 'cos-complex', name: 'COS Complex', location: 'Campus' },
+  // ];
+  const res = await apiFetch('/venues', 'none');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to load venues'));
+  return res.json();
 }
 
-export async function createVenue(_data: Partial<AdminVenue>): Promise<void> {
-  console.log('[mock] createVenue');
+export async function createVenue(data: Partial<AdminVenue>): Promise<void> {
+  const res = await apiFetch('/admin/venues', { method: 'POST', body: JSON.stringify(data) }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to create venue'));
+  return res.json();
 }
 
-export async function updateVenue(_id: string, _data: Partial<AdminVenue>): Promise<boolean> {
-  console.log('[mock] updateVenue');
-  return true;
+export async function updateVenue(id: string, data: Partial<AdminVenue>): Promise<boolean> {
+  const res = await apiFetch(`/admin/venues/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to update venue'));
+  return res.json();
 }
 
 export async function deleteVenue(_id: string): Promise<boolean> {
-  console.log('[mock] deleteVenue');
-  return true;
+  const res = await apiFetch(`/admin/venues/${id}`, { method: 'DELETE', body: JSON.stringify(data) }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to delete venue'));
+  return res.json();
 }
 
 // ─── FAQs (mock) ──────────────────────────────────────────────────────────────
@@ -220,21 +227,27 @@ export async function deleteVenue(_id: string): Promise<boolean> {
 export interface FAQ { id: string; question: string; answer: string; order: number; }
 
 export async function listFAQs(): Promise<FAQ[]> {
-  return [];
+  const res = await apiFetch('/faqs', 'none');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to load faqs'));
+  return res.json();
 }
 
-export async function createFAQ(_data: Partial<FAQ>): Promise<void> {
-  console.log('[mock] createFAQ');
+export async function createFAQ(data: Partial<FAQ>): Promise<void> {
+  const res = await apiFetch('/admin/faqs', { method: 'POST', body: JSON.stringify(data) }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to create faq'));
+  return res.json();
 }
 
-export async function updateFAQ(_id: string, _data: Partial<FAQ>): Promise<boolean> {
-  console.log('[mock] updateFAQ');
-  return true;
+export async function updateFAQ(id: string, data: Partial<FAQ>): Promise<boolean> {
+  const res = await apiFetch(`/admin/faqs/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to update faq'));
+  return res.json();
 }
 
-export async function deleteFAQ(_id: string): Promise<boolean> {
-  console.log('[mock] deleteFAQ');
-  return true;
+export async function deleteFAQ(id: string): Promise<boolean> {
+  const res = await apiFetch(`/admin/faqs/${id}`, { method: 'DELETE', body: JSON.stringify(data) }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to delete faq'));
+  return res.json();
 }
 
 // ─── Banners (mock) ───────────────────────────────────────────────────────────
