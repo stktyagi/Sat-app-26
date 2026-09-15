@@ -64,6 +64,29 @@ func main() {
 		}
 	}()
 
+	// Warm the caches in the background so the first real request does not pay
+	// the Firestore round-trip cost. This runs after the server is already
+	// listening, so it never delays startup.
+	go func() {
+		wctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if _, err := events.All(wctx); err != nil {
+			log.Printf("cache warm: events: %v", err)
+		} else {
+			log.Printf("cache warm: events ready")
+		}
+		if _, err := faqs.All(wctx); err != nil {
+			log.Printf("cache warm: faqs: %v", err)
+		} else {
+			log.Printf("cache warm: faqs ready")
+		}
+		if _, err := venues.All(wctx); err != nil {
+			log.Printf("cache warm: venues: %v", err)
+		} else {
+			log.Printf("cache warm: venues ready")
+		}
+	}()
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
