@@ -113,3 +113,11 @@ func (r *Redis) Subscribe(ctx context.Context, channel string) (<-chan []byte, e
 
 	return out, nil
 }
+
+// IncrBy atomically adds n to the integer held at key, creating it at zero
+// first, and returns the new value. It is deliberately off Provider: only the
+// storage package needs a counter, and widening the shared interface would
+// force every other consumer to care.
+func (r *Redis) IncrBy(ctx context.Context, key string, n int64) (int64, error) {
+	return r.client.IncrBy(ctx, r.ns(key), n).Result()
+}

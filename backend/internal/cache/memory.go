@@ -2,6 +2,8 @@ package cache
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -146,4 +148,27 @@ func (m *Memory) Close() error {
 
 func (e memEntry) expired(now time.Time) bool {
 	return !e.expiresAt.IsZero() && now.After(e.expiresAt)
+}
+
+// IncrBy mirrors Redis INCRBY, including its storage format: the counter is
+// kept as a decimal string so a following Get returns exactly what Redis would
+// and a caller can parse one value either way. A key holding a non-numeric
+// value is an error here too, rather than being silently reset.
+func (m *Memory) IncrBy(_ context.Context, key string, n int64) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	cur := int64(0)
+	if e, ok := m.entries[key]; ok && !e.expired(time.Now()) {
+		parsed, err := strconv.ParseInt(string(e.val), 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cache: %q does not hold an integer", key)
+		}
+		cur = parsed
+	}
+
+	cur += n
+	// Incrementing clears any TTL, as Redis does.
+	m.entries[key] = memEntry{val: []byte(strconv.FormatInt(cur, 10))}
+	return cur, nil
 }

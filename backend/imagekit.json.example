@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ik1",
+    "urlEndpoint": "https://ik.imagekit.io/your_first_id",
+    "privateKey": "private_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "quotaBytes": 21474836480
+  },
+  {
+    "id": "ik2",
+    "urlEndpoint": "https://ik.imagekit.io/your_second_id",
+    "privateKey": "private_yyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+    "quotaBytes": 21474836480
+  }
+]

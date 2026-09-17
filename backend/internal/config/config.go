@@ -31,24 +31,31 @@ type Config struct {
 	// true makes those registrations return 402 instead.
 	PaymentsEnforced bool
 
+	// ImageKitAccountsFile points at the JSON array of ImageKit accounts that
+	// internal/storage spreads uploads across. Optional: nothing constructs a
+	// storage.Store yet, and an API with no file uploads wired up should still
+	// boot without credentials for them.
+	ImageKitAccountsFile string
+
 	UseEmulator bool
-	GroqAPIKey string
+	GroqAPIKey  string
 }
 
 func Load() (*Config, error) {
 	loadDotEnv(".env")
 
 	c := &Config{
-		Port:            env("PORT", "6767"),
-		ProjectID:       os.Getenv("FIREBASE_PROJECT_ID"),
-		CredentialsFile: env("GOOGLE_APPLICATION_CREDENTIALS", "../serviceAccountKey.json"),
-		QRSecret:        []byte(os.Getenv("QR_SIGNING_SECRET")),
-		HostEmailDomain: strings.ToLower(env("HOST_EMAIL_DOMAIN", "thapar.edu")),
-		AllowedOrigins:  splitCSV(env("ALLOWED_ORIGINS", "*")),
-		RedisURL:        os.Getenv("REDIS_URL"),
-		RedisNamespace:  env("REDIS_NAMESPACE", "sat26"),
-		UseEmulator:     os.Getenv("FIRESTORE_EMULATOR_HOST") != "",
-		GroqAPIKey: os.Getenv("GROQ_API_KEY"),
+		Port:                 env("PORT", "6767"),
+		ProjectID:            os.Getenv("FIREBASE_PROJECT_ID"),
+		CredentialsFile:      env("GOOGLE_APPLICATION_CREDENTIALS", "../serviceAccountKey.json"),
+		QRSecret:             []byte(os.Getenv("QR_SIGNING_SECRET")),
+		HostEmailDomain:      strings.ToLower(env("HOST_EMAIL_DOMAIN", "thapar.edu")),
+		AllowedOrigins:       splitCSV(env("ALLOWED_ORIGINS", "*")),
+		RedisURL:             os.Getenv("REDIS_URL"),
+		RedisNamespace:       env("REDIS_NAMESPACE", "sat26"),
+		ImageKitAccountsFile: os.Getenv("IMAGEKIT_ACCOUNTS_FILE"),
+		UseEmulator:          os.Getenv("FIRESTORE_EMULATOR_HOST") != "",
+		GroqAPIKey:           os.Getenv("GROQ_API_KEY"),
 	}
 
 	ttl, err := time.ParseDuration(env("EVENT_CACHE_TTL", "60s"))
@@ -70,6 +77,13 @@ func Load() (*Config, error) {
 	}
 	if c.RedisURL == "" {
 		return nil, fmt.Errorf("REDIS_URL is required")
+	}
+	// Checked only when set, so the file is required exactly when something
+	// has been configured to use it.
+	if c.ImageKitAccountsFile != "" {
+		if _, err := os.Stat(c.ImageKitAccountsFile); err != nil {
+			return nil, fmt.Errorf("imagekit accounts file %q not readable: %w", c.ImageKitAccountsFile, err)
+		}
 	}
 	if !c.UseEmulator {
 		if _, err := os.Stat(c.CredentialsFile); err != nil {
