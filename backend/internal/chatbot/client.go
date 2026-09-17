@@ -99,7 +99,7 @@ func NewService(apiKey string) *Service {
 
 func (s *Service) AskGroq(ctx context.Context, message string) (string, error) {
 	requestBody := groqRequest{
-		Model: "llama-3.3-70b-versatile",
+		Model: "openai/gpt-oss-20b",
 		Messages: []groqMessage{
 			{
 				Role:    "system",

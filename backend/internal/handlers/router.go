@@ -42,8 +42,6 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	authed.PATCH("/me", api.PatchMe)
 	authed.GET("/me/events", api.GetMyEvents)
 
-	authed.POST("/chatbot/ask", api.Chat)
-
 	// Public browsing. The optional token is what lets a signed-in caller see
 	// their own fee and registration without a second request.
 	open := v1.Group("", optional)
@@ -52,6 +50,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	open.GET("/events/:id", api.GetEvent)
 	open.GET("/faqs", api.ListFaqs)
 	open.GET("/venues", api.ListVenues)
+	open.POST("/chatbot/ask", api.Chat)
 
 	registered.POST("/events/:id/register", api.Register)
 	authed.DELETE("/events/:id/register", api.Unregister)

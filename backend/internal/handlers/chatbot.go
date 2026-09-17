@@ -28,7 +28,9 @@ func (a *API) Chat(c *gin.Context) {
 		return
 	}
 
-	_ = user.UserID // available for personalization if needed later
+	if user != nil {
+		_ = user.UserID // available for personalization if needed later
+	}
 
 	reply, err := a.Chatbot.AskGroq(ctx, body.Message)
 	if err != nil {
