@@ -86,8 +86,8 @@ export default function FAQScreen() {
           ) : (
               faqs.map((faq, index) => (
                   <TouchableOpacity
-                  key={faq.faqId}
-                  onPress={() => toggleExpanded(faq.faqId)}
+                  key={faq.id}
+                  onPress={() => toggleExpanded(faq.id)}
                   className="bg-[#FFFFFF66] rounded-2xl p-5 mb-4"
                   activeOpacity={0.7}
                   >
@@ -101,7 +101,7 @@ export default function FAQScreen() {
                     </Text>
                   </View>
                   <View className="mt-1">
-                    {expandedId === faq.faqId ? (
+                    {expandedId === faq.id ? (
                         <ChevronUp size={24} color="#FFBA00" />
                     ) : (
                         <ChevronDown size={24} color="#FFBA00" />
@@ -109,7 +109,7 @@ export default function FAQScreen() {
                   </View>
                 </View>
 
-                {expandedId === faq.faqId && (
+                {expandedId === faq.id && (
                     <View className="mt-4 pt-4 border-t border-[#A0B3D0]">
                     <Text
                       style={{ fontFamily: "Outfit_400Regular" }}

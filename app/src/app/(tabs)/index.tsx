@@ -457,7 +457,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
       <ChatBot
         visible={showChatBot}
         onClose={handleCloseChatBot}
-        chatbotApiUrl={`${API_BASE_URL}/api/v1/chatbot/ask`}
+        chatbotApiUrl={`${API_BASE_URL}/chatbot/ask`}
       />
     </View>
   );

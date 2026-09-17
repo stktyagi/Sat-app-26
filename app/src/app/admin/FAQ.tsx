@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { ArrowLeft, Plus, Edit, Trash2, HelpCircle } from "lucide-react-native";
 import { FAQ } from "@/types/models";
-import { getFAQs, addFAQWithId, updateFAQ, deleteFAQ } from "@/api/admin";
+import { getFAQs, createFAQ, updateFAQ, deleteFAQ } from "@/api/admin";
 import Input from "@/components/ui/Input";
 import { showAlert } from "@/components";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
@@ -12,7 +12,6 @@ export default function FAQManagement() {
   const navigation = useAdminNavigation();
   const [data, setData] = useState<FAQ[]>([]);
   const [createData, setCreateData] = useState<Partial<FAQ>>({
-    isPublic: true,
     order: 0,
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -43,8 +42,8 @@ export default function FAQManagement() {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            setDeletingId(item.faqId);
-            const success = await deleteFAQ(item.faqId);
+            setDeletingId(item.id);
+            const success = await deleteFAQ(item.id);
             if (success) {
               await loadData();
               showAlert("Success", "FAQ deleted successfully!");
@@ -59,27 +58,22 @@ export default function FAQManagement() {
   };
 
   const handleCreateFAQ = async () => {
-    if (!createData.faqId || !createData.question || !createData.answer) {
-      showAlert("Error", "Please fill in all required fields (ID, Question, Answer)");
+    if (!createData.question || !createData.answer) {
+      showAlert("Error", "Please fill in all required fields (Question, Answer)");
       return;
     }
 
     setCreating(true);
     try {
-      const success = await addFAQWithId(createData.faqId, {
+      await createFAQ({
         question: createData.question,
         answer: createData.answer,
         order: createData.order || 0,
-        isPublic: createData.isPublic ?? true,
       });
 
-      if (success) {
-        await loadData();
-        setCreateData({ isPublic: true, order: 0 });
-        showAlert("Success", "FAQ created successfully!");
-      } else {
-        showAlert("Error", "Failed to create FAQ");
-      }
+      await loadData();
+      setCreateData({ order: 0 });
+      showAlert("Success", "FAQ created successfully!");
     } catch (error) {
       showAlert("Error", "Failed to create FAQ");
       console.error(error);
@@ -96,7 +90,6 @@ export default function FAQManagement() {
       if (editData.question) updates.question = editData.question;
       if (editData.answer) updates.answer = editData.answer;
       if (editData.order !== undefined) updates.order = editData.order;
-      if (editData.isPublic !== undefined) updates.isPublic = editData.isPublic;
 
       const success = await updateFAQ(editingId, updates);
 
@@ -144,18 +137,6 @@ export default function FAQManagement() {
               Create New FAQ
             </Text>
 
-            <Input
-              label="FAQ ID"
-              value={createData.faqId || ""}
-              onChangeText={(value: string) => {
-                setCreateData({
-                  ...createData,
-                  faqId: value,
-                });
-              }}
-              placeholder="e.g., payment-info, registration-deadline"
-              className="mb-4"
-            />
 
             <Input
               label="Question"
@@ -199,45 +180,6 @@ export default function FAQManagement() {
               className="mb-4"
             />
 
-            <View className="mb-4">
-              <Text className="text-[#2175C0] text-sm mb-2">Visibility</Text>
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  className={`flex-1 py-3 rounded-xl ${
-                    createData.isPublic ? "bg-[#EEB170]" : "bg-[#FFFFFF66]"
-                  }`}
-                  onPress={() =>
-                    setCreateData({ ...createData, isPublic: true })
-                  }
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    className={`text-center font-semibold ${
-                      createData.isPublic ? "text-[#121212]" : "text-[#2175C0]"
-                    }`}
-                  >
-                    Public
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className={`flex-1 py-3 rounded-xl ${
-                    !createData.isPublic ? "bg-[#EEB170]" : "bg-[#FFFFFF66]"
-                  }`}
-                  onPress={() =>
-                    setCreateData({ ...createData, isPublic: false })
-                  }
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    className={`text-center font-semibold ${
-                      !createData.isPublic ? "text-[#121212]" : "text-[#2175C0]"
-                    }`}
-                  >
-                    Hidden
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
 
             <TouchableOpacity
               className={`${
@@ -288,7 +230,7 @@ export default function FAQManagement() {
                 key={index}
                 className="bg-[#FFFFFF66] rounded-2xl p-5 mb-4 border border-[#A0B3D0]"
               >
-                {editingId === item.faqId ? (
+                {editingId === item.id ? (
                   // Edit Mode
                   <View>
                     <Text className="text-[#EEB170] text-lg font-bold mb-4">
@@ -334,53 +276,6 @@ export default function FAQManagement() {
                       className="mb-3"
                     />
 
-                    <View className="mb-4">
-                      <Text className="text-[#2175C0] text-sm mb-2">Visibility</Text>
-                      <View className="flex-row gap-3">
-                        <TouchableOpacity
-                          className={`flex-1 py-3 rounded-xl ${
-                            (editData.isPublic ?? item.isPublic)
-                              ? "bg-[#EEB170]"
-                              : "bg-[#FFFFFF66]"
-                          }`}
-                          onPress={() =>
-                            setEditData({ ...editData, isPublic: true })
-                          }
-                          activeOpacity={0.7}
-                        >
-                          <Text
-                            className={`text-center font-semibold ${
-                              (editData.isPublic ?? item.isPublic)
-                                ? "text-[#121212]"
-                                : "text-[#2175C0]"
-                            }`}
-                          >
-                            Public
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          className={`flex-1 py-3 rounded-xl ${
-                            !(editData.isPublic ?? item.isPublic)
-                              ? "bg-[#EEB170]"
-                              : "bg-[#FFFFFF66]"
-                          }`}
-                          onPress={() =>
-                            setEditData({ ...editData, isPublic: false })
-                          }
-                          activeOpacity={0.7}
-                        >
-                          <Text
-                            className={`text-center font-semibold ${
-                              !(editData.isPublic ?? item.isPublic)
-                                ? "text-[#121212]"
-                                : "text-[#2175C0]"
-                            }`}
-                          >
-                            Hidden
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
 
                     <View className="flex-row gap-3">
                       <TouchableOpacity
@@ -412,7 +307,7 @@ export default function FAQManagement() {
                           {item.question}
                         </Text>
                         <Text className="text-[#2175C0] text-sm mt-1">
-                          Order: {item.order} | {item.isPublic ? "Public" : "Hidden"}
+                          Order: {item.order}
                         </Text>
                       </View>
                     </View>
@@ -425,7 +320,7 @@ export default function FAQManagement() {
 
                     <View className="bg-[#FFFFFF66] rounded-lg p-2 mb-3">
                       <Text className="text-gray-500 text-xs">
-                        ID: {item.faqId}
+                        ID: {item.id}
                       </Text>
                     </View>
 
@@ -433,12 +328,11 @@ export default function FAQManagement() {
                       <TouchableOpacity
                         className="flex-1 bg-[#EEB170] py-3 rounded-xl flex-row items-center justify-center"
                         onPress={() => {
-                          setEditingId(item.faqId);
+                          setEditingId(item.id);
                           setEditData({
                             question: item.question,
                             answer: item.answer,
                             order: item.order,
-                            isPublic: item.isPublic,
                           });
                         }}
                         activeOpacity={0.7}
@@ -452,10 +346,10 @@ export default function FAQManagement() {
                       <TouchableOpacity
                         className="flex-1 bg-[#E84054] py-3 rounded-xl flex-row items-center justify-center"
                         onPress={() => handleDeleteFAQ(item)}
-                        disabled={deletingId === item.faqId}
+                        disabled={deletingId === item.id}
                         activeOpacity={0.7}
                       >
-                        {deletingId === item.faqId ? (
+                        {deletingId === item.id ? (
                           <>
                             <ActivityIndicator color="#fff" size="small" />
                             <Text className="text-[#0C3572] font-semibold ml-2">

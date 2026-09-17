@@ -44,6 +44,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { User, CalendarDays, MapPin, Search, X, Navigation } from "lucide-react-native";
 import { Venue, FirebaseEvent } from '@/types/models';
 import { CAMPUS_LOCATIONS } from '@/data/campusLocations';
+import { listVenues } from '@/api/admin';
+import { listEvents } from '@/api/events';
 import * as Location from "expo-location";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFzaGFuMjAwMyIsImEiOiJjbWdhbHRkNTkwbm1vMmlxdGRrdnpvazR4In0.Uy3g_PaeGdaoUAmTdRl_-w";
@@ -247,8 +249,8 @@ export default function MapScreen() {
   const fetchVenues = useCallback(async () => {
     try {
       setLoading(true);
-      /* Removed API call */
-      setVenues(venuesData);
+      const fetchedVenues = await listVenues();
+      setVenues(fetchedVenues);
     } catch (error) {
       console.error("Error fetching venues:", error);
       showAlert("Error", "Failed to load venue locations");
@@ -258,13 +260,21 @@ export default function MapScreen() {
   }, []);
 
   // Fetch events from Firebase
-  /* Removed API call */
+  const fetchEvents = useCallback(async () => {
+    try {
+      const fetchedEvents = await listEvents();
+      setEvents(fetchedEvents);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    }
+  }, []);
 
-  // Fetch venues on component mount
+  // Fetch venues and events on component mount
   useEffect(() => {
     fetchVenues();
+    fetchEvents();
     getUserLocation();
-  }, [fetchVenues, getUserLocation]);
+  }, [fetchVenues, fetchEvents, getUserLocation]);
 
   // Roads data as GeoJSON
   const roadsGeoJSON = useMemo(

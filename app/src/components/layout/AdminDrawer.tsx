@@ -22,7 +22,7 @@ interface DrawerItem {
 const ALL_ITEMS: DrawerItem[] = [
   // { label: 'QR Scanner',        icon: 'qr-code-outline',    route: '/admin/QRScanner',           requiredRoles: ['admin', 'event_coordinator', 'executive_committee', 'core_member', 'event_admin', 'hospitality_admin', 'hospitality_member', 'outreach_admin', 'outreach_member'] },
   { label: 'Event Management',  icon: 'calendar-outline',   route: '/admin/EventsManagement',    requiredRoles: ['admin', 'event_coordinator', 'event_admin', 'outreach_admin', 'outreach_member', 'hospitality_admin', 'hospitality_member'] },
-  { label: 'Banner Management', icon: 'image-outline',      route: '/admin/Banner',              requiredRoles: ['admin', 'media'] },
+  // { label: 'Banner Management', icon: 'image-outline',      route: '/admin/Banner',              requiredRoles: ['admin', 'media'] },
   // { label: 'Content Management',icon: 'stats-chart-outline',route: '/admin/Poll',                requiredRoles: ['admin', 'eb_member', 'event_admin'] },
   { label: 'Venue Management',  icon: 'location-outline',   route: '/admin/Venue',               requiredRoles: ['admin', 'event_admin'] },
   { label: 'FAQ Management',    icon: 'help-circle-outline', route: '/admin/FAQ',                requiredRoles: ['admin', 'eb_member'] },

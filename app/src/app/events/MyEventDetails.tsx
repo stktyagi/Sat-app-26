@@ -58,9 +58,9 @@ const MyEventDetailsScreen: React.FC = () => {
         text: "Remove",
         style: "destructive",
         onPress: () => {
-          if (!teamData?.teamRef) return;
+          if (!teamData?.teamId) return;
           removeTeamMemberMutation.mutate(
-            { teamRef: teamData.teamRef, userId: memberUserId },
+            { teamRef: teamData.teamId, userId: memberUserId },
             {
               onError: (error: any) => showAlert("Error", error.message || "Failed to remove member"),
             }
@@ -82,8 +82,8 @@ const MyEventDetailsScreen: React.FC = () => {
         text: "Delete",
         style: "destructive",
         onPress: () => {
-          if (!teamData?.teamRef) return;
-          deleteTeamMutation.mutate(teamData.teamRef, {
+          if (!teamData?.teamId) return;
+          deleteTeamMutation.mutate(teamData.teamId, {
             onSuccess: () => router.back(),
             onError: (error: any) => showAlert("Error", error.message || "Failed to delete team"),
           });

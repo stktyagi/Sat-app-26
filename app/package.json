@@ -66,8 +66,14 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@react-native/jest-preset": "^0.87.1",
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "jest": "^30.5.1",
+    "jest-expo": "^57.0.5",
     "prettier-plugin-tailwindcss": "^0.5.14",
+    "react-test-renderer": "^19.2.3",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.3"
   },
@@ -77,7 +83,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "jest --forceExit"
   },
   "private": true
 }

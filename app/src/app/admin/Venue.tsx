@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Venue } from "@/types/models";
 import {
   getVenues,
-  addVenueWithId,
+  createVenue,
   updateVenue,
   deleteVenue,
 } from "@/api/admin";
@@ -32,7 +32,7 @@ export default function VenueManagement() {
   const loadData = async () => {
     setLoading(true);
     const res = await getVenues();
-    console.log("Venues:", res);
+    // console.log("Venues:", res);
     setData(res);
     setLoading(false);
   };
@@ -66,8 +66,8 @@ export default function VenueManagement() {
   };
 
   const handleCreateVenue = async () => {
-    if (!createData.venueId || !createData.venueName) {
-      showAlert("Error", "Please enter venue ID and name");
+    if (!createData.venueName) {
+      showAlert("Error", "Please enter venue name");
       return;
     }
     if (createData.lat === undefined || createData.lng === undefined) {
@@ -77,7 +77,7 @@ export default function VenueManagement() {
 
     setCreating(true);
     try {
-      const success = await addVenueWithId(createData.venueId, {
+      const success = await createVenue({
         venueName: createData.venueName,
         lat: createData.lat,
         lng: createData.lng,
@@ -154,18 +154,6 @@ export default function VenueManagement() {
               Create New Venue
             </Text>
 
-            <Input
-              label="Venue ID"
-              value={createData.venueId || ""}
-              onChangeText={(value) => {
-                setCreateData({
-                  ...createData,
-                  venueId: value,
-                });
-              }}
-              placeholder="e.g., c-hall, oat, tan"
-              className="mb-4"
-            />
 
             <Input
               label="Venue Name"

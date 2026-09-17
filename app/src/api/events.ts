@@ -121,7 +121,6 @@ export async function unregisterForEvent(eventId: string) {
   if (!response.ok) {
     throw new Error(await readError(response, "Failed to cancel registration"));
   }
-  return response.json();
 }
 
 export async function createEventTeam(eventId: string, teamName: string, responses: any[] = []) {

@@ -194,32 +194,29 @@ export async function clearAccommodationCache(): Promise<void> {
 
 // ─── Venues (mock) ────────────────────────────────────────────────────────────
 
-export async function listVenues(): Promise<AdminVenue[]> {
-  // return [
-  //   { id: 'main-auditorium', name: 'Main Auditorium', location: 'Campus' },
-  //   { id: 'cos-complex', name: 'COS Complex', location: 'Campus' },
-  // ];
-  const res = await apiFetch('/venues', 'none');
+export async function listVenues(): Promise<any[]> {
+  const res = await apiFetch('/venues', {}, 'none');
   if (!res.ok) throw new Error(await readError(res, 'Failed to load venues'));
-  return res.json();
+  const body = await res.json();
+  return body.items || [];
 }
 
-export async function createVenue(data: Partial<AdminVenue>): Promise<void> {
+export async function createVenue(data: any): Promise<boolean> {
   const res = await apiFetch('/admin/venues', { method: 'POST', body: JSON.stringify(data) }, 'required');
   if (!res.ok) throw new Error(await readError(res, 'Failed to create venue'));
-  return res.json();
+  return true;
 }
 
-export async function updateVenue(id: string, data: Partial<AdminVenue>): Promise<boolean> {
+export async function updateVenue(id: string, data: any): Promise<boolean> {
   const res = await apiFetch(`/admin/venues/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'required');
   if (!res.ok) throw new Error(await readError(res, 'Failed to update venue'));
-  return res.json();
+  return true;
 }
 
-export async function deleteVenue(_id: string): Promise<boolean> {
-  const res = await apiFetch(`/admin/venues/${id}`, { method: 'DELETE', body: JSON.stringify(data) }, 'required');
+export async function deleteVenue(id: string): Promise<boolean> {
+  const res = await apiFetch(`/admin/venues/${id}`, { method: 'DELETE' }, 'required');
   if (!res.ok) throw new Error(await readError(res, 'Failed to delete venue'));
-  return res.json();
+  return true;
 }
 
 // ─── FAQs (mock) ──────────────────────────────────────────────────────────────
@@ -227,9 +224,10 @@ export async function deleteVenue(_id: string): Promise<boolean> {
 export interface FAQ { id: string; question: string; answer: string; order: number; }
 
 export async function listFAQs(): Promise<FAQ[]> {
-  const res = await apiFetch('/faqs', 'none');
+  const res = await apiFetch('/faqs', {}, 'none');
   if (!res.ok) throw new Error(await readError(res, 'Failed to load faqs'));
-  return res.json();
+  const body = await res.json();
+  return body.items || [];
 }
 
 export async function createFAQ(data: Partial<FAQ>): Promise<void> {
@@ -245,9 +243,9 @@ export async function updateFAQ(id: string, data: Partial<FAQ>): Promise<boolean
 }
 
 export async function deleteFAQ(id: string): Promise<boolean> {
-  const res = await apiFetch(`/admin/faqs/${id}`, { method: 'DELETE', body: JSON.stringify(data) }, 'required');
+  const res = await apiFetch(`/admin/faqs/${id}`, { method: 'DELETE' }, 'required');
   if (!res.ok) throw new Error(await readError(res, 'Failed to delete faq'));
-  return res.json();
+  return true;
 }
 
 // ─── Banners (mock) ───────────────────────────────────────────────────────────
@@ -320,7 +318,7 @@ export const searchUsers = async (_term: string) => [] as any[];
 export const searchVenues = async (term: string) => {
   const venues = await listVenues();
   const q = term.toLowerCase();
-  return venues.filter((v) => v.name.toLowerCase().includes(q) || (v.id || '').toLowerCase().includes(q));
+  return venues.filter((v: any) => v.venueName.toLowerCase().includes(q) || (v.venueId || '').toLowerCase().includes(q));
 };
 export const uploadFile = async (_uri: string) => ({ success: false, error: 'Upload is not available yet' });
 
@@ -421,27 +419,9 @@ export const updateTeamRegistrationStatus = async (
 
 export const getRegistrationTransaction = async (..._args: any[]) => null;
 
-const MOCK_FAQ_ITEMS = [
-  { faqId: 'faq-1', question: 'When is Saturnalia?', answer: 'Dates will be announced on the home screen.', order: 1, isPublic: true, createdAt: new Date().toISOString() },
-  { faqId: 'faq-2', question: 'How do I register for events?', answer: 'Open an event and tap Register.', order: 2, isPublic: true, createdAt: new Date().toISOString() },
-];
+export const getFAQs = listFAQs;
 
-export const getFAQs = async () => MOCK_FAQ_ITEMS;
-export const addFAQWithId = async (_id: string, _data: any) => {
-  console.log('[mock] addFAQWithId');
-  return true;
-};
-
-const MOCK_VENUE_ITEMS = [
-  { venueId: 'main-auditorium', venueName: 'Main Auditorium', lat: 30.356, lng: 76.364 },
-  { venueId: 'cos-complex', venueName: 'COS Complex', lat: 30.354, lng: 76.362 },
-];
-
-export const getVenues = async () => MOCK_VENUE_ITEMS;
-export const addVenueWithId = async (_id: string, _data: any) => {
-  console.log('[mock] addVenueWithId');
-  return true;
-};
+export const getVenues = listVenues;
 
 export const getRewards = async () => [] as any[];
 export const getStoreItems = async (_includeInactive?: boolean) => [] as any[];

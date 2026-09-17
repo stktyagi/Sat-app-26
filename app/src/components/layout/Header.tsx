@@ -50,7 +50,7 @@ const Header: React.FC<HeaderType> = ({ userProfile: userProfileProp, setShowBot
 
           {/* Logo */}
           <View
-            className="relative bottom-1 items-center justify-center"
+            className="relative top-2 items-center justify-center"
             style={{ width: 150, height: '100%', zIndex: 10 }}
           >
             <Svg height="150" width="200" style={{ position: 'absolute' }}>
@@ -68,16 +68,8 @@ const Header: React.FC<HeaderType> = ({ userProfile: userProfileProp, setShowBot
             />
           </View>
 
-          {/* Notifications */}
-          <TouchableOpacity
-            className={`h-12 w-12 items-center justify-center bg-[#FFFFFF40] rounded-full ${userProfile ? 'flex' : 'invisible'}`}
-            onPress={() => router.push('/notifications')}
-          >
-            <View>
-              <Bell size={22} fill="#fff" color="#fff" />
-              <View className="absolute bottom-[2px] -left-[3px] w-3 h-3 bg-[#E84054] rounded-full border border-white" />
-            </View>
-          </TouchableOpacity>
+          {/* Empty spacer to keep logo centered */}
+          <View className="w-12 h-12" />
         </View>
       </View>
 

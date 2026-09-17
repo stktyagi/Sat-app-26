@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import MarkdownText from '../display/MarkdownText';
 import Header from '../layout/Header';
+import { apiFetch } from '@/api/client';
 
 interface Message {
   text: string;
@@ -77,15 +78,12 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
 
     try {
       if (chatbotApiUrl) {
-        const response = await fetch(chatbotApiUrl, {
+        const response = await apiFetch('/chatbot/ask', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             message: messageText,
           }),
-        });
+        }, 'optional');
 
         if (response.ok) {
           const data = await response.json();
@@ -104,8 +102,8 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
             throw new Error('Invalid response format: missing reply');
           }
         } else {
-          const errorData = await response.json().catch(() => ({}));
-          const detail = errorData.detail || 'Failed to get response from chatbot';
+          const { readError } = await import('@/api/client');
+          const detail = await readError(response, 'Failed to get response from chatbot');
           throw new Error(detail);
         }
       } else {

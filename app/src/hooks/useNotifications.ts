@@ -52,5 +52,5 @@ export function useNotifications() {
         console.error('Failed to register FCM token with backend:', error);
       }
     })();
-  }, [userProfile]);
+  }, [userProfile?.userId]);
 }
