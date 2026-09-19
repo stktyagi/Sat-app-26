@@ -58,7 +58,7 @@ func Load() (*Config, error) {
 		GroqAPIKey:           os.Getenv("GROQ_API_KEY"),
 	}
 
-	ttl, err := time.ParseDuration(env("EVENT_CACHE_TTL", "60s"))
+	ttl, err := time.ParseDuration(env("EVENT_CACHE_TTL", "24h"))
 	if err != nil {
 		return nil, fmt.Errorf("EVENT_CACHE_TTL: %w", err)
 	}
