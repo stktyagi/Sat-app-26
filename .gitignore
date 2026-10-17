@@ -78,4 +78,5 @@ serviceAccountKey.json
 export-schema.js
 *.md
 backend/imagekit.json
+.DS_Store
 backend/api

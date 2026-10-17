@@ -141,6 +141,40 @@ const LoginScreen = () => {
 
           {/* Action Buttons */}
           <View style={{ width: "100%", gap: 10 }}>
+            {/* Apple Sign-in (iOS only) */}
+            {Platform.OS === "ios" && (
+              <View style={{ width: "100%", height: 52 }}>
+                {isSigningIn ? (
+                  <View
+                    style={{
+                      width: "100%",
+                      height: 52,
+                      backgroundColor: "#000000",
+                      borderWidth: 1,
+                      borderColor: "rgba(255, 255, 255, 0.2)",
+                      borderRadius: 16,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  </View>
+                ) : (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={
+                      AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                    }
+                    buttonStyle={
+                      AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                    }
+                    style={{ width: "100%", height: 52, borderRadius: 16 }}
+                    cornerRadius={16}
+                    onPress={onAppleSignIn}
+                  />
+                )}
+              </View>
+            )}
+
             {/* Google Sign-in */}
             <TouchableOpacity
               activeOpacity={0.82}
@@ -185,39 +219,7 @@ const LoginScreen = () => {
               )}
             </TouchableOpacity>
 
-            {/* Apple Sign-in (iOS only) */}
-            {Platform.OS === "ios" && (
-              <View style={{ width: "100%", height: 52 }}>
-                {isSigningIn ? (
-                  <View
-                    style={{
-                      width: "100%",
-                      height: 52,
-                      backgroundColor: "#000000",
-                      borderWidth: 1,
-                      borderColor: "rgba(255, 255, 255, 0.2)",
-                      borderRadius: 16,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  </View>
-                ) : (
-                  <AppleAuthentication.AppleAuthenticationButton
-                    buttonType={
-                      AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
-                    }
-                    buttonStyle={
-                      AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                    }
-                    style={{ width: "100%", height: 52, borderRadius: 16 }}
-                    cornerRadius={16}
-                    onPress={onAppleSignIn}
-                  />
-                )}
-              </View>
-            )}
+
           </View>
 
           {/* Thapar student note pill */}
