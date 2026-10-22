@@ -7,7 +7,7 @@ import { useUserStore } from '@/state/userStore';
 import { useThemeStore } from '@/state/themeStore';
 import { initiateEventPayment, getPaymentStatus, validateCoupon, CouponResponse } from '@/api/payments';
 import { showAlert } from '@/components';
-import * as WebBrowser from 'expo-web-browser';
+import { startEasebuzzPayment } from '@/services/easebuzz';
 import { getAppAccommodation } from '@/api/appConfig';
 
 interface DayInfo {
@@ -209,25 +209,16 @@ export default function AccommodationScreen() {
         food: foodToPay,
       });
 
-      // Only the backend's record decides the outcome; the redirect URL is not trusted.
+      // Only the backend's record decides the outcome; the client SDK/redirect is not solely trusted.
       const orderId = res.merchantOrderId;
-      let browserResultType = 'success';
+      setPhase('opening');
 
-      if (res.paymentUrl.includes('/payments/dummy')) {
-        setPhase('verifying');
-        try {
-          await fetch(res.paymentUrl, { headers: { Accept: 'application/json' } });
-        } catch (e) {
-          const redirectUrl = 'app://payment';
-          const result = await WebBrowser.openAuthSessionAsync(res.paymentUrl, redirectUrl);
-          browserResultType = result.type;
-        }
-      } else {
-        setPhase('opening');
-        const redirectUrl = 'app://payment';
-        const result = await WebBrowser.openAuthSessionAsync(res.paymentUrl, redirectUrl);
-        browserResultType = result.type;
-      }
+      const checkoutResult = await startEasebuzzPayment({
+        paymentUrl: res.paymentUrl,
+        merchantOrderId: res.merchantOrderId,
+        accessKey: res.accessKey,
+        payMode: res.payMode,
+      });
 
       setPhase('verifying');
       const payment = await pollPaymentStatusWithRetry(orderId);
@@ -247,7 +238,7 @@ export default function AccommodationScreen() {
           "Your transaction could not be processed. Please try again."
         );
       } else {
-        if (browserResultType === 'cancel' || browserResultType === 'dismiss') {
+        if (checkoutResult.status === 'cancelled') {
           showAlert(
             "Payment Cancelled",
             "The payment window was closed before completion. If your payment was deducted, it will update shortly; otherwise you can try again."

@@ -31,6 +31,8 @@ export interface Payment {
 export interface InitiatePaymentResponse {
   paymentUrl: string;
   merchantOrderId: string;
+  accessKey?: string;
+  payMode?: string;
 }
 
 /**

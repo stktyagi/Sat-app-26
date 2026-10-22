@@ -3,9 +3,9 @@ import { View, Text, ActivityIndicator, TouchableOpacity, ScrollView, Switch, Te
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
 import { useQueryClient } from '@tanstack/react-query';
 import { initiateEventPayment, getPaymentStatus, validateCoupon, CouponResponse } from '@/api/payments';
+import { startEasebuzzPayment } from '@/services/easebuzz';
 import { showAlert } from '@/components';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import { useUserStore } from '@/state/userStore';
@@ -186,28 +186,19 @@ const PaymentScreen: React.FC = () => {
         food: foodToPay,
       });
 
-      // Only the backend's record decides the outcome; the redirect URL is not trusted.
+      // Only the backend's record decides the outcome; the client SDK/redirect is not solely trusted.
       const orderId = res.merchantOrderId;
-      let browserResultType = 'success';
+      setPhase('opening');
 
-      if (res.paymentUrl.includes('/payments/dummy')) {
-        setPhase('verifying');
-        try {
-          await fetch(res.paymentUrl, { headers: { Accept: 'application/json' } });
-        } catch (e) {
-          const redirectUrl = 'app://payment';
-          const result = await WebBrowser.openAuthSessionAsync(res.paymentUrl, redirectUrl);
-          browserResultType = result.type;
-        }
-      } else {
-        setPhase('opening');
-        const redirectUrl = 'app://payment';
-        const result = await WebBrowser.openAuthSessionAsync(res.paymentUrl, redirectUrl);
-        browserResultType = result.type;
-      }
+      const checkoutResult = await startEasebuzzPayment({
+        paymentUrl: res.paymentUrl,
+        merchantOrderId: res.merchantOrderId,
+        accessKey: res.accessKey,
+        payMode: res.payMode,
+      });
 
       setPhase('verifying');
-      await pollAndFinish(orderId, browserResultType);
+      await pollAndFinish(orderId, checkoutResult.status === 'cancelled');
     } catch (err: any) {
       setPhase('checkout');
       setErrorMessage(err?.message || 'Failed to start payment');
@@ -217,7 +208,7 @@ const PaymentScreen: React.FC = () => {
 
   const pollAndFinish = async (
     merchantOrderId: string,
-    browserResultType: string,
+    isCancelled: boolean,
   ) => {
     try {
       const payment = await pollPaymentStatusWithRetry(merchantOrderId);
@@ -246,7 +237,7 @@ const PaymentScreen: React.FC = () => {
           [{ text: 'Try Again', onPress: () => setPhase('checkout') }]
         );
       } else {
-        if (browserResultType === 'cancel' || browserResultType === 'dismiss') {
+        if (isCancelled) {
           setPhase('checkout');
           showAlert(
             'Payment Incomplete',

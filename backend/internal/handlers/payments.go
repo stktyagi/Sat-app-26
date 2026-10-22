@@ -267,6 +267,14 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		covered, eventFee, accommodationMap, accFee, foodMap, foodFee)
 }
 
+// easebuzzPayMode returns "production" or "test" for the Easebuzz mobile SDK.
+func (a *API) easebuzzPayMode() string {
+	if a.Cfg.EasebuzzEnv == "prod" {
+		return "production"
+	}
+	return "test"
+}
+
 // initiate prices the cart, applies the coupon and opens the checkout.
 func (a *API) initiate(
 	c *gin.Context,
@@ -360,7 +368,17 @@ func (a *API) initiate(
 		apierr.Respond(c, apierr.Internal("could not create payment record"))
 		return
 	case checkout.PaymentURL != "": // a retried initiate: same cart, same link
-		c.JSON(http.StatusOK, gin.H{"paymentUrl": checkout.PaymentURL, "merchantOrderId": payment.MerchantOrderID})
+		var accessKey string
+		prefix := a.easebuzzBaseURL() + "/pay/"
+		if strings.HasPrefix(checkout.PaymentURL, prefix) {
+			accessKey = strings.TrimPrefix(checkout.PaymentURL, prefix)
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"paymentUrl":      checkout.PaymentURL,
+			"merchantOrderId": payment.MerchantOrderID,
+			"accessKey":       accessKey,
+			"payMode":         a.easebuzzPayMode(),
+		})
 		return
 	}
 
@@ -369,7 +387,7 @@ func (a *API) initiate(
 		productInfo = event.Title
 	}
 
-	link, err := a.getEasebuzzLink(ctx, payment.MerchantOrderID, payment.FinalAmount, productInfo, user)
+	link, accessKey, err := a.getEasebuzzLink(ctx, payment.MerchantOrderID, payment.FinalAmount, productInfo, user)
 	if err != nil {
 		log.Printf("[payment] gateway initiation failed for %s: %v", payment.MerchantOrderID, err)
 		if err := a.Store.MarkPaymentFailed(ctx, payment.MerchantOrderID, "", ""); err != nil {
@@ -382,19 +400,24 @@ func (a *API) initiate(
 		log.Printf("[payment] could not store checkout link for %s: %v", payment.MerchantOrderID, err)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"paymentUrl": link, "merchantOrderId": payment.MerchantOrderID})
+	c.JSON(http.StatusOK, gin.H{
+		"paymentUrl":      link,
+		"merchantOrderId": payment.MerchantOrderID,
+		"accessKey":       accessKey,
+		"payMode":         a.easebuzzPayMode(),
+	})
 }
 
-// getEasebuzzLink calls the Easebuzz initiate API and returns the checkout URL.
+// getEasebuzzLink calls the Easebuzz initiate API and returns the checkout URL and access key.
 func (a *API) getEasebuzzLink(
 	_ context.Context,
 	merchantOrderID string,
 	amount int,
 	productInfo string,
 	user *models.User,
-) (string, error) {
+) (string, string, error) {
 	if !a.gatewayLive() {
-		return fmt.Sprintf("%s/api/v1/payments/dummy?txnid=%s", a.Cfg.AppBaseURL, url.QueryEscape(merchantOrderID)), nil
+		return fmt.Sprintf("%s/api/v1/payments/dummy?txnid=%s", a.Cfg.AppBaseURL, url.QueryEscape(merchantOrderID)), "", nil
 	}
 
 	amountStr := fmt.Sprintf("%.2f", float64(amount))
@@ -426,16 +449,16 @@ func (a *API) getEasebuzzLink(
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.PostForm(a.easebuzzInitiateURL(), form)
 	if err != nil {
-		return "", fmt.Errorf("easebuzz request failed: %w", err)
+		return "", "", fmt.Errorf("easebuzz request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	accessKey, err := parseEasebuzzInitiate(body)
 	if resp.StatusCode != http.StatusOK || err != nil {
-		return "", fmt.Errorf("easebuzz returned %d: %v", resp.StatusCode, err)
+		return "", "", fmt.Errorf("easebuzz returned %d: %v", resp.StatusCode, err)
 	}
-	return a.easebuzzBaseURL() + "/pay/" + accessKey, nil
+	return a.easebuzzBaseURL() + "/pay/" + accessKey, accessKey, nil
 }
 
 // parseEasebuzzInitiate reads the initiateLink reply, {"status":1,"data":"<access key>"};
