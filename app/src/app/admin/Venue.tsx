@@ -20,6 +20,7 @@ import { ArrowLeft, Plus, Trash2, Edit, MapPin } from "lucide-react-native";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 import { useThemeStore } from "@/state/themeStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useContentCacheStore } from "@/state/contentCacheStore";
 
 export default function VenueManagement() {
   const navigation = useAdminNavigation();
@@ -65,6 +66,7 @@ export default function VenueManagement() {
             const success = await deleteVenue(item.venueId);
             if (success) {
               setData(data.filter((d) => d.venueId !== item.venueId));
+              useContentCacheStore.getState().invalidateVenues();
             } else {
               showAlert("Error", "Failed to delete venue");
             }
@@ -96,6 +98,7 @@ export default function VenueManagement() {
       if (success) {
         await loadData();
         setCreateData({});
+        useContentCacheStore.getState().invalidateVenues();
         showAlert("Success", "Venue created successfully!");
       } else {
         showAlert("Error", "Failed to create venue");
@@ -123,6 +126,7 @@ export default function VenueManagement() {
         await loadData();
         setEditingId(null);
         setEditData({});
+        useContentCacheStore.getState().invalidateVenues();
         showAlert("Success", "Venue updated successfully!");
       } else {
         showAlert("Error", "Failed to update venue");

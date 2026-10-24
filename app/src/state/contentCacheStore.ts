@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { fetchBanners, Banner } from '@/api/banners';
 import { fetchReels } from '@/api/reels';
 import { listStories, BackendStory } from '@/api/stories';
-import { Reel } from '@/types/models';
+import { listVenues } from '@/api/venues';
+import { Reel, Venue } from '@/types/models';
 import { UserStory } from '@/types/story';
 import { BannerItem, DEMO_BANNERS } from '@/components/display/HeroBanner';
 import { MOCK_REELS } from '@/mocks/reels';
@@ -29,14 +30,22 @@ interface ContentCacheState {
   storiesError: string | null;
   storiesFetched: boolean;
 
+  // Venues (Map) - Cached in frontend only
+  venues: Venue[];
+  venuesLoading: boolean;
+  venuesError: string | null;
+  venuesFetched: boolean;
+
   // Actions
   getBanners: (forceRefresh?: boolean) => Promise<BannerItem[]>;
   getReels: (forceRefresh?: boolean) => Promise<Reel[]>;
   getStories: (forceRefresh?: boolean) => Promise<UserStory[]>;
+  getVenues: (forceRefresh?: boolean) => Promise<Venue[]>;
 
   invalidateBanners: () => void;
   invalidateReels: () => void;
   invalidateStories: () => void;
+  invalidateVenues: () => void;
   invalidateAll: () => void;
 }
 
@@ -57,6 +66,11 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
   storiesLoading: false,
   storiesError: null,
   storiesFetched: false,
+
+  venues: [],
+  venuesLoading: false,
+  venuesError: null,
+  venuesFetched: false,
 
   getBanners: async (forceRefresh = false) => {
     const state = get();
@@ -208,13 +222,42 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
     }
   },
 
+  getVenues: async (forceRefresh = false) => {
+    const state = get();
+    // Cache hit: return immediately without network call
+    if (state.venuesFetched && !forceRefresh && state.venues.length > 0) {
+      return state.venues;
+    }
+
+    set({ venuesLoading: true, venuesError: null });
+    try {
+      const items = await listVenues();
+      set({
+        venues: items || [],
+        venuesFetched: true,
+        venuesLoading: false,
+      });
+      return items || [];
+    } catch (err: any) {
+      console.warn('Failed to fetch backend venues:', err?.message);
+      set({
+        venuesError: err?.message || 'Failed to load venues',
+        venuesFetched: true,
+        venuesLoading: false,
+      });
+      return state.venues;
+    }
+  },
+
   invalidateBanners: () => set({ bannersFetched: false }),
   invalidateReels: () => set({ reelsFetched: false }),
   invalidateStories: () => set({ storiesFetched: false }),
+  invalidateVenues: () => set({ venuesFetched: false }),
   invalidateAll: () =>
     set({
       bannersFetched: false,
       reelsFetched: false,
       storiesFetched: false,
+      venuesFetched: false,
     }),
 }));

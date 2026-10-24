@@ -12,6 +12,7 @@ import { showAlert } from "../../index";
 import { PrivateRoleComponent } from "../../auth/PrivateRoleComponent";
 import { UserEventRegistration } from "@/api/admin";
 import { useThemeStore } from "@/state/themeStore";
+import { ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EB_OUTREACH, ROLE_EVENT_POC } from "@/utils/roles";
 
 interface TeamRegistrationView {
   teamId: string;
@@ -131,6 +132,8 @@ export default function TeamDetailsModal({
 
   if (!team) return null;
 
+  const isSolo = team.teamId.startsWith("solo-");
+
   return (
     <Modal
       visible={visible}
@@ -160,9 +163,18 @@ export default function TeamDetailsModal({
             style={{ borderBottomWidth: 1, borderBottomColor: cardBorder }}
             className="flex-row items-center justify-between px-6 py-4"
           >
-            <Text style={{ fontFamily: "Poppins_700Bold", color: textPrimary, fontSize: 18 }}>
-              {team.teamName}
-            </Text>
+            <View className="flex-1 mr-3">
+              <Text style={{ fontFamily: "Poppins_700Bold", color: textPrimary, fontSize: 18 }} numberOfLines={1}>
+                {team.teamName}
+              </Text>
+              <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 12 }}>
+                {isSolo
+                  ? "Individual Registration"
+                  : `${team.members?.length ?? team.memberCount} ${
+                      (team.members?.length ?? team.memberCount) === 1 ? "Member" : "Members"
+                    }`}
+              </Text>
+            </View>
             <TouchableOpacity
               onPress={onClose}
               style={{ backgroundColor: isDark ? "#2A2A30" : "#F3F4F6" }}
@@ -173,26 +185,44 @@ export default function TeamDetailsModal({
             </TouchableOpacity>
           </View>
 
-          <View className="p-6 pb-2">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 }}
+          >
+            {/* Team or Registration Identifier */}
             <View
               style={{ backgroundColor: innerBg, borderColor: cardBorder, borderWidth: 1 }}
               className="rounded-xl p-4 mb-3"
             >
-              <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, fontSize: 12, marginBottom: 2 }}>
-                Team Code
-              </Text>
-              <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 14 }}>
-                {team.teamId}
-              </Text>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 mr-2">
+                  <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, fontSize: 12, marginBottom: 2 }}>
+                    {isSolo ? "Registration ID" : team.inviteCode ? "Invite Code" : "Team ID"}
+                  </Text>
+                  <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 14 }}>
+                    {isSolo ? team.leaderId || team.teamId : team.inviteCode || team.teamId}
+                  </Text>
+                </View>
+                <View
+                  className="px-3 py-1 rounded-full self-start"
+                  style={{ backgroundColor: getStatusColor(team.status) + "20" }}
+                >
+                  <Text style={{ color: getStatusColor(team.status), fontFamily: "Poppins_600SemiBold", fontSize: 11 }}>
+                    {getStatusText(team.status)}
+                  </Text>
+                </View>
+              </View>
             </View>
 
-            <PrivateRoleComponent allowedRoles={["event_admin", "admin", "outreach_admin"]}>
+            {/* Status Change Section (Admin, EB Events, EB Outreach, Event POC) */}
+            <PrivateRoleComponent allowedRoles={[ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EB_OUTREACH, ROLE_EVENT_POC]}>
               <View
                 style={{ backgroundColor: innerBg, borderColor: cardBorder, borderWidth: 1 }}
                 className="rounded-xl p-4 mb-3"
               >
                 <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, fontSize: 12, marginBottom: 8 }}>
-                  Registration Status
+                  Change Registration Status
                 </Text>
 
                 <TouchableOpacity
@@ -277,22 +307,19 @@ export default function TeamDetailsModal({
                 )}
               </View>
             </PrivateRoleComponent>
-          </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            nestedScrollEnabled={true}
-            contentContainerStyle={{ paddingBottom: 40 }}
-          >
-            <View className="px-6 pb-6">
+            {/* Members / Participant Section */}
+            <View className="mt-2">
               <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 16, marginBottom: 12 }}>
-                Team Members
+                {isSolo ? "Participant Details" : `Team Members (${team.members?.length ?? team.memberCount})`}
               </Text>
 
               {loadingMembers ? (
                 <View className="items-center justify-center py-8">
                   <ActivityIndicator size="large" color="#41B8F0" />
-                  <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, marginTop: 12 }}>Loading team members...</Text>
+                  <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, marginTop: 12 }}>
+                    Loading team members...
+                  </Text>
                 </View>
               ) : team.members && team.members.length > 0 ? (
                 team.members.map((member, index) => (
@@ -302,10 +329,12 @@ export default function TeamDetailsModal({
                     className="rounded-xl p-4 mb-3"
                   >
                     <View className="flex-row items-start justify-between mb-3">
-                      <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 15 }} className="flex-1">
-                        {member.user.name || (member.user as any).displayName || "Unknown User"}
-                      </Text>
-                      {member.userId === team.leaderId && (
+                      <View className="flex-1 mr-2">
+                        <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 15 }}>
+                          {member.user.name || (member.user as any).displayName || "Unknown User"}
+                        </Text>
+                      </View>
+                      {!isSolo && member.userId === team.leaderId && (
                         <View className="bg-[#41B8F0]/20 border border-[#41B8F0]/30 px-2.5 py-0.5 rounded-full">
                           <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 10 }}>LEADER</Text>
                         </View>
@@ -313,40 +342,40 @@ export default function TeamDetailsModal({
                     </View>
 
                     <View className="space-y-2">
-                      {member.user.phoneNumber && (
+                      {member.user.phoneNumber ? (
                         <View className="flex-row items-center">
                           <Phone size={14} color="#41B8F0" />
                           <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13, marginLeft: 8 }}>
                             {member.user.phoneNumber}
                           </Text>
                         </View>
-                      )}
+                      ) : null}
 
-                      {member.user.email && (
+                      {member.user.email ? (
                         <View className="flex-row items-center mt-1">
                           <Mail size={14} color="#41B8F0" />
                           <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13, marginLeft: 8 }}>
                             {member.user.email}
                           </Text>
                         </View>
-                      )}
+                      ) : null}
 
-                      {member.user.collegeName && (
+                      {member.user.collegeName ? (
                         <View className="flex-row items-center mt-1">
                           <School size={14} color="#41B8F0" />
                           <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13, marginLeft: 8 }}>
                             {member.user.collegeName}
                           </Text>
                         </View>
-                      )}
+                      ) : null}
 
-                      {member.user.rollNumber && (
+                      {member.user.rollNumber ? (
                         <View className="flex-row items-center mt-1">
                           <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, fontSize: 12, marginLeft: 22 }}>
                             Roll: {member.user.rollNumber}
                           </Text>
                         </View>
-                      )}
+                      ) : null}
                     </View>
                   </View>
                 ))
@@ -362,3 +391,4 @@ export default function TeamDetailsModal({
     </Modal>
   );
 }
+

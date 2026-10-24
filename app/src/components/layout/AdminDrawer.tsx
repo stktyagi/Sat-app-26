@@ -12,6 +12,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useThemeStore } from '@/state/themeStore';
+import {
+  ROLE_ADMIN,
+  ROLE_EB_EVENTS,
+  ROLE_EB_OUTREACH,
+  ROLE_EB_FINANCE,
+  ROLE_EB_MEDIA,
+  ROLE_EB_HOSPITALITY,
+  ROLE_EC_HOSPITALITY,
+  ROLE_EVENT_POC,
+  normalizeRole,
+} from '@/utils/roles';
 
 interface DrawerItem {
   label: string;
@@ -21,17 +32,18 @@ interface DrawerItem {
 }
 
 const ALL_ITEMS: DrawerItem[] = [
-  { label: 'Event Management', icon: 'calendar-outline', route: '/admin/EventsManagement', requiredRoles: ['admin', 'event_coordinator', 'event_admin', 'outreach_admin', 'outreach_member', 'hospitality_admin', 'hospitality_member'] },
-  { label: 'QR Scanner', icon: 'qr-code-outline', route: '/admin/QRScanner', requiredRoles: ['admin', 'event_coordinator', 'executive_committee', 'core_member', 'event_admin', 'hospitality_admin', 'hospitality_member', 'outreach_admin', 'outreach_member'] },
-  { label: 'Venue Management', icon: 'location-outline', route: '/admin/Venue', requiredRoles: ['admin', 'event_admin'] },
-  { label: 'FAQ Management', icon: 'help-circle-outline', route: '/admin/FAQ', requiredRoles: ['admin', 'eb_member'] },
-  { label: 'Accommodation', icon: 'bed-outline', route: '/admin/Accommodation', requiredRoles: ['admin', 'hospitality_member', 'hospitality_admin', 'outreach_admin'] },
-  { label: 'Users Management', icon: 'people-outline', route: '/admin/Users', requiredRoles: ['admin', 'event_admin', 'hospitality_admin', 'outreach_admin'] },
-  { label: 'Payment Management', icon: 'card-outline', route: '/admin/Transactions', requiredRoles: ['admin', 'finance'] },
-  { label: 'Send Notification', icon: 'notifications-outline', route: '/admin/SendNotification', requiredRoles: ['admin', 'eb_member'] },
-  { label: 'Story Management', icon: 'film-outline', route: '/admin/StoryManagement', requiredRoles: ['admin', 'media'] },
-  { label: 'Reel Management', icon: 'videocam-outline', route: '/admin/ReelsManagement', requiredRoles: ['admin', 'media'] },
-  { label: 'Banner Management', icon: 'image-outline', route: '/admin/Banner', requiredRoles: ['admin', 'media'] },
+  { label: 'Event Management', icon: 'calendar-outline', route: '/admin/EventsManagement', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EVENT_POC] },
+  { label: 'QR Scanner', icon: 'qr-code-outline', route: '/admin/QRScanner', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_EB_EVENTS, ROLE_EVENT_POC] },
+  { label: 'Venue Management', icon: 'location-outline', route: '/admin/Venue', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS] },
+  { label: 'FAQ Management', icon: 'help-circle-outline', route: '/admin/FAQ', requiredRoles: [ROLE_ADMIN] },
+  { label: 'Accommodation', icon: 'bed-outline', route: '/admin/Accommodation', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY] },
+  { label: 'Users Management', icon: 'people-outline', route: '/admin/Users', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EB_OUTREACH, ROLE_EB_FINANCE, ROLE_EB_HOSPITALITY] },
+  { label: 'Payment Management', icon: 'card-outline', route: '/admin/Transactions', requiredRoles: [ROLE_ADMIN, ROLE_EB_OUTREACH, ROLE_EB_FINANCE] },
+  { label: 'Send Notification', icon: 'notifications-outline', route: '/admin/SendNotification', requiredRoles: [ROLE_ADMIN] },
+  { label: 'Story Management', icon: 'film-outline', route: '/admin/StoryManagement', requiredRoles: [ROLE_ADMIN, ROLE_EB_MEDIA] },
+  { label: 'Reel Management', icon: 'videocam-outline', route: '/admin/ReelsManagement', requiredRoles: [ROLE_ADMIN, ROLE_EB_MEDIA] },
+  { label: 'Banner Management', icon: 'image-outline', route: '/admin/Banner', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EB_MEDIA] },
+  { label: 'App Configuration', icon: 'settings-outline', route: '/admin/AppConfig', requiredRoles: [ROLE_ADMIN] },
 ];
 
 interface AdminDrawerProps {
@@ -88,21 +100,17 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
 
   const visibleItems = useMemo(() => {
     const normalized = (Array.isArray(userRoles) ? userRoles : []).map((r) =>
-      typeof r === 'string' ? r.toLowerCase().trim() : ''
+      typeof r === 'string' ? normalizeRole(r) : ''
     );
 
-    // If super admin / admin / dev, show all items
-    if (
-      normalized.some((r) =>
-        ['admin', 'super_admin', 'superadmin', 'dev'].includes(r)
-      )
-    ) {
+    // If admin, show all items
+    if (normalized.includes(ROLE_ADMIN)) {
       return ALL_ITEMS;
     }
 
     // Filter items based on user's roles
     return ALL_ITEMS.filter((item) =>
-      item.requiredRoles.some((r) => normalized.includes(r.toLowerCase()))
+      item.requiredRoles.some((r) => normalized.includes(normalizeRole(r)))
     );
   }, [userRoles]);
 

@@ -19,35 +19,27 @@ interface RoleManagementModalProps {
   onRolesUpdate?: (userId: string, updatedUser: AdminUserProfile) => void;
 }
 
-const ROLE_COLORS = {
+const ROLE_COLORS: Record<string, string> = {
   admin: "#EF4444",
-  event_admin: "#F59E0B",
-  event_coordinator: "#10B981",
-  outreach_admin: "#3B82F6",
-  outreach_member: "#6366F1",
-  finance: "#8B5CF6",
-  hospitality_admin: "#14B8A6",
-  hospitality_member: "#22D3EE",
-  eb_member: "#E879F9",
-  executive_committee: "#F472B6",
-  media: "#EC4899",
-  core_member: "#6B7280",
+  eb_events: "#F59E0B",
+  eb_outreach: "#3B82F6",
+  eb_finance: "#8B5CF6",
+  eb_media: "#EC4899",
+  eb_hospitality: "#14B8A6",
+  ec_hospitality: "#22D3EE",
+  event_poc: "#10B981",
   user: "#6B7280",
 };
 
 export const availableRoles = [
   { id: "admin", label: "Admin" },
-  { id: "event_admin", label: "Event Admin" },
-  { id: "event_coordinator", label: "Event Coordinator" },
-  { id: "outreach_admin", label: "Outreach Admin" },
-  { id: "outreach_member", label: "Outreach Member" },
-  { id: "finance", label: "Finance" },
-  { id: "hospitality_admin", label: "Hospitality Admin" },
-  { id: "hospitality_member", label: "Hospitality Member" },
-  { id: "eb_member", label: "EB Member" },
-  { id: "executive_committee", label: "Executive Committee" },
-  { id: "media", label: "Media" },
-  { id: "core_member", label: "Core Member" },
+  { id: "eb_events", label: "EB_Events" },
+  { id: "eb_outreach", label: "EB_Outreach" },
+  { id: "eb_finance", label: "EB_Finance" },
+  { id: "eb_media", label: "EB_Media" },
+  { id: "eb_hospitality", label: "EB_Hospitality" },
+  { id: "ec_hospitality", label: "EC_Hospitality" },
+  { id: "event_poc", label: "Event_POC / Coordinator" },
   { id: "user", label: "User" },
 ];
 

@@ -25,6 +25,13 @@ import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  getUserRoles,
+  isEventCoordinator,
+  ROLE_ADMIN,
+  ROLE_EB_EVENTS,
+  ROLE_EVENT_POC,
+} from "@/utils/roles";
 
 export default function EventsManagement() {
   const navigation = useAdminNavigation();
@@ -41,8 +48,15 @@ export default function EventsManagement() {
     setLoading(true);
     try {
       const res = await getAllEventsForAdmin();
-      setEvents(res);
-      setFilteredEvents(res);
+      const roles = getUserRoles(userProfile);
+      const isGlobalEventAdmin = roles.some((r) => [ROLE_ADMIN, ROLE_EB_EVENTS].includes(r));
+
+      let accessibleEvents = res;
+      if (!isGlobalEventAdmin && roles.includes(ROLE_EVENT_POC)) {
+        accessibleEvents = res.filter((evt) => isEventCoordinator(userProfile, evt));
+      }
+      setEvents(accessibleEvents);
+      setFilteredEvents(accessibleEvents);
     } catch (error) {
       // Error loading events
     } finally {

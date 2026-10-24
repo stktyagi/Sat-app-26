@@ -30,7 +30,15 @@ import { useUserStore } from "@/state/userStore";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 import { useThemeStore } from "@/state/themeStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getUserRoles } from "@/utils/roles";
+import {
+  getUserRoles,
+  isFullAdmin,
+  ROLE_ADMIN,
+  ROLE_EB_HOSPITALITY,
+  ROLE_EC_HOSPITALITY,
+  ROLE_EB_EVENTS,
+  ROLE_EVENT_POC,
+} from "@/utils/roles";
 
 // Dimensions available if needed
 // const { width, height } = Dimensions.get("window");
@@ -61,34 +69,26 @@ export default function QRScanner({
   const [showCategorySelection, setShowCategorySelection] = useState(true);
   const { userData: userProfile } = useUserStore();
 
+  const roles = getUserRoles(userProfile);
+  const isSuperOrAdmin = isFullAdmin(userProfile);
+
   const gateAllowedRoles = [
-    "admin",
-    "outreach_admin",
-    "hospitality_admin",
-    "hospitality_member",
-    "outreach_member",
+    ROLE_ADMIN,
+    ROLE_EB_HOSPITALITY,
+    ROLE_EC_HOSPITALITY,
   ];
 
   const hostelAllowedRoles = [
-    "admin",
-    "hospitality_admin",
-    "hospitality_member",
+    ROLE_ADMIN,
+    ROLE_EB_HOSPITALITY,
+    ROLE_EC_HOSPITALITY,
   ];
 
   const eventAllowedRoles = [
-    "admin",
-    "event_admin",
-    "event_coordinator",
-    "outreach_admin",
-    "outreach_member",
-    "core_member",
-    "executive_committee",
+    ROLE_ADMIN,
+    ROLE_EB_EVENTS,
+    ROLE_EVENT_POC,
   ];
-
-  const roles = getUserRoles(userProfile);
-  const isSuperOrAdmin = roles.some((r) =>
-    ["admin", "super_admin", "superadmin", "dev"].includes(r)
-  );
 
   const isHostelAccessAllowed =
     isSuperOrAdmin || roles.some((role) => hostelAllowedRoles.includes(role));

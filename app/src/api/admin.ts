@@ -262,39 +262,70 @@ export async function adminGetUserRegistrations(email: string): Promise<any[]> {
 
 // ─── Accommodation ──────────────────────────────────────────────────────────
 
+const accommodationCache = new Map<string, { data: any; timestamp: number }>();
+const ACCOM_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+export async function clearAccommodationCache(): Promise<void> {
+  accommodationCache.clear();
+}
+
 export async function fetchAccommodationStats(
-  _forceRefresh?: boolean
+  forceRefresh?: boolean
 ): Promise<AccommodationStats[]> {
+  const cacheKey = 'stats';
+  const cached = accommodationCache.get(cacheKey);
+  const now = Date.now();
+  if (!forceRefresh && cached && now - cached.timestamp < ACCOM_CACHE_TTL_MS) {
+    return cached.data;
+  }
   const res = await apiFetch('/admin/accommodation/stats', {}, 'required');
   if (!res.ok) {
     throw new Error(await readError(res, 'Failed to fetch accommodation stats'));
   }
   const data = await res.json();
-  return data.stats || [];
+  const result = data.stats || [];
+  accommodationCache.set(cacheKey, { data: result, timestamp: now });
+  return result;
 }
 
 export async function fetchIncomingUsers(
   day: string,
-  _forceRefresh?: boolean
+  forceRefresh?: boolean
 ): Promise<UserAccommodation[]> {
+  const cacheKey = `incoming:${day}`;
+  const cached = accommodationCache.get(cacheKey);
+  const now = Date.now();
+  if (!forceRefresh && cached && now - cached.timestamp < ACCOM_CACHE_TTL_MS) {
+    return cached.data;
+  }
   const res = await apiFetch(`/admin/accommodation?day=${day}&type=incoming`, {}, 'required');
   if (!res.ok) {
     throw new Error(await readError(res, 'Failed to fetch incoming accommodation users'));
   }
   const data = await res.json();
-  return data.users || [];
+  const result = data.users || [];
+  accommodationCache.set(cacheKey, { data: result, timestamp: now });
+  return result;
 }
 
 export async function fetchOutgoingUsers(
   day: string,
-  _forceRefresh?: boolean
+  forceRefresh?: boolean
 ): Promise<UserAccommodation[]> {
+  const cacheKey = `outgoing:${day}`;
+  const cached = accommodationCache.get(cacheKey);
+  const now = Date.now();
+  if (!forceRefresh && cached && now - cached.timestamp < ACCOM_CACHE_TTL_MS) {
+    return cached.data;
+  }
   const res = await apiFetch(`/admin/accommodation?day=${day}&type=outgoing`, {}, 'required');
   if (!res.ok) {
     throw new Error(await readError(res, 'Failed to fetch outgoing accommodation users'));
   }
   const data = await res.json();
-  return data.users || [];
+  const result = data.users || [];
+  accommodationCache.set(cacheKey, { data: result, timestamp: now });
+  return result;
 }
 
 export async function updateAccommodationCheckIn(
@@ -316,38 +347,35 @@ export async function updateAccommodationCheckIn(
   if (!res.ok) {
     throw new Error(await readError(res, 'Failed to update accommodation check-in'));
   }
+  await clearAccommodationCache();
 }
 
-export async function clearAccommodationCache(): Promise<void> {
-  // Cache invalidation stub
-}
 
-// ─── Venues (mock) ────────────────────────────────────────────────────────────
+// ─── Venues ───────────────────────────────────────────────────────────────────
 
-export async function listVenues(): Promise<any[]> {
-  const res = await apiFetch('/venues', {}, 'none');
-  if (!res.ok) throw new Error(await readError(res, 'Failed to load venues'));
-  const body = await res.json();
-  return body.items || [];
-}
+import {
+  listVenues,
+  getVenue,
+  adminListVenues,
+  createVenue,
+  updateVenue,
+  updateVenueCoordinates,
+  batchUpdateVenues,
+  deleteVenue,
+} from './venues';
 
-export async function createVenue(data: any): Promise<boolean> {
-  const res = await apiFetch('/admin/venues', { method: 'POST', body: JSON.stringify(data) }, 'required');
-  if (!res.ok) throw new Error(await readError(res, 'Failed to create venue'));
-  return true;
-}
+export {
+  listVenues,
+  getVenue,
+  adminListVenues,
+  createVenue,
+  updateVenue,
+  updateVenueCoordinates,
+  batchUpdateVenues,
+  deleteVenue,
+};
 
-export async function updateVenue(id: string, data: any): Promise<boolean> {
-  const res = await apiFetch(`/admin/venues/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'required');
-  if (!res.ok) throw new Error(await readError(res, 'Failed to update venue'));
-  return true;
-}
 
-export async function deleteVenue(id: string): Promise<boolean> {
-  const res = await apiFetch(`/admin/venues/${id}`, { method: 'DELETE' }, 'required');
-  if (!res.ok) throw new Error(await readError(res, 'Failed to delete venue'));
-  return true;
-}
 
 // ─── FAQs (mock) ──────────────────────────────────────────────────────────────
 
@@ -539,29 +567,53 @@ export interface UserEventRegistration {
   };
 }
 
-const mapReg = (r: any): UserEventRegistration => ({
-  userId: r.userId,
-  eventId: r.eventId,
-  registeredAt: r.registeredAt,
-  status: r.status,
-  teamId: r.teamId,
-  teamName: r.teamName,
-  teamInviteCode: r.teamInviteCode,
-  eventType: r.eventType,
-  responses: r.responses,
-  paymentStatus: r.paymentStatus,
-  user: {
-    email: r.user?.email ?? r.email ?? '',
-    name: r.user?.name ?? r.user?.displayName ?? r.displayName,
-    displayName: r.user?.displayName ?? r.displayName,
-    phoneNumber: r.user?.phoneNumber ?? '',
-    collegeName: r.user?.collegeName ?? '',
-    rollNumber: r.user?.rollNumber ?? '',
-  },
-});
+const mapReg = (item: any): UserEventRegistration => {
+  const reg = item?.registration ?? item ?? {};
+  const user = item?.user ?? item?.registration?.user ?? item ?? {};
+  const team = item?.team;
+  return {
+    userId: reg.userId ?? item.userId ?? '',
+    eventId: reg.eventId ?? item.eventId ?? '',
+    registeredAt: reg.registeredAt ?? reg.createdAt ?? item.registeredAt ?? '',
+    status: reg.status ?? item.status ?? 'confirmed',
+    teamId: reg.teamId ?? item.teamId ?? '',
+    teamName: team?.teamName ?? team?.name ?? reg.teamName ?? item.teamName ?? '',
+    teamInviteCode: team?.inviteCode ?? reg.teamInviteCode ?? item.teamInviteCode ?? '',
+    eventType: reg.eventType ?? item.eventType,
+    responses: reg.responses ?? item.responses,
+    paymentStatus: reg.paymentStatus ?? item.paymentStatus,
+    user: {
+      email: user?.email ?? item.email ?? '',
+      name: user?.name ?? user?.displayName ?? item.name ?? item.displayName ?? '',
+      displayName: user?.displayName ?? user?.name ?? item.displayName ?? '',
+      phoneNumber: user?.phoneNumber ?? '',
+      collegeName: user?.collegeName ?? '',
+      rollNumber: user?.rollNumber ?? '',
+    },
+  };
+};
 
-export const getEventRegistrations = async (eventId: string) =>
-  (await adminListRegistrations(eventId)).map(mapReg);
+const registrationsCache = new Map<string, { data: UserEventRegistration[]; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+export const invalidateEventRegistrationsCache = (eventId?: string) => {
+  if (eventId) {
+    registrationsCache.delete(eventId);
+  } else {
+    registrationsCache.clear();
+  }
+};
+
+export const getEventRegistrations = async (eventId: string, forceRefresh = false): Promise<UserEventRegistration[]> => {
+  const cached = registrationsCache.get(eventId);
+  const now = Date.now();
+  if (!forceRefresh && cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  const data = (await adminListRegistrations(eventId)).map(mapReg);
+  registrationsCache.set(eventId, { data, timestamp: now });
+  return data;
+};
 
 export const getAllEventRegistrations = getEventRegistrations;
 
@@ -575,6 +627,7 @@ export interface TeamSummary {
   createdAt: string;
   inviteCode: string;
   firstMemberCollegeName?: string;
+  members?: UserEventRegistration[];
 }
 
 export const getEventTeamSummaries = async (eventId: string): Promise<TeamSummary[]> => {
@@ -586,42 +639,86 @@ export const getEventTeamSummaries = async (eventId: string): Promise<TeamSummar
     list.push(reg);
     groups.set(key, list);
   }
-  return Array.from(groups.entries()).map(([teamId, members]) => ({
-    teamId,
-    teamName: teamId.startsWith('solo-') ? members[0]?.user?.name || 'Team' : `Team ${teamId.slice(0, 6)}`,
-    leaderId: members[0]?.userId ?? '',
-    memberCount: members.length,
-    maxSize: members.length,
-    status: (members[0]?.status as TeamSummary['status']) || 'confirmed',
-    createdAt: members[0]?.registeredAt ?? '',
-    inviteCode: '',
-    firstMemberCollegeName: members[0]?.user?.collegeName,
-  }));
+  return Array.from(groups.entries()).map(([teamId, members]) => {
+    const first = members[0];
+    const isSolo = teamId.startsWith('solo-');
+    const computedName = isSolo
+      ? first?.user?.name || first?.user?.displayName || 'Individual Participant'
+      : first?.teamName || `Team ${teamId.slice(0, 6)}`;
+
+    return {
+      teamId,
+      teamName: computedName,
+      leaderId: first?.userId ?? '',
+      memberCount: members.length,
+      maxSize: members.length,
+      status: (first?.status as TeamSummary['status']) || 'confirmed',
+      createdAt: first?.registeredAt ?? '',
+      inviteCode: first?.teamInviteCode || '',
+      firstMemberCollegeName: first?.user?.collegeName,
+    };
+  });
 };
 
 export const getTeamMembers = async (eventId: string, teamId: string) => {
   const regs = await getEventRegistrations(eventId);
-  return regs.filter((r) => r.teamId === teamId);
+  return regs.filter((r) => (r.teamId || `solo-${r.userId}`) === teamId);
 };
 
 export const getAllTeamRegistrationsWithMembers = async (eventId: string) => {
-  const teams = await getEventTeamSummaries(eventId);
-  return Promise.all(
-    teams.map(async (team) => ({
-      ...team,
-      members: await getTeamMembers(eventId, team.teamId),
-    })),
-  );
+  const regs = await getEventRegistrations(eventId);
+  const groups = new Map<string, UserEventRegistration[]>();
+  for (const reg of regs) {
+    const key = reg.teamId || `solo-${reg.userId}`;
+    const list = groups.get(key) ?? [];
+    list.push(reg);
+    groups.set(key, list);
+  }
+  return Array.from(groups.entries()).map(([teamId, members]) => {
+    const first = members[0];
+    const isSolo = teamId.startsWith('solo-');
+    const computedName = isSolo
+      ? first?.user?.name || first?.user?.displayName || 'Individual Participant'
+      : first?.teamName || `Team ${teamId.slice(0, 6)}`;
+
+    return {
+      teamId,
+      teamName: computedName,
+      leaderId: first?.userId ?? '',
+      memberCount: members.length,
+      maxSize: members.length,
+      status: (first?.status as TeamSummary['status']) || 'confirmed',
+      createdAt: first?.registeredAt ?? '',
+      inviteCode: first?.teamInviteCode || '',
+      firstMemberCollegeName: first?.user?.collegeName,
+      members,
+    };
+  });
 };
 
 export const updateTeamRegistrationStatus = async (
-  _eventId: string,
-  _teamId: string,
-  _status: string,
+  eventId: string,
+  teamId: string,
+  status: string,
 ): Promise<{ success: boolean; error?: string }> => {
-  console.log('[mock] updateTeamRegistrationStatus');
-  return { success: true };
+  try {
+    const res = await apiFetch(`/admin/events/${eventId}/registrations/${encodeURIComponent(teamId)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }, 'required');
+    if (!res.ok) {
+      const err = await readError(res, 'Failed to update status');
+      return { success: false, error: err };
+    }
+    invalidateEventRegistrationsCache(eventId);
+    return { success: true };
+  } catch (err: any) {
+    console.error('Failed to update status:', err);
+    return { success: false, error: err?.message || 'Failed to update status' };
+  }
 };
+
+
 
 export const getRegistrationTransaction = async (..._args: any[]) => null;
 
@@ -751,29 +848,51 @@ export const clearUsersCache = () => {};
 export const hasActiveFilters = (filters?: { searchTerm?: string }) =>
   !!filters?.searchTerm?.trim();
 
-export const fetchTransactions = async (_filters?: any, _loadMore?: boolean) => {
-  const response = await apiFetch("/admin/payments", {}, "required");
-  if (!response.ok) {
-    throw new Error(await readError(response, "Failed to load transactions"));
-  }
-  const data = await response.json();
-  
-  // Transform backend models.Payment to frontend PaymentTransaction if necessary
-  // Assuming frontend PaymentTransaction has id, status, etc.
-  let items = data.items || [];
-  
-  // Simple frontend filtering (since backend doesn't support it yet)
-  if (_filters) {
-    if (_filters.statusFilter && _filters.statusFilter !== 'all') {
-      items = items.filter((p: any) => p.status === _filters.statusFilter);
+let cachedRawPayments: any[] | null = null;
+let paymentsCacheTimestamp = 0;
+const PAYMENTS_CACHE_TTL_MS = 45 * 1000; // 45 seconds
+
+export const clearTransactionsCache = () => {
+  cachedRawPayments = null;
+  paymentsCacheTimestamp = 0;
+};
+
+export const fetchTransactions = async (filters?: any, loadMore?: boolean) => {
+  const now = Date.now();
+  let rawItems: any[] = [];
+
+  if (cachedRawPayments && now - paymentsCacheTimestamp < PAYMENTS_CACHE_TTL_MS && !loadMore) {
+    rawItems = cachedRawPayments;
+  } else {
+    const response = await apiFetch("/admin/payments", {}, "required");
+    if (!response.ok) {
+      throw new Error(await readError(response, "Failed to load transactions"));
     }
-    if (_filters.searchTerm) {
-      const term = _filters.searchTerm.toLowerCase();
+    const data = await response.json();
+    rawItems = data.items || [];
+    cachedRawPayments = rawItems;
+    paymentsCacheTimestamp = now;
+  }
+
+  let items = [...rawItems];
+
+  if (filters) {
+    if (filters.statusFilter && filters.statusFilter !== 'all') {
+      items = items.filter((p: any) => p.status === filters.statusFilter);
+    }
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
       items = items.filter((p: any) => 
         (p.merchantOrderId || '').toLowerCase().includes(term) ||
         (p.userId || '').toLowerCase().includes(term) ||
         (p.easebuzzTxnId || '').toLowerCase().includes(term)
       );
+    }
+    if (filters.paymentTypeFilter && filters.paymentTypeFilter !== 'all') {
+      items = items.filter((p: any) => {
+        const type = p.paymentType || (p.processedIntentions?.eventRegistration ? 'event' : 'other');
+        return type === filters.paymentTypeFilter;
+      });
     }
   }
 
@@ -792,10 +911,10 @@ export const updatePaymentStatus = async (merchantOrderId: string, status: strin
   if (!response.ok) {
     throw new Error(await readError(response, "Failed to update payment status"));
   }
+  clearTransactionsCache();
   return response.json();
 };
 
-export const clearTransactionsCache = () => {};
 
 export const getOrderByQR = async (_data: string): Promise<{ success: boolean; order?: any; error?: string }> => ({
   success: false,

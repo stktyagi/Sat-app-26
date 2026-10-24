@@ -12,6 +12,8 @@ export const useMyEvents = () => {
     enabled: isAuthReady && !!authUser,
   });
 
+
+
   return {
     data: query.data || [],
     loading: query.isLoading,
