@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/middleware"
 	"backend/internal/models"
 	"backend/internal/store"
 )
@@ -50,6 +51,20 @@ func (a *API) AdminQRScan(c *gin.Context) {
 	category := strings.ToLower(strings.TrimSpace(req.Category))
 	if category == "" {
 		category = "gate"
+	}
+
+	caller := middleware.CurrentUser(c)
+	if category == "gate" || category == "hostel" {
+		if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBHospitality) && !caller.HasRole(models.RoleECHospitality) {
+			apierr.Respond(c, apierr.Forbidden("insufficient_permissions", "hospitality role required for gate and hostel scanning"))
+			return
+		}
+	}
+	if category == "event" {
+		if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) && !caller.HasRole(models.RoleEventPOC) {
+			apierr.Respond(c, apierr.Forbidden("insufficient_permissions", "event role required for event scanning"))
+			return
+		}
 	}
 
 	if category == "event" {
@@ -98,6 +113,14 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 	// Hydrate User and Event
 	u, _ := a.Store.GetUser(ctx, reg.UserID)
 	evt, _ := a.Cache.Get(ctx, reg.EventID)
+
+	caller := middleware.CurrentUser(c)
+	if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) {
+		if !caller.HasRole(models.RoleEventPOC) || !isUserEventCoordinator(caller, evt) {
+			apierr.Respond(c, apierr.Forbidden("not_event_coordinator", "you are not an assigned coordinator for this event"))
+			return
+		}
+	}
 
 	eventName := "Event"
 	if evt != nil && evt.Title != "" {
@@ -353,6 +376,7 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not update accommodation status"))
 		return
 	}
+	a.Store.InvalidateAccommodationCache()
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -403,6 +427,15 @@ func (a *API) AdminEventCheckIn(c *gin.Context) {
 		}
 		apierr.Respond(c, apierr.Internal("could not load registration"))
 		return
+	}
+
+	caller := middleware.CurrentUser(c)
+	if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) {
+		evt, _ := a.Cache.Get(ctx, reg.EventID)
+		if !caller.HasRole(models.RoleEventPOC) || !isUserEventCoordinator(caller, evt) {
+			apierr.Respond(c, apierr.Forbidden("not_event_coordinator", "you are not an assigned coordinator for this event"))
+			return
+		}
 	}
 
 	if err := a.Store.UpdateRegistrationCheckingStatus(ctx, reg.ID, status); err != nil {

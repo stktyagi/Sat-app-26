@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -12,6 +13,7 @@ import (
 	"backend/internal/isotime"
 	"backend/internal/models"
 )
+
 
 const ColPayments = "payments"
 const ColCheckouts = "checkouts"
@@ -481,8 +483,37 @@ func (s *Store) MarkPaymentFailed(ctx context.Context, id, txnID, adminID string
 	}))
 }
 
-// ListAllPayments returns every payment, newest first.
+var (
+	paymentsMu        sync.RWMutex
+	paymentsCache     []*models.Payment
+	paymentsCacheTime time.Time
+	paymentsTTL       = 30 * time.Second
+)
+
+// InvalidatePaymentsCache clears the cached payments slice.
+func (s *Store) InvalidatePaymentsCache() {
+	paymentsMu.Lock()
+	paymentsCache = nil
+	paymentsMu.Unlock()
+}
+
+// ListAllPayments returns every payment, newest first, cached with a 30-second TTL.
 func (s *Store) ListAllPayments(ctx context.Context) ([]*models.Payment, error) {
+	paymentsMu.RLock()
+	if paymentsCache != nil && time.Since(paymentsCacheTime) < paymentsTTL {
+		cached := paymentsCache
+		paymentsMu.RUnlock()
+		return cached, nil
+	}
+	paymentsMu.RUnlock()
+
+	paymentsMu.Lock()
+	defer paymentsMu.Unlock()
+
+	if paymentsCache != nil && time.Since(paymentsCacheTime) < paymentsTTL {
+		return paymentsCache, nil
+	}
+
 	iter := s.FS.Collection(ColPayments).OrderBy("createdAt", firestore.Desc).Documents(ctx)
 	defer iter.Stop()
 
@@ -502,5 +533,26 @@ func (s *Store) ListAllPayments(ctx context.Context) ([]*models.Payment, error) 
 		p.ID = doc.Ref.ID
 		payments = append(payments, &p)
 	}
+
+	paymentsCache = payments
+	paymentsCacheTime = time.Now()
 	return payments, nil
 }
+
+// ListPayments returns paginated payments and the total count.
+func (s *Store) ListPayments(ctx context.Context, limit, offset int) ([]*models.Payment, int, error) {
+	all, err := s.ListAllPayments(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	total := len(all)
+	if offset >= total {
+		return []*models.Payment{}, total, nil
+	}
+	end := offset + limit
+	if limit <= 0 || end > total {
+		end = total
+	}
+	return all[offset:end], total, nil
+}
+

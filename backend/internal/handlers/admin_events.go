@@ -117,6 +117,30 @@ func (a *API) CreateEvent(c *gin.Context) {
 // The slug is the document ID, so neither it nor eventId can change; and the
 // event type is frozen once anyone has registered, because flipping individual
 // to team would leave existing registrations with no team.
+func isUserEventCoordinator(u *models.User, event *models.Event) bool {
+	if u == nil || event == nil {
+		return false
+	}
+	userEmail := strings.ToLower(strings.TrimSpace(u.Email))
+	userId := strings.TrimSpace(u.UserID)
+
+	for _, coord := range event.Coordinators {
+		cEmail, _ := coord["email"].(string)
+		cEmail = strings.ToLower(strings.TrimSpace(cEmail))
+		cId, _ := coord["userId"].(string)
+		if cId == "" {
+			cId, _ = coord["userID"].(string)
+		}
+		cId = strings.TrimSpace(cId)
+
+		if (userEmail != "" && cEmail != "" && userEmail == cEmail) ||
+			(userId != "" && cId != "" && userId == cId) {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *API) UpdateEvent(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
@@ -125,6 +149,14 @@ func (a *API) UpdateEvent(c *gin.Context) {
 	if err != nil {
 		apierr.Respond(c, apierr.NotFound("event_not_found", "no such event"))
 		return
+	}
+
+	caller := middleware.CurrentUser(c)
+	if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) {
+		if !caller.HasRole(models.RoleEventPOC) || !isUserEventCoordinator(caller, event) {
+			apierr.Respond(c, apierr.Forbidden("not_event_coordinator", "you are not an assigned coordinator for this event"))
+			return
+		}
 	}
 	originalType := event.EventType
 
@@ -228,6 +260,14 @@ func (a *API) ListEventRegistrations(c *gin.Context) {
 		return
 	}
 
+	caller := middleware.CurrentUser(c)
+	if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) && !caller.HasRole(models.RoleEBOutreach) {
+		if !caller.HasRole(models.RoleEventPOC) || !isUserEventCoordinator(caller, event) {
+			apierr.Respond(c, apierr.Forbidden("not_event_coordinator", "you are not an assigned coordinator for this event"))
+			return
+		}
+	}
+
 	limit, offset := page(c)
 	regs, err := a.Store.ListEventRegistrations(ctx, event.EventID, limit, offset)
 	if err != nil {
@@ -250,17 +290,95 @@ func (a *API) ListEventRegistrations(c *gin.Context) {
 		return
 	}
 
+	teamsCache := make(map[string]*models.Team)
 	items := make([]gin.H, 0, len(regs))
 	for _, r := range regs {
 		row := gin.H{"registration": r}
 		if u, ok := users[r.UserID]; ok {
 			row["user"] = u.ResolveHostStatus(a.Cfg.HostEmailDomain)
 		}
+		if r.TeamID != "" {
+			if t, ok := teamsCache[r.TeamID]; ok {
+				row["team"] = t
+			} else if team, err := a.Store.GetTeam(ctx, r.TeamID); err == nil && team != nil {
+				teamsCache[r.TeamID] = team
+				row["team"] = team
+			}
+		}
 		items = append(items, row)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"items": items, "total": total, "limit": limit, "offset": offset})
 }
+
+type updateRegStatusBody struct {
+	Status string `json:"status" binding:"required"`
+}
+
+// AdminUpdateRegistrationStatus lets staff or an assigned event coordinator update
+// a team's or individual registration's status (e.g. confirmed, pending, rejected).
+func (a *API) AdminUpdateRegistrationStatus(c *gin.Context) {
+	ctx := c.Request.Context()
+	eventID := c.Param("id")
+	target := c.Param("target")
+
+	var body updateRegStatusBody
+	if !bind(c, &body) {
+		return
+	}
+
+	event, err := a.Store.GetEvent(ctx, eventID)
+	if err != nil {
+		apierr.Respond(c, apierr.NotFound("event_not_found", "no such event"))
+		return
+	}
+
+	caller := middleware.CurrentUser(c)
+	if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) && !caller.HasRole(models.RoleEBOutreach) {
+		if !caller.HasRole(models.RoleEventPOC) || !isUserEventCoordinator(caller, event) {
+			apierr.Respond(c, apierr.Forbidden("not_event_coordinator", "you are not an assigned coordinator for this event"))
+			return
+		}
+	}
+
+	status := strings.TrimSpace(body.Status)
+	if status == "" {
+		apierr.Respond(c, apierr.BadRequest("invalid_status", "status cannot be empty"))
+		return
+	}
+
+	if strings.HasPrefix(target, "solo-") {
+		userID := strings.TrimPrefix(target, "solo-")
+		regID := models.RegistrationID(eventID, userID)
+		if err := a.Store.UpdateRegistrationStatus(ctx, regID, status); err != nil {
+			apierr.Respond(c, apierr.Internal("could not update registration status"))
+			return
+		}
+	} else if strings.Contains(target, "_") {
+		if team, err := a.Store.GetTeam(ctx, target); err == nil && team != nil {
+			_ = a.Store.UpdateTeam(ctx, target, map[string]any{"status": status})
+			if memberRegs, err := a.Store.ListRegistrationsByTeam(ctx, target); err == nil {
+				for _, mr := range memberRegs {
+					_ = a.Store.UpdateRegistrationStatus(ctx, mr.ID, status)
+				}
+			}
+		} else {
+			if err := a.Store.UpdateRegistrationStatus(ctx, target, status); err != nil {
+				apierr.Respond(c, apierr.Internal("could not update registration status"))
+				return
+			}
+		}
+	} else {
+		regID := models.RegistrationID(eventID, target)
+		if err := a.Store.UpdateRegistrationStatus(ctx, regID, status); err != nil {
+			apierr.Respond(c, apierr.Internal("could not update registration status"))
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "updatedStatus": status})
+}
+
 
 // applyEventBody overlays the supplied fields onto an event and reports how
 // many were set, so a PATCH carrying nothing can be rejected.

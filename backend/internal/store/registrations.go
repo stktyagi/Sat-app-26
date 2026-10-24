@@ -123,3 +123,11 @@ func (s *Store) UpdateRegistrationCheckingStatus(ctx context.Context, id, status
 	})
 	return wrap(err)
 }
+
+// UpdateRegistrationStatus updates the status field on a registration document.
+func (s *Store) UpdateRegistrationStatus(ctx context.Context, id, status string) error {
+	_, err := s.FS.Collection(ColRegistrations).Doc(id).Update(ctx, []firestore.Update{
+		{Path: "status", Value: status},
+	})
+	return wrap(err)
+}

@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"log"
+	"sync"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
@@ -128,8 +130,38 @@ func (s *Store) UpdateUserAccommodation(ctx context.Context, userID string, need
 	return wrap(err)
 }
 
-// ListAccommodationUsers scans users and returns anyone with accommodation needed or booked.
+var (
+	accomMu        sync.RWMutex
+	accomCache     []*models.User
+	accomCacheTime time.Time
+	accomTTL       = 60 * time.Second
+)
+
+// InvalidateAccommodationCache clears the cached accommodation users slice.
+func (s *Store) InvalidateAccommodationCache() {
+	accomMu.Lock()
+	accomCache = nil
+	accomMu.Unlock()
+}
+
+// ListAccommodationUsers returns anyone with accommodation needed or booked, cached with a 60-second TTL.
 func (s *Store) ListAccommodationUsers(ctx context.Context) ([]*models.User, error) {
+	accomMu.RLock()
+	if accomCache != nil && time.Since(accomCacheTime) < accomTTL {
+		cached := accomCache
+		accomMu.RUnlock()
+		return cached, nil
+	}
+	accomMu.RUnlock()
+
+	accomMu.Lock()
+	defer accomMu.Unlock()
+
+	// Double check under write lock
+	if accomCache != nil && time.Since(accomCacheTime) < accomTTL {
+		return accomCache, nil
+	}
+
 	iter := s.FS.Collection(ColUsers).Documents(ctx)
 	defer iter.Stop()
 
@@ -159,6 +191,10 @@ func (s *Store) ListAccommodationUsers(ctx context.Context) ([]*models.User, err
 			users = append(users, u)
 		}
 	}
+
+	accomCache = users
+	accomCacheTime = time.Now()
 	return users, nil
 }
+
 

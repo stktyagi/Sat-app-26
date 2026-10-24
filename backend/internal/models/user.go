@@ -11,9 +11,43 @@ import (
 // administrator carries RoleAdmin alongside it, so a check is a membership test
 // rather than an equality test.
 const (
-	RoleUser  = "user"
-	RoleAdmin = "admin"
+	RoleUser          = "user"
+	RoleAdmin         = "admin"
+	RoleEBEvents      = "eb_events"
+	RoleEBOutreach    = "eb_outreach"
+	RoleEBFinance     = "eb_finance"
+	RoleEBMedia       = "eb_media"
+	RoleEBHospitality = "eb_hospitality"
+	RoleECHospitality = "ec_hospitality"
+	RoleEventPOC      = "event_poc"
 )
+
+// NormalizeRole maps legacy names, typos, and mixed casings to canonical role identifiers.
+func NormalizeRole(r string) string {
+	lower := strings.ToLower(strings.TrimSpace(r))
+	switch lower {
+	case "admin", "super_admin", "superadmin", "dev":
+		return RoleAdmin
+	case "eb_events", "event_admin":
+		return RoleEBEvents
+	case "eb_outreach", "eb_oureach", "outreach_admin", "outreach_member":
+		return RoleEBOutreach
+	case "eb_finance", "finance":
+		return RoleEBFinance
+	case "eb_media", "media":
+		return RoleEBMedia
+	case "eb_hospitality", "hospitality_admin":
+		return RoleEBHospitality
+	case "ec_hospitality", "hospitality_member":
+		return RoleECHospitality
+	case "event_poc", "coordinator", "event_coordinator":
+		return RoleEventPOC
+	case "user":
+		return RoleUser
+	default:
+		return lower
+	}
+}
 
 type User struct {
 	UserID              string   `json:"userId"              firestore:"userId"`
@@ -77,12 +111,7 @@ func (u *User) IsAdmin() bool {
 		return false
 	}
 	for _, r := range u.Roles {
-		rLower := strings.ToLower(strings.TrimSpace(r))
-		switch rLower {
-		case RoleAdmin, "super_admin", "superadmin", "dev", "event_admin",
-			"event_coordinator", "hospitality_admin", "hospitality_member",
-			"outreach_admin", "outreach_member", "executive_committee",
-			"core_member", "finance", "media", "eb_member":
+		if NormalizeRole(r) == RoleAdmin {
 			return true
 		}
 	}
@@ -93,9 +122,35 @@ func (u *User) HasRole(role string) bool {
 	if u == nil {
 		return false
 	}
-	target := strings.ToLower(strings.TrimSpace(role))
+	target := NormalizeRole(role)
 	for _, r := range u.Roles {
-		if strings.ToLower(strings.TrimSpace(r)) == target {
+		if NormalizeRole(r) == target {
+			return true
+		}
+	}
+	return false
+}
+
+func (u *User) HasAnyRole(roles ...string) bool {
+	if u == nil {
+		return false
+	}
+	for _, role := range roles {
+		if u.HasRole(role) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsStaffOrAdmin reports whether the user holds any role beyond basic participant.
+func (u *User) IsStaffOrAdmin() bool {
+	if u == nil {
+		return false
+	}
+	for _, r := range u.Roles {
+		norm := NormalizeRole(r)
+		if norm != "" && norm != RoleUser {
 			return true
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"backend/internal/config"
 	"backend/internal/fb"
 	"backend/internal/middleware"
+	"backend/internal/models"
 	"backend/internal/store"
 )
 
@@ -38,11 +39,11 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 
 	authed := v1.Group("", required, middleware.RequireUser())
 	registered := v1.Group("", required, middleware.RequireUser(), middleware.RequireFullyRegistered())
-	admin := v1.Group("", required, middleware.RequireUser(), middleware.RequireAdmin())
 
 	authed.GET("/me", api.GetMe)
 	authed.PATCH("/me", api.PatchMe)
 	authed.GET("/me/events", api.GetMyEvents)
+	authed.POST("/me/fcm-token", api.UpdateFCMToken)
 
 	// Public browsing. The optional token is what lets a signed-in caller see
 	// their own fee and registration without a second request.
@@ -52,6 +53,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	open.GET("/events/:id", api.GetEvent)
 	open.GET("/faqs", api.ListFaqs)
 	open.GET("/venues", api.ListVenues)
+	open.GET("/venues/:id", api.GetVenue)
 	open.GET("/banners", api.ListBanners)
 	open.GET("/banners/:id", api.GetBanner)
 	open.GET("/reels", api.ListReels)
@@ -83,90 +85,117 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	authed.DELETE("/teams/:teamRef/members/:userId", api.RemoveMember)
 	authed.POST("/teams/:teamRef/confirm", api.ConfirmTeam)
 
-	admin.POST("/admin/events", api.CreateEvent)
-	admin.PATCH("/admin/events/:id", api.UpdateEvent)
-	admin.DELETE("/admin/events/:id", api.DeleteEvent)
-	admin.GET("/admin/events/:id/registrations", api.ListEventRegistrations)
+	// Base staff group: accessible to any account holding an admin or committee role.
+	staff := v1.Group("", required, middleware.RequireUser(), middleware.RequireStaff())
 
-	admin.GET("/admin/payments", api.AdminListPayments)
-	admin.PATCH("/admin/payments/:id", api.AdminUpdatePaymentStatus)
+	// Top-level Admin Only: App Configuration, Notifications, FAQs, Store Items, Account Deletion
+	adminOnly := staff.Group("", middleware.RequireAdmin())
+	adminOnly.POST("/admin/faqs", api.CreateFaq)
+	adminOnly.PATCH("/admin/faqs/:id", api.UpdateFaq)
+	adminOnly.DELETE("/admin/faqs/:id", api.DeleteFaq)
+	adminOnly.DELETE("/admin/users/by-email/:email", api.AdminDeleteUser)
+	adminOnly.GET("/admin/store", api.AdminListStoreItems)
+	adminOnly.GET("/admin/store/:id", api.AdminGetStoreItem)
+	adminOnly.POST("/admin/store", api.CreateStoreItem)
+	adminOnly.PATCH("/admin/store/:id", api.UpdateStoreItem)
+	adminOnly.DELETE("/admin/store/:id", api.DeleteStoreItem)
+	adminOnly.GET("/admin/app", api.AdminGetAppConfig)
+	adminOnly.PATCH("/admin/app/links", api.AdminUpdateAppLinks)
+	adminOnly.PUT("/admin/app/links", api.AdminUpdateAppLinks)
+	adminOnly.PATCH("/admin/app/maintenance", api.AdminUpdateAppMaintenance)
+	adminOnly.PUT("/admin/app/maintenance", api.AdminUpdateAppMaintenance)
+	adminOnly.PATCH("/admin/app/versions", api.AdminUpdateAppVersions)
+	adminOnly.PUT("/admin/app/versions", api.AdminUpdateAppVersions)
+	adminOnly.PATCH("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
+	adminOnly.PUT("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
+	adminOnly.POST("/admin/notifications", api.SendNotification)
 
-	admin.POST("/admin/faqs", api.CreateFaq)
-	admin.PATCH("/admin/faqs/:id", api.UpdateFaq)
-	admin.DELETE("/admin/faqs/:id", api.DeleteFaq)
+	// Events: Admin, EB_Events (coordinators can access scoped update/registrations)
+	ebEvents := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents))
+	ebEvents.POST("/admin/events", api.CreateEvent)
+	ebEvents.DELETE("/admin/events/:id", api.DeleteEvent)
 
-	admin.POST("/admin/venues", api.CreateVenue)
-	admin.PATCH("/admin/venues/:id", api.UpdateVenue)
-	admin.DELETE("/admin/venues/:id", api.DeleteVenue)
+	eventsShared := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBOutreach, models.RoleEventPOC))
+	eventsShared.PATCH("/admin/events/:id", api.UpdateEvent)
+	eventsShared.GET("/admin/events/:id/registrations", api.ListEventRegistrations)
+	eventsShared.PATCH("/admin/events/:id/registrations/:target/status", api.AdminUpdateRegistrationStatus)
 
-	// Banners
-	admin.GET("/admin/banners", api.AdminListBanners)
-	admin.GET("/admin/banners/:id", api.AdminGetBanner)
-	admin.POST("/admin/banners", api.CreateBanner)
-	admin.PATCH("/admin/banners/:id", api.UpdateBanner)
-	admin.DELETE("/admin/banners/:id", api.DeleteBanner)
+	// Venues: Admin, EB_Events
+	venues := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents))
+	venues.GET("/admin/venues", api.ListVenues)
+	venues.GET("/admin/venues/:id", api.GetVenue)
+	venues.POST("/admin/venues", api.CreateVenue)
+	venues.PATCH("/admin/venues/:id", api.UpdateVenue)
+	venues.PUT("/admin/venues/:id", api.UpdateVenue)
+	venues.PATCH("/admin/venues/:id/coordinates", api.UpdateVenueCoordinates)
+	venues.PUT("/admin/venues/:id/coordinates", api.UpdateVenueCoordinates)
+	venues.PATCH("/admin/venues/batch", api.BatchUpdateVenues)
+	venues.PUT("/admin/venues/batch", api.BatchUpdateVenues)
+	venues.DELETE("/admin/venues/:id", api.DeleteVenue)
 
-	// Reels
-	admin.GET("/admin/reels", api.AdminListReels)
-	admin.GET("/admin/reels/:id", api.AdminGetReel)
-	admin.POST("/admin/reels", api.CreateReel)
-	admin.PATCH("/admin/reels/:id", api.UpdateReel)
-	admin.DELETE("/admin/reels/:id", api.DeleteReel)
+	// Banners: Admin, EB_Events, EB_Media
+	banners := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBMedia))
+	banners.GET("/admin/banners", api.AdminListBanners)
+	banners.GET("/admin/banners/:id", api.AdminGetBanner)
+	banners.POST("/admin/banners", api.CreateBanner)
+	banners.PATCH("/admin/banners/:id", api.UpdateBanner)
+	banners.DELETE("/admin/banners/:id", api.DeleteBanner)
 
-	// Stories
-	admin.GET("/admin/stories", api.AdminListStories)
-	admin.GET("/admin/stories/:id", api.AdminGetStory)
-	admin.POST("/admin/stories", api.CreateStory)
-	admin.PATCH("/admin/stories/:id", api.UpdateStory)
-	admin.DELETE("/admin/stories/:id", api.DeleteStory)
+	// Media: Admin, EB_Events, EB_Media
+	media := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBMedia))
+	media.POST("/admin/media/upload", api.UploadMedia)
+	media.DELETE("/admin/media", api.DeleteMedia)
 
-	// Store
-	admin.GET("/admin/store", api.AdminListStoreItems)
-	admin.GET("/admin/store/:id", api.AdminGetStoreItem)
-	admin.POST("/admin/store", api.CreateStoreItem)
-	admin.PATCH("/admin/store/:id", api.UpdateStoreItem)
-	admin.DELETE("/admin/store/:id", api.DeleteStoreItem)
+	// Reels & Stories: Admin, EB_Media
+	mediaContent := staff.Group("", middleware.RequireAnyRole(models.RoleEBMedia))
+	mediaContent.GET("/admin/reels", api.AdminListReels)
+	mediaContent.GET("/admin/reels/:id", api.AdminGetReel)
+	mediaContent.POST("/admin/reels", api.CreateReel)
+	mediaContent.PATCH("/admin/reels/:id", api.UpdateReel)
+	mediaContent.DELETE("/admin/reels/:id", api.DeleteReel)
+	mediaContent.GET("/admin/stories", api.AdminListStories)
+	mediaContent.GET("/admin/stories/:id", api.AdminGetStory)
+	mediaContent.POST("/admin/stories", api.CreateStory)
+	mediaContent.PATCH("/admin/stories/:id", api.UpdateStory)
+	mediaContent.DELETE("/admin/stories/:id", api.DeleteStory)
 
-	// ImageKit media
-	admin.POST("/admin/media/upload", api.UploadMedia)
-	admin.DELETE("/admin/media", api.DeleteMedia)
+	// Payments: Admin, EB_Outreach, EB_Finance
+	payments := staff.Group("", middleware.RequireAnyRole(models.RoleEBOutreach, models.RoleEBFinance))
+	payments.GET("/admin/payments", api.AdminListPayments)
+	payments.PATCH("/admin/payments/:id", api.AdminUpdatePaymentStatus)
 
-	// Admin user management: look up by unique email, edit, or delete.
-	admin.GET("/admin/users/by-email/:email", api.AdminGetUser)
-	admin.PATCH("/admin/users/by-email/:email", api.AdminUpdateUser)
-	admin.DELETE("/admin/users/by-email/:email", api.AdminDeleteUser)
-	admin.GET("/admin/users/by-email/:email/registrations", api.AdminGetUserEvents)
-	admin.GET("/admin/users/:id", api.AdminGetUserByID)
-	admin.GET("/admin/users/:id/events", api.AdminGetUserEventsByID)
+	// Users Management: Admin, EB_Events, EB_Outreach, EB_Finance, EB_Hospitality
+	users := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBHospitality))
+	users.GET("/admin/users/by-email/:email", api.AdminGetUser)
+	users.PATCH("/admin/users/by-email/:email", api.AdminUpdateUser)
+	users.GET("/admin/users/by-email/:email/registrations", api.AdminGetUserEvents)
+	users.GET("/admin/users/:id", api.AdminGetUserByID)
+	users.GET("/admin/users/:id/events", api.AdminGetUserEventsByID)
 
-	// Admin QR Scanner routes
-	admin.POST("/admin/qr/scan", api.AdminQRScan)
-	admin.POST("/admin/qr/gate-checkin", api.AdminGateCheckIn)
-	admin.PATCH("/admin/qr/gate/:userId", api.AdminGateCheckIn)
-	admin.POST("/admin/qr/hostel-checkin", api.AdminHostelCheckIn)
-	admin.PATCH("/admin/qr/hostel/:userId", api.AdminHostelCheckIn)
-	admin.POST("/admin/qr/event-checkin", api.AdminEventCheckIn)
-	admin.PATCH("/admin/qr/registrations/:id/status", api.AdminEventCheckIn)
+	// Accommodation: Admin, EB_Hospitality, EC_Hospitality
+	accom := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality))
+	accom.GET("/admin/accommodation", api.AdminListAccommodation)
+	accom.GET("/admin/accommodation/stats", api.AdminAccommodationStats)
+	accom.POST("/admin/accommodation/checkin", api.AdminHostelCheckIn)
 
-	// Admin accommodation management
-	admin.GET("/admin/accommodation", api.AdminListAccommodation)
-	admin.GET("/admin/accommodation/stats", api.AdminAccommodationStats)
-	admin.POST("/admin/accommodation/checkin", api.AdminHostelCheckIn)
+	// QR Gate: Admin, EB_Hospitality, EC_Hospitality
+	gateQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality))
+	gateQR.POST("/admin/qr/gate-checkin", api.AdminGateCheckIn)
+	gateQR.PATCH("/admin/qr/gate/:userId", api.AdminGateCheckIn)
 
-	// App configuration: links, maintenance, versions
-	admin.GET("/admin/app", api.AdminGetAppConfig)
-	admin.PATCH("/admin/app/links", api.AdminUpdateAppLinks)
-	admin.PUT("/admin/app/links", api.AdminUpdateAppLinks)
-	admin.PATCH("/admin/app/maintenance", api.AdminUpdateAppMaintenance)
-	admin.PUT("/admin/app/maintenance", api.AdminUpdateAppMaintenance)
-	admin.PATCH("/admin/app/versions", api.AdminUpdateAppVersions)
-	admin.PUT("/admin/app/versions", api.AdminUpdateAppVersions)
-	admin.PATCH("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
-	admin.PUT("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
+	// QR Hostel: Admin, EB_Hospitality, EC_Hospitality
+	hostelQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality))
+	hostelQR.POST("/admin/qr/hostel-checkin", api.AdminHostelCheckIn)
+	hostelQR.PATCH("/admin/qr/hostel/:userId", api.AdminHostelCheckIn)
 
-	// FCM: client registers its token; admins broadcast to audiences.
-	authed.POST("/me/fcm-token", api.UpdateFCMToken)
-	admin.POST("/admin/notifications", api.SendNotification)
+	// QR Event: Admin, EB_Events, Event_POC
+	eventQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEventPOC))
+	eventQR.POST("/admin/qr/event-checkin", api.AdminEventCheckIn)
+	eventQR.PATCH("/admin/qr/registrations/:id/status", api.AdminEventCheckIn)
+
+	// Unified Scan Endpoint: accessible to any QR role (category validation enforced in handler)
+	scanQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality, models.RoleEBEvents, models.RoleEventPOC))
+	scanQR.POST("/admin/qr/scan", api.AdminQRScan)
 
 	// Coupons
 	authed.POST("/coupons/validate", api.ValidateCoupon)

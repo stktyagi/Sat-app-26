@@ -4,11 +4,14 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/middleware"
+	"backend/internal/models"
 	"backend/internal/store"
 )
 
@@ -128,7 +131,26 @@ func (a *API) AdminUpdateUser(c *gin.Context) {
 		fields["accommodationNeeded"] = *body.AccommodationNeeded
 	}
 	if body.Roles != nil {
-		fields["roles"] = *body.Roles
+		caller := middleware.CurrentUser(c)
+		if caller == nil || !caller.IsAdmin() {
+			apierr.Respond(c, apierr.Forbidden("admin_only", "only administrators can modify user roles"))
+			return
+		}
+		cleaned := make([]string, 0, len(*body.Roles))
+		hasUser := false
+		for _, r := range *body.Roles {
+			norm := models.NormalizeRole(r)
+			if norm != "" && !slices.Contains(cleaned, norm) {
+				cleaned = append(cleaned, norm)
+				if norm == models.RoleUser {
+					hasUser = true
+				}
+			}
+		}
+		if !hasUser {
+			cleaned = append(cleaned, models.RoleUser)
+		}
+		fields["roles"] = cleaned
 	}
 	if body.IsVerified != nil {
 		fields["isVerified"] = *body.IsVerified
