@@ -17,11 +17,12 @@ import (
 // venueBody has no venueId: it is a slug of the name, fixed at creation.
 // Accepts both lat/lng and latitude/longitude aliases.
 type venueBody struct {
-	VenueName *string  `json:"venueName"`
-	Lat       *float64 `json:"lat"`
-	Lng       *float64 `json:"lng"`
-	Latitude  *float64 `json:"latitude"`
-	Longitude *float64 `json:"longitude"`
+	VenueName *string   `json:"venueName"`
+	Lat       *float64  `json:"lat"`
+	Lng       *float64  `json:"lng"`
+	Latitude  *float64  `json:"latitude"`
+	Longitude *float64  `json:"longitude"`
+	Keywords  *[]string `json:"keywords"`
 }
 
 func (b *venueBody) getLat() *float64 {
@@ -61,12 +62,13 @@ func (b *coordinatesBody) getLng() *float64 {
 }
 
 type batchVenueItem struct {
-	VenueID   string   `json:"venueId"`
-	VenueName *string  `json:"venueName"`
-	Lat       *float64 `json:"lat"`
-	Lng       *float64 `json:"lng"`
-	Latitude  *float64 `json:"latitude"`
-	Longitude *float64 `json:"longitude"`
+	VenueID   string    `json:"venueId"`
+	VenueName *string   `json:"venueName"`
+	Lat       *float64  `json:"lat"`
+	Lng       *float64  `json:"lng"`
+	Latitude  *float64  `json:"latitude"`
+	Longitude *float64  `json:"longitude"`
+	Keywords  *[]string `json:"keywords"`
 }
 
 func (b *batchVenueItem) getLat() *float64 {
@@ -256,6 +258,9 @@ func (a *API) BatchUpdateVenues(c *gin.Context) {
 		if lng := item.getLng(); lng != nil {
 			venue.Lng = *lng
 		}
+		if item.Keywords != nil {
+			venue.Keywords = *item.Keywords
+		}
 
 		if err := validateVenue(venue); err != nil {
 			apierr.Respond(c, err)
@@ -328,6 +333,10 @@ func applyVenueBody(v *models.Venue, b *venueBody) int {
 	}
 	if lng := b.getLng(); lng != nil {
 		v.Lng = *lng
+		n++
+	}
+	if b.Keywords != nil {
+		v.Keywords = *b.Keywords
 		n++
 	}
 	return n
