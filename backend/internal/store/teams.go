@@ -194,7 +194,7 @@ func (s *Store) DeleteTeam(ctx context.Context, teamID, leaderID string) error {
 }
 
 // ConfirmTeam marks the team as confirmed by the team leader.
-func (s *Store) ConfirmTeam(ctx context.Context, teamID, leaderID string) error {
+func (s *Store) ConfirmTeam(ctx context.Context, teamID, leaderID string, markPaid bool) error {
 	teamRef := s.FS.Collection(ColTeams).Doc(teamID)
 
 	return s.FS.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -209,10 +209,28 @@ func (s *Store) ConfirmTeam(ctx context.Context, teamID, leaderID string) error 
 		if !team.IsLeader(leaderID) {
 			return ErrNotLeader
 		}
-		return tx.Update(teamRef, []firestore.Update{
+		updates := []firestore.Update{
 			{Path: "status", Value: models.TeamStatusConfirmed},
 			{Path: "updatedAt", Value: isotime.Now()},
-		})
+		}
+		if markPaid {
+			updates = append(updates, firestore.Update{Path: "paid", Value: true})
+		}
+		if err := tx.Update(teamRef, updates); err != nil {
+			return err
+		}
+
+		if markPaid {
+			for _, mID := range team.MemberIDs {
+				regID := models.RegistrationID(team.EventID, mID)
+				regRef := s.FS.Collection(ColRegistrations).Doc(regID)
+				_ = tx.Update(regRef, []firestore.Update{
+					{Path: "paymentStatus", Value: models.RegPaymentSuccess},
+					{Path: "paidAt", Value: isotime.Now()},
+				})
+			}
+		}
+		return nil
 	})
 }
 

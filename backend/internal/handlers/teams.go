@@ -300,7 +300,24 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 	}
 
 	// If event requires payment and team is not paid, do not allow confirmation.
-	if event != nil && (event.PaymentRequired || event.FeeFor(user.IsHostCollegeStudent) > 0) && !team.Paid {
+	teamFee := 0
+	if event != nil && event.PaymentRequired {
+		if event.PaymentType == "per_individual" && len(team.MemberIDs) > 0 {
+			members, err := a.Store.GetUsers(c.Request.Context(), team.MemberIDs)
+			if err == nil && len(members) == len(team.MemberIDs) {
+				for _, m := range members {
+					m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+					teamFee += event.FeeFor(m.IsHostCollegeStudent)
+				}
+			} else {
+				teamFee = event.FeeFor(user.IsHostCollegeStudent)
+			}
+		} else {
+			teamFee = event.FeeFor(user.IsHostCollegeStudent)
+		}
+	}
+
+	if teamFee > 0 && !team.Paid {
 		apierr.Respond(c, apierr.Conflict("payment_required", "payment is pending or due for this event. Please complete payment to finalize registration"))
 		return
 	}
@@ -310,7 +327,8 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 		return
 	}
 
-	if err := a.Store.ConfirmTeam(c.Request.Context(), team.TeamID, user.UserID); err != nil {
+	markPaid := teamFee == 0
+	if err := a.Store.ConfirmTeam(c.Request.Context(), team.TeamID, user.UserID, markPaid); err != nil {
 		apierr.Respond(c, apierr.Internal("could not complete team registration"))
 		return
 	}

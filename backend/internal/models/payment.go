@@ -75,6 +75,8 @@ type Payment struct {
 	CouponCode    string         `json:"couponCode,omitempty"    firestore:"couponCode"`
 	CouponDetails *CouponDetails `json:"couponDetails,omitempty" firestore:"couponDetails"`
 
+	Bill map[string]any `json:"bill" firestore:"bill"`
+
 	ProcessedIntentions ProcessedIntentions `json:"processedIntentions" firestore:"processedIntentions"`
 
 	Status      string `json:"status"                firestore:"status"`
@@ -152,10 +154,14 @@ func NewPayment(
 	originalAmount, discountAmount int,
 	couponCode string, couponDetails *CouponDetails,
 	intentions ProcessedIntentions,
+	bill map[string]any,
 ) *Payment {
 	// The gateway rejects a zero amount, so a fully discounted cart is still
 	// charged the minimum of 1. FinalAmount is what is actually charged.
 	final := max(originalAmount-discountAmount, 1)
+	if bill == nil {
+		bill = map[string]any{}
+	}
 	return &Payment{
 		MerchantOrderID:     merchantOrderID,
 		UserID:              userID,
@@ -168,6 +174,7 @@ func NewPayment(
 		FinalAmount:         final,
 		CouponCode:          couponCode,
 		CouponDetails:       couponDetails,
+		Bill:                bill,
 		ProcessedIntentions: intentions,
 		Status:              PaymentStatusPending,
 		CreatedAt:           isotime.Now(),

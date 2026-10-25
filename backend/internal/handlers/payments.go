@@ -227,6 +227,7 @@ func (a *API) InitiatePayment(c *gin.Context) {
 	// Event fee. A per-individual team event is priced per member, each by their
 	// own host status; the roster is frozen for the checkout (JoinTeam is locked).
 	eventFee := 0
+	memberFees := map[string]int{}
 	if event != nil {
 		eventFee = event.FeeFor(user.IsHostCollegeStudent)
 		if team != nil && event.PaymentType == "per_individual" {
@@ -242,7 +243,9 @@ func (a *API) InitiatePayment(c *gin.Context) {
 			eventFee = 0
 			for _, m := range members {
 				m.ResolveHostStatus(a.Cfg.HostEmailDomain)
-				eventFee += event.FeeFor(m.IsHostCollegeStudent)
+				f := event.FeeFor(m.IsHostCollegeStudent)
+				eventFee += f
+				memberFees[m.UserID] = f
 			}
 		}
 	}
@@ -263,8 +266,17 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		return
 	}
 
+	accDays := map[string]int{}
+	for day := range accommodationMap {
+		accDays[day] = accPrice
+	}
+	foodDays := map[string]int{}
+	for day := range foodMap {
+		foodDays[day] = FoodPricePerDay
+	}
+
 	a.initiate(c, user, event, team, eventPaymentType, paymentType, body.CouponCode,
-		covered, eventFee, accommodationMap, accFee, foodMap, foodFee)
+		covered, eventFee, memberFees, accommodationMap, accFee, accDays, foodMap, foodFee, foodDays)
 }
 
 // easebuzzPayMode returns "production" or "test" for the Easebuzz mobile SDK.
@@ -284,8 +296,9 @@ func (a *API) initiate(
 	eventPaymentType, paymentType, couponCode string,
 	covered []string,
 	eventFee int,
-	accommodationMap map[string]any, accFee int,
-	foodMap map[string]any, foodFee int,
+	memberFees map[string]int,
+	accommodationMap map[string]any, accFee int, accDays map[string]int,
+	foodMap map[string]any, foodFee int, foodDays map[string]int,
 ) {
 	ctx := c.Request.Context()
 
@@ -323,6 +336,26 @@ func (a *API) initiate(
 		couponCode = coupon.Code
 	}
 
+	bill := map[string]any{
+		"event":         eventFee,
+		"accommodation": accFee,
+		"food":          foodFee,
+		"total":         originalAmount,
+	}
+	if len(accDays) > 0 {
+		bill["accommodation_days"] = accDays
+	}
+	if len(foodDays) > 0 {
+		bill["food_days"] = foodDays
+	}
+	if len(memberFees) > 0 {
+		bill["event_members"] = memberFees
+	}
+	if discountAmount > 0 {
+		bill["discount"] = discountAmount
+	}
+	bill["final"] = max(originalAmount-discountAmount, 1)
+
 	var evtIntention *models.EventRegistrationIntention
 	eventID, teamID, checkoutID := "", "", user.UserID+"_stay"
 	if event != nil {
@@ -351,6 +384,7 @@ func (a *API) initiate(
 			Accommodation:     accommodationMap,
 			Food:              foodMap,
 		},
+		bill,
 	)
 
 	payment, checkout, err := a.Store.BeginCheckout(ctx, checkoutID, payment)
@@ -378,6 +412,7 @@ func (a *API) initiate(
 			"merchantOrderId": payment.MerchantOrderID,
 			"accessKey":       accessKey,
 			"payMode":         a.easebuzzPayMode(),
+			"bill":            payment.Bill,
 		})
 		return
 	}
@@ -405,6 +440,7 @@ func (a *API) initiate(
 		"merchantOrderId": payment.MerchantOrderID,
 		"accessKey":       accessKey,
 		"payMode":         a.easebuzzPayMode(),
+		"bill":            payment.Bill,
 	})
 }
 
