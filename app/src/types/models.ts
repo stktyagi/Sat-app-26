@@ -222,6 +222,7 @@ export interface Venue {
   lng: number;
   longitude?: number;
   latitude?: number;
+  keywords?: string[];
 }
 
 

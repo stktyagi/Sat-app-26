@@ -2,7 +2,7 @@
   "expo": {
     "name": "Saturnalia",
     "slug": "saturnalia",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icons/adaptive-icon.png",
     "scheme": "app",
@@ -14,7 +14,7 @@
         "tinted": "./assets/icons/ios-tinted.png"
       },
       "bundleIdentifier": "com.gauransh.saturnaliaapp2026",
-      "buildNumber": "1",
+      "buildNumber": "13",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Saturnalia needs camera access to scan event tickets, merchandise QR codes, and entry passes.",
@@ -35,7 +35,7 @@
         "foregroundImage": "./assets/icons/adaptive-icon.png",
         "monochromeImage": "./assets/icons/adaptive-icon.png"
       },
-      "versionCode": 2,
+      "versionCode": 13,
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": true,
       "package": "com.gauransh.saturnaliaapp2026",

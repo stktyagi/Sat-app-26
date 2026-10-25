@@ -131,34 +131,19 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
         </View>
       </View>
 
-      {/* Society Branding & Tag Pills Row */}
+      {/* Tag Pills Row */}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           paddingHorizontal: 6,
           marginTop: 12,
           marginBottom: 6,
         }}
       >
-        {/* Left: Branding */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 8 }}>
-          <Text
-            style={{
-              fontFamily: 'Talina',
-              color: '#41B8F0',
-              fontSize: 16,
-              letterSpacing: 0.5,
-            }}
-            numberOfLines={1}
-          >
-            {event?.category === 'Technical' ? 'the Campus BLUEPRINT' : (event?.category || 'Saturnalia')}
-          </Text>
-        </View>
-
-        {/* Right: Colored Tag Pills */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        {/* Centered Tag Pills */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
           {/* Gold Pill */}
           <View
             style={{

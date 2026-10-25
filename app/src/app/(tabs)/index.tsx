@@ -64,7 +64,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
   const router = useRouter();
   const { isDark, colors, toggleTheme } = useThemeStore();
   const lastExitPress = useRef(0);
-  const [selectedFeaturedCategory, setSelectedFeaturedCategory] = useState<string>('Technical');
+  const [selectedFeaturedCategory, setSelectedFeaturedCategory] = useState<string>('All');
   
   useFocusEffect(
     useCallback(() => {
@@ -348,14 +348,26 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
             <View>
               <Text
                 style={{
-                  fontFamily: 'Poppins_700Bold',
-                  color: isDark ? '#7B78FF' : '#52368C',
+                  fontFamily: 'Talina',
                   fontSize: 32,
                   lineHeight: 36,
-                  letterSpacing: -0.5,
+                  letterSpacing: 0.5,
+                  color: '#A855F7',
                 }}
               >
-                Featured{'\n'}Events
+                Featured
+              </Text>
+              <Text
+                style={{
+                  fontFamily: 'Talina',
+                  fontSize: 34,
+                  lineHeight: 38,
+                  letterSpacing: 0.5,
+                  color: '#38BDF8',
+                  marginTop: -4,
+                }}
+              >
+                Events
               </Text>
             </View>
 

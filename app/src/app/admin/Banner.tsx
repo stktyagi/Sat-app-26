@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
   StatusBar,
   Switch,
+  Modal,
 } from "react-native";
 import { showAlert, Input } from "@/components";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import { ArrowLeft, Upload, Trash2, ExternalLink, ImagePlus, Eye, EyeOff } from "lucide-react-native";
+import { ArrowLeft, Upload, Trash2, ExternalLink, ImagePlus, Eye, EyeOff, Edit, X } from "lucide-react-native";
 import {
   adminListBanners,
   adminCreateBanner,
@@ -45,6 +46,18 @@ export default function BannerManagement() {
   const [isActive, setIsActive] = useState(true);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [selectedRatio, setSelectedRatio] = useState<[number, number]>([4, 3]);
+
+  // Edit Modal State
+  const [editingBanner, setEditingBanner] = useState<BannerModel | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editLink, setEditLink] = useState("");
+  const [editOrder, setEditOrder] = useState("0");
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [editImageUri, setEditImageUri] = useState<string | null>(null);
+  const [editSelectedRatio, setEditSelectedRatio] = useState<[number, number]>([4, 3]);
+  const [updating, setUpdating] = useState(false);
 
   const RATIO_OPTIONS: { label: string; ratio: [number, number]; desc: string }[] = [
     { label: "4:3", ratio: [4, 3], desc: "Standard" },
@@ -204,6 +217,100 @@ export default function BannerManagement() {
         },
       ]
     );
+  };
+
+  const handleOpenEdit = (banner: BannerModel) => {
+    setEditingBanner(banner);
+    setEditTitle(banner.title);
+    setEditDescription(banner.description || "");
+    setEditLink(banner.link || "");
+    setEditOrder(banner.order?.toString() || "0");
+    setEditIsActive(banner.isActive);
+    setEditImageUri(null);
+    setEditSelectedRatio([4, 3]);
+    setEditModalVisible(true);
+  };
+
+  const pickEditImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const srcW = asset.width;
+        const srcH = asset.height;
+        const [rW, rH] = editSelectedRatio;
+        const targetAspect = rW / rH;
+        const srcAspect = srcW / srcH;
+        let cropW = srcW;
+        let cropH = srcH;
+        if (srcAspect > targetAspect) {
+          cropW = Math.round(srcH * targetAspect);
+        } else {
+          cropH = Math.round(srcW / targetAspect);
+        }
+        const originX = Math.round((srcW - cropW) / 2);
+        const originY = Math.round((srcH - cropH) / 2);
+        const cropped = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ crop: { originX, originY, width: cropW, height: cropH } }],
+          { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        setEditImageUri(cropped.uri);
+      }
+    } catch (err: any) {
+      console.error("pickEditImage error:", err);
+      showAlert("Error", "Failed to select image");
+    }
+  };
+
+  const handleUpdateBanner = async () => {
+    if (!editingBanner) return;
+    if (!editTitle.trim()) {
+      showAlert("Validation Error", "Please provide a banner title.");
+      return;
+    }
+    if (!editLink.trim()) {
+      showAlert("Validation Error", "Please enter a banner destination link.");
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const payload: Partial<BannerModel> = {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        link: editLink.trim(),
+        order: parseInt(editOrder, 10) || 0,
+        isActive: editIsActive,
+      };
+
+      if (editImageUri) {
+        const uploaded = await adminUploadMedia(editImageUri, {
+          folder: "banners",
+        });
+        payload.imageUrl = uploaded.url;
+        payload.imageRef = uploaded.ref;
+      }
+
+      const updated = await adminUpdateBanner(editingBanner.id, payload);
+      useContentCacheStore.getState().invalidateBanners();
+
+      setBanners((prev) =>
+        prev.map((b) => (b.id === editingBanner.id ? { ...b, ...payload, ...(updated || {}) } : b))
+      );
+
+      showAlert("Success", "Banner updated successfully!");
+      setEditModalVisible(false);
+      setEditingBanner(null);
+    } catch (error: any) {
+      console.error("handleUpdateBanner error:", error);
+      showAlert("Error", error.message || "Failed to update banner");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -684,6 +791,7 @@ export default function BannerManagement() {
                     borderTopWidth: 1,
                     borderTopColor: cardBorder,
                     paddingTop: 12,
+                    gap: 8,
                   }}
                 >
                   <TouchableOpacity
@@ -714,42 +822,397 @@ export default function BannerManagement() {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    onPress={() => handleDeleteBanner(item)}
-                    disabled={deletingId === item.id}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 6,
-                      paddingHorizontal: 10,
-                      borderRadius: 10,
-                      backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    }}
-                  >
-                    {deletingId === item.id ? (
-                      <ActivityIndicator size="small" color="#EF4444" />
-                    ) : (
-                      <>
-                        <Trash2 size={16} color="#EF4444" />
-                        <Text
-                          style={{
-                            fontFamily: "Poppins_500Medium",
-                            color: "#EF4444",
-                            fontSize: 12,
-                            marginLeft: 6,
-                          }}
-                        >
-                          Delete
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => handleOpenEdit(item)}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 6,
+                        paddingHorizontal: 10,
+                        borderRadius: 10,
+                        backgroundColor: "rgba(65, 184, 240, 0.12)",
+                      }}
+                    >
+                      <Edit size={16} color="#41B8F0" />
+                      <Text
+                        style={{
+                          fontFamily: "Poppins_500Medium",
+                          color: "#41B8F0",
+                          fontSize: 12,
+                          marginLeft: 6,
+                        }}
+                      >
+                        Edit
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handleDeleteBanner(item)}
+                      disabled={deletingId === item.id}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 6,
+                        paddingHorizontal: 10,
+                        borderRadius: 10,
+                        backgroundColor: "rgba(239, 68, 68, 0.1)",
+                      }}
+                    >
+                      {deletingId === item.id ? (
+                        <ActivityIndicator size="small" color="#EF4444" />
+                      ) : (
+                        <>
+                          <Trash2 size={16} color="#EF4444" />
+                          <Text
+                            style={{
+                              fontFamily: "Poppins_500Medium",
+                              color: "#EF4444",
+                              fontSize: 12,
+                              marginLeft: 6,
+                            }}
+                          >
+                            Delete
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </View>
           ))
         )}
       </ScrollView>
+
+      {/* Edit Banner Modal */}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!updating) setEditModalVisible(false);
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: cardBg,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: "85%",
+              padding: 20,
+              paddingBottom: Math.max(insets.bottom, 20),
+            }}
+          >
+            {/* Modal Header */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Poppins_600SemiBold",
+                  color: textPrimary,
+                  fontSize: 18,
+                }}
+              >
+                Edit Banner Details
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!updating) setEditModalVisible(false);
+                }}
+                disabled={updating}
+                style={{
+                  padding: 4,
+                  borderRadius: 8,
+                  backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+                }}
+              >
+                <X size={20} color={textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Image Preview & Change Option */}
+              <View style={{ marginBottom: 16 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textSecondary,
+                    fontSize: 13,
+                    marginBottom: 8,
+                  }}
+                >
+                  Banner Image
+                </Text>
+                <View
+                  style={{
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    borderWidth: 1,
+                    borderColor: cardBorder,
+                    marginBottom: 10,
+                  }}
+                >
+                  <Image
+                    source={{ uri: editImageUri || editingBanner?.imageUrl }}
+                    style={{ width: "100%", height: 140 }}
+                    resizeMode="cover"
+                  />
+                </View>
+
+                {/* Aspect Ratio Options for when changing image */}
+                <View style={{ marginBottom: 10 }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_400Regular",
+                      color: textSecondary,
+                      fontSize: 12,
+                      marginBottom: 6,
+                    }}
+                  >
+                    Crop Ratio for New Image
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    {RATIO_OPTIONS.map((opt) => {
+                      const isSel =
+                        editSelectedRatio[0] === opt.ratio[0] &&
+                        editSelectedRatio[1] === opt.ratio[1];
+                      return (
+                        <TouchableOpacity
+                          key={`edit-ratio-${opt.label}`}
+                          onPress={() => setEditSelectedRatio(opt.ratio)}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 6,
+                            paddingHorizontal: 8,
+                            borderRadius: 8,
+                            alignItems: "center",
+                            backgroundColor: isSel
+                              ? "#41B8F0"
+                              : isDark
+                              ? "rgba(255, 255, 255, 0.05)"
+                              : "rgba(0, 0, 0, 0.04)",
+                            borderWidth: 1,
+                            borderColor: isSel ? "#41B8F0" : cardBorder,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: "Poppins_600SemiBold",
+                              fontSize: 11,
+                              color: isSel ? "#FFFFFF" : textPrimary,
+                            }}
+                          >
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={pickEditImage}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? "rgba(65, 184, 240, 0.12)" : "rgba(65, 184, 240, 0.08)",
+                    borderWidth: 1,
+                    borderColor: "#41B8F0",
+                  }}
+                >
+                  <ImagePlus size={16} color="#41B8F0" style={{ marginRight: 6 }} />
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: "#41B8F0",
+                      fontSize: 13,
+                    }}
+                  >
+                    {editImageUri ? "Choose Different Image" : "Change Image (Optional)"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Title */}
+              <View style={{ marginBottom: 14 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textSecondary,
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
+                  Title *
+                </Text>
+                <Input
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="e.g., Hackathon 2026"
+                />
+              </View>
+
+              {/* Description */}
+              <View style={{ marginBottom: 14 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textSecondary,
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
+                  Description
+                </Text>
+                <Input
+                  value={editDescription}
+                  onChangeText={setEditDescription}
+                  placeholder="Optional brief subtitle"
+                  multiline
+                  numberOfLines={2}
+                />
+              </View>
+
+              {/* Destination Link */}
+              <View style={{ marginBottom: 14 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textSecondary,
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
+                  Destination Link *
+                </Text>
+                <Input
+                  value={editLink}
+                  onChangeText={setEditLink}
+                  placeholder="https://... or app route"
+                />
+              </View>
+
+              {/* Order & Active Switch Row */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 20,
+                  gap: 16,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: textSecondary,
+                      fontSize: 13,
+                      marginBottom: 6,
+                    }}
+                  >
+                    Display Order
+                  </Text>
+                  <Input
+                    value={editOrder}
+                    onChangeText={setEditOrder}
+                    placeholder="0"
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={{ alignItems: "center" }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: textSecondary,
+                      fontSize: 13,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Active Status
+                  </Text>
+                  <Switch
+                    value={editIsActive}
+                    onValueChange={setEditIsActive}
+                    trackColor={{ false: "#3F3F46", true: "#41B8F0" }}
+                    thumbColor={editIsActive ? "#FFFFFF" : "#A1A1AA"}
+                  />
+                </View>
+              </View>
+
+              {/* Save & Cancel Buttons */}
+              <View style={{ flexDirection: "row", gap: 12, marginBottom: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setEditModalVisible(false)}
+                  disabled={updating}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: textSecondary,
+                      fontSize: 14,
+                    }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleUpdateBanner}
+                  disabled={updating}
+                  style={{
+                    flex: 2,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#41B8F0",
+                  }}
+                >
+                  {updating ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        color: "#FFFFFF",
+                        fontSize: 14,
+                      }}
+                    >
+                      Save Changes
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

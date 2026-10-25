@@ -23,9 +23,19 @@ import UserDetailsModal from "@/components/admin/UserDetailsModal";
 import UserQRScannerModal from "@/components/admin/UserQRScannerModal";
 
 import { useThemeStore } from "@/state/themeStore";
+import { useUserStore } from "@/state/userStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { showAlert } from "@/components";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
+import {
+  getUserRoles,
+  isFullAdmin,
+  ROLE_ADMIN,
+  ROLE_EB_EVENTS,
+  ROLE_EB_OUTREACH,
+  ROLE_EB_FINANCE,
+  ROLE_EB_HOSPITALITY,
+} from "@/utils/roles";
 
 interface UsersProps {
   navigation: any;
@@ -35,6 +45,20 @@ const Users: React.FC = () => {
   const navigation = useAdminNavigation();
   const insets = useSafeAreaInsets();
   const { isDark } = useThemeStore();
+  const { userData: userProfile } = useUserStore();
+
+  const roles = getUserRoles(userProfile);
+  const isSuperOrAdmin = isFullAdmin(userProfile);
+  const allowedRoles = [
+    ROLE_ADMIN,
+    ROLE_EB_EVENTS,
+    ROLE_EB_OUTREACH,
+    ROLE_EB_FINANCE,
+    ROLE_EB_HOSPITALITY,
+  ];
+  const hasAccess =
+    isSuperOrAdmin || roles.some((r) => allowedRoles.includes(r));
+
   const [users, setUsers] = useState<AdminUserProfile[]>([]);
   const [searchLoading, setSearchLoading] = useState(false); // Search/filter loading
   const [refreshing, setRefreshing] = useState(false);
@@ -199,6 +223,43 @@ const Users: React.FC = () => {
   const cardBorder = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)";
   const textPrimary = isDark ? "#FFFFFF" : "#111827";
   const textSecondary = isDark ? "#9CA3AF" : "#6B7280";
+
+  if (!hasAccess) {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDark ? "#131316" : "#E0E0E0", justifyContent: "center", alignItems: "center", padding: 24 }}>
+        <View
+          style={{
+            backgroundColor: cardBg,
+            borderRadius: 20,
+            padding: 24,
+            alignItems: "center",
+            maxWidth: 340,
+            width: "100%",
+            borderWidth: 1,
+            borderColor: cardBorder,
+          }}
+        >
+          <Text style={{ fontFamily: "Talina", fontSize: 20, color: textPrimary, marginBottom: 8, textAlign: "center" }}>
+            Access Restricted
+          </Text>
+          <Text style={{ fontSize: 14, color: textSecondary, textAlign: "center", marginBottom: 20 }}>
+            You do not have permission to access Users Management.
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Dashboard")}
+            style={{
+              backgroundColor: "#A855F7",
+              paddingHorizontal: 20,
+              paddingVertical: 10,
+              borderRadius: 12,
+            }}
+          >
+            <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Back to Dashboard</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#131316" : "#E0E0E0" }}>

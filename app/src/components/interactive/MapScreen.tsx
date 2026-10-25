@@ -55,7 +55,6 @@ import {
   CheckCircle,
 } from "lucide-react-native";
 import { Venue, FirebaseEvent } from "@/types/models";
-import { CAMPUS_LOCATIONS } from "@/data/campusLocations";
 import { useVenues } from "@/hooks/useVenues";
 import { listEvents } from "@/api/events";
 import * as Location from "expo-location";
@@ -117,6 +116,28 @@ function ManeuverIcon({
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// Helper to identify hostel venues that should be excluded from map blips
+const isHostelVenue = (venue: Venue): boolean => {
+  const id = (venue.venueId || "").toLowerCase();
+  const name = (venue.venueName || "").toLowerCase();
+  if (id.includes("hostel") || name.includes("hostel")) return true;
+  if (
+    id.includes("paavni") ||
+    id.includes("dhriti") ||
+    id.includes("vahni") ||
+    name.includes("paavni") ||
+    name.includes("dhriti") ||
+    name.includes("vahni")
+  ) {
+    return true;
+  }
+  return false;
+};
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -128,6 +149,9 @@ export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
 
   const { venues, refresh: refreshVenues } = useVenues();
+  const displayVenues = useMemo(() => {
+    return (venues || []).filter((v) => !isHostelVenue(v));
+  }, [venues]);
   const [events, setEvents] = useState<FirebaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -390,28 +414,36 @@ export default function MapScreen() {
   // ── Search ────────────────────────────────────────────────────────────────
   const handleSearch = async (text: string) => {
     setSearchQuery(text);
-    if (text.length < 3) {
+    if (text.trim().length < 2) {
       setSearchResults([]);
       return;
     }
     try {
       setIsSearching(true);
-      const queryLower = text.toLowerCase();
-      const localMatches = CAMPUS_LOCATIONS.filter((loc) => {
-        if (loc.name.toLowerCase().includes(queryLower)) return true;
-        if (
-          loc.keywords &&
-          loc.keywords.some((kw) => kw.toLowerCase().includes(queryLower))
-        )
-          return true;
-        return false;
-      }).map((loc) => ({
-        id: `local_${loc.id}`,
-        text: loc.name,
-        place_name: "Campus Location",
-        center: [loc.lng, loc.lat],
-        isLocal: true,
-      }));
+      const queryLower = text.toLowerCase().trim();
+      const localMatches = (venues || [])
+        .filter((venue) => {
+          const name = (venue.venueName || "").toLowerCase();
+          if (name.includes(queryLower)) return true;
+          if (
+            venue.keywords &&
+            venue.keywords.some((kw) => kw.toLowerCase().includes(queryLower))
+          ) {
+            return true;
+          }
+          return false;
+        })
+        .map((venue) => {
+          const lat = venue.lat || venue.latitude || 0;
+          const lng = venue.lng || venue.longitude || 0;
+          return {
+            id: `venue_${venue.venueId}`,
+            text: venue.venueName,
+            place_name: "Campus Venue",
+            center: [lng, lat] as [number, number],
+            isLocal: true,
+          };
+        });
       setSearchResults(localMatches);
     } catch (error) {
       console.error("Error searching location:", error);
@@ -623,10 +655,11 @@ export default function MapScreen() {
           />
         </ShapeSource>
 
-        {/* Venue markers */}
-        {venues.map((venue) => {
+        {/* Venue markers (hostel blips excluded) */}
+        {displayVenues.map((venue) => {
           const lat = venue.lat || venue.latitude || 0;
           const lng = venue.lng || venue.longitude || 0;
+          const isSelected = selectedVenue?.venueId === venue.venueId;
 
           return (
             <MarkerView
@@ -636,11 +669,29 @@ export default function MapScreen() {
             >
               <TouchableOpacity
                 onPress={() => handleMarkerPress(venue)}
-                style={styles.venueMarker}
+                style={styles.venuePinContainer}
+                activeOpacity={0.8}
               >
-                <Image
-                  source={require("@/assets/ic_tech.png")}
-                  style={{ width: 35, height: 40, borderRadius: 12 }}
+                {isSelected && (
+                  <View style={styles.venueLabelBubble}>
+                    <Text style={styles.venueLabelText} numberOfLines={1}>
+                      {venue.venueName}
+                    </Text>
+                  </View>
+                )}
+                <View
+                  style={[
+                    styles.venuePinBubble,
+                    isSelected && styles.venuePinBubbleSelected,
+                  ]}
+                >
+                  <MapPin size={15} color="#FFFFFF" strokeWidth={2.4} />
+                </View>
+                <View
+                  style={[
+                    styles.venuePinTriangle,
+                    isSelected && styles.venuePinTriangleSelected,
+                  ]}
                 />
               </TouchableOpacity>
             </MarkerView>
@@ -1073,21 +1124,68 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Venue markers
-  venueMarker: {
-    backgroundColor: "#FF4444",
+  // Venue markers / pins
+  venuePinContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  venueLabelBubble: {
+    backgroundColor: "#1E1B4B",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  venueLabelText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  venuePinBubble: {
+    backgroundColor: "#EF4444",
     width: 30,
     height: 30,
     borderRadius: 15,
-    borderWidth: 3,
-    borderColor: "white",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    elevation: 5,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  venuePinBubbleSelected: {
+    backgroundColor: "#A855F7",
+    borderColor: "#FFFFFF",
+    transform: [{ scale: 1.15 }],
+    shadowColor: "#A855F7",
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  venuePinTriangle: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6,
+    borderStyle: "solid",
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#EF4444",
+    marginTop: -1,
+  },
+  venuePinTriangleSelected: {
+    borderTopColor: "#A855F7",
   },
 
   // Header / search

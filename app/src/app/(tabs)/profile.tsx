@@ -339,7 +339,7 @@ const ProfileScreen = () => {
               </Text>
             </View>
 
-            {/* Avatar circle with cyan ring */}
+            {/* Avatar circle with cyan ring & QR badge */}
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => setShowQRModal(true)}
@@ -352,22 +352,42 @@ const ProfileScreen = () => {
                 backgroundColor: isDark ? '#121214' : '#E5E7EB',
                 alignItems: 'center',
                 justifyContent: 'center',
-                overflow: 'hidden',
+                position: 'relative',
               }}
             >
-              {userProfile?.photoURL ? (
-                <Image
-                  source={{ uri: userProfile.photoURL }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Ionicons
-                  name="person"
-                  size={32}
-                  color={isDark ? '#9CA3AF' : '#4B5563'}
-                />
-              )}
+              <View style={{ width: '100%', height: '100%', borderRadius: 30, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                {userProfile?.photoURL ? (
+                  <Image
+                    source={{ uri: userProfile.photoURL }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons
+                    name="person"
+                    size={32}
+                    color={isDark ? '#9CA3AF' : '#4B5563'}
+                  />
+                )}
+              </View>
+              {/* QR Mini Badge */}
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: -2,
+                  right: -2,
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: '#38BDF8',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 2,
+                  borderColor: isDark ? '#1C1C20' : '#FFFFFF',
+                }}
+              >
+                <Ionicons name="qr-code" size={11} color="#000000" />
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -403,39 +423,39 @@ const ProfileScreen = () => {
                   fontFamily: 'Poppins_600SemiBold',
                   fontSize: 13,
                   color: '#EF4444',
-                }}
-              >
-                Logout
-              </Text>
-            </TouchableOpacity>
+                  }}
+                >
+                  Logout
+                </Text>
+              </TouchableOpacity>
 
-            {/* Delete Account Button */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleDeleteAccount}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingHorizontal: 12,
-                paddingVertical: 7,
-                borderRadius: 12,
-                backgroundColor: isDark ? '#1F2228' : '#FEF2F2',
-                borderWidth: 1,
-                borderColor: '#EF4444',
-              }}
-            >
-              <Ionicons name="trash-outline" size={15} color="#EF4444" />
-              <Text
+              {/* Delete Account Button */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleDeleteAccount}
                 style={{
-                  fontFamily: 'Poppins_600SemiBold',
-                  fontSize: 13,
-                  color: '#EF4444',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderRadius: 12,
+                  backgroundColor: isDark ? '#1F2228' : '#FEF2F2',
+                  borderWidth: 1,
+                  borderColor: '#EF4444',
                 }}
               >
-                Delete Account
-              </Text>
-            </TouchableOpacity>
+                <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_600SemiBold',
+                    fontSize: 13,
+                    color: '#EF4444',
+                  }}
+                >
+                  Delete Account
+                </Text>
+              </TouchableOpacity>
           </View>
         </View>
 
