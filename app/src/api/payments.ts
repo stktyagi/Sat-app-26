@@ -26,6 +26,7 @@ export interface Payment {
   };
   couponCode?: string;
   discountAmount?: number;
+  bill?: Record<string, any>;
 }
 
 export interface InitiatePaymentResponse {
@@ -33,6 +34,7 @@ export interface InitiatePaymentResponse {
   merchantOrderId: string;
   accessKey?: string;
   payMode?: string;
+  bill?: Record<string, any>;
 }
 
 /**

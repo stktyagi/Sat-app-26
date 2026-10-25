@@ -23,6 +23,12 @@ const PaymentScreen: React.FC = () => {
   const { userData: user } = useUserStore();
   const { data: eventData, loading: eventLoading } = useEventDetail(eventId);
 
+  const isHost =
+    user?.isHostCollegeStudent ||
+    user?.collegeName?.toLowerCase().includes('thapar') ||
+    user?.email?.toLowerCase().endsWith('@thapar.edu') ||
+    false;
+
   const [phase, setPhase] = useState<'checkout' | 'initiating' | 'opening' | 'verifying' | 'done'>('checkout');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -77,23 +83,27 @@ const PaymentScreen: React.FC = () => {
     setCouponError('');
   };
 
-  const calculateTotal = () => {
-    let baseEventFee = 0;
+  const getBaseEventFee = () => {
+    let fee = 0;
     if (eventData?.event?.paymentRequired) {
-      const isHost = user?.isHostCollegeStudent;
       if (
         eventData.event.eventType === 'team' &&
         eventData.event.paymentType === 'per_individual' &&
         eventData.myTeam?.members?.length
       ) {
-        baseEventFee = eventData.myTeam.members.reduce((acc: number, m: any) => {
+        fee = eventData.myTeam.members.reduce((acc: number, m: any) => {
           return acc + (m.isHostCollegeStudent ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0));
         }, 0);
       } else {
-        baseEventFee = isHost ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0);
+        fee = isHost ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0);
       }
     }
+    return fee;
+  };
 
+  const baseEventFee = getBaseEventFee();
+
+  const calculateTotal = () => {
     let accFoodFee = 0;
     Object.entries(accommodation).forEach(([day, selected]) => {
       if (selected && !user?.accommodation?.[day]) accFoodFee += ACCOMMODATION_PRICE;
@@ -159,9 +169,19 @@ const PaymentScreen: React.FC = () => {
       let pType = 'event';
       const hasAcc = Object.keys(accToPay).length > 0;
       const hasFood = Object.keys(foodToPay).length > 0;
-      if (hasAcc && hasFood) pType = 'event_and_accommodation_and_food';
-      else if (hasAcc) pType = 'event_and_accommodation';
-      else if (hasFood) pType = 'event_and_accommodation_and_food';
+      const hasEventFee = baseEventFee > 0;
+
+      if (hasEventFee) {
+        if (hasAcc && hasFood) pType = 'event_and_accommodation_and_food';
+        else if (hasAcc) pType = 'event_and_accommodation';
+        else if (hasFood) pType = 'event_and_accommodation_and_food';
+        else pType = 'event';
+      } else {
+        if (hasAcc && hasFood) pType = 'accommodation_and_food';
+        else if (hasAcc) pType = 'accommodation';
+        else if (hasFood) pType = 'accommodation_and_food';
+        else pType = 'event';
+      }
 
       // Check coupon minCartValue
       let appliedCoupon: string | undefined = undefined;
@@ -305,17 +325,20 @@ const PaymentScreen: React.FC = () => {
           REGISTRATION ALREADY PAID
         </Text>
         <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, textAlign: 'center', marginBottom: 32, lineHeight: 22, fontSize: 14 }}>
-          You have already completed payment for this event and your registration is confirmed.
-          If you need to book or update accommodation, you can manage it from the Accommodation page.
+          {isHost
+            ? 'Your registration for this event is confirmed.'
+            : 'You have already completed payment for this event and your registration is confirmed. If you need to book or update accommodation, you can manage it from the Accommodation page.'}
         </Text>
-        <TouchableOpacity
-          onPress={() => router.replace('/profile/Accommodation')}
-          style={{ backgroundColor: '#41B8F0', width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginBottom: 12 }}
-        >
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 15 }}>
-            Manage Accommodation & Food
-          </Text>
-        </TouchableOpacity>
+        {!isHost && (
+          <TouchableOpacity
+            onPress={() => router.replace('/profile/Accommodation')}
+            style={{ backgroundColor: '#41B8F0', width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginBottom: 12 }}
+          >
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 15 }}>
+              Manage Accommodation & Food
+            </Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={() => {
             router.dismissAll();
@@ -436,13 +459,7 @@ const PaymentScreen: React.FC = () => {
             {isTeamEvent ? 'Team Registration Fee' : 'Registration Fee'}
           </Text>
           <Text style={{ fontFamily: 'Talina', color: textColor, fontSize: 32 }}>
-            ₹{eventData?.event?.paymentRequired
-              ? isTeamEvent && eventData.event.paymentType === 'per_individual' && eventData.myTeam?.members?.length
-                ? eventData.myTeam.members.reduce((acc: number, m: any) => acc + (m.isHostCollegeStudent ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0)), 0)
-                : user?.isHostCollegeStudent
-                  ? eventData.event.registrationFee?.host || 0
-                  : eventData.event.registrationFee?.other || 0
-              : 0}
+            ₹{baseEventFee}
           </Text>
           {isTeamEvent && (
             <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12, marginTop: 4 }}>
@@ -451,14 +468,15 @@ const PaymentScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Accommodation Section */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 18, marginBottom: 2 }}>
-            Stay & Food (Optional)
-          </Text>
-          <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 13, marginBottom: 14 }}>
-            Add accommodation (₹{ACCOMMODATION_PRICE}/day) or food (₹{FOOD_PRICE}/day).
-          </Text>
+        {/* Accommodation Section (Only for non-host participants) */}
+        {!isHost && (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 18, marginBottom: 2 }}>
+              Stay & Food (Optional)
+            </Text>
+            <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 13, marginBottom: 14 }}>
+              Add accommodation (₹{ACCOMMODATION_PRICE}/day) or food (₹{FOOD_PRICE}/day).
+            </Text>
 
           {isTeamEvent && (
             <View
@@ -542,6 +560,7 @@ const PaymentScreen: React.FC = () => {
             );
           })}
         </View>
+        )}
 
         {/* Coupon Code Card */}
         <View
@@ -661,23 +680,27 @@ const PaymentScreen: React.FC = () => {
             )}
           </View>
           <TouchableOpacity
-            onPress={startPayment}
-            disabled={finalAmount <= 0}
+            onPress={
+              total <= 0
+                ? () => router.replace({ pathname: '/events/MyEventDetails', params: { eventId } })
+                : startPayment
+            }
+            disabled={total > 0 && finalAmount <= 0}
             style={{
               paddingHorizontal: 32,
               paddingVertical: 15,
               borderRadius: 16,
-              backgroundColor: finalAmount <= 0 ? (isDark ? '#2A2A30' : '#E5E7EB') : '#41B8F0',
+              backgroundColor: total > 0 && finalAmount <= 0 ? (isDark ? '#2A2A30' : '#E5E7EB') : '#41B8F0',
             }}
           >
             <Text
               style={{
                 fontFamily: 'Poppins_600SemiBold',
                 fontSize: 16,
-                color: finalAmount <= 0 ? subTextColor : '#FFFFFF',
+                color: total > 0 && finalAmount <= 0 ? subTextColor : '#FFFFFF',
               }}
             >
-              Pay Now
+              {total <= 0 ? 'View Event' : 'Pay Now'}
             </Text>
           </TouchableOpacity>
         </View>

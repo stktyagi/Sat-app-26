@@ -83,6 +83,42 @@ const MyEventDetailsScreen: React.FC = () => {
     Object.values(userProfile?.accommodation || {}).some(Boolean) ||
     Object.values(userProfile?.food || {}).some(Boolean);
 
+  const isHost = !!(
+    userProfile?.isHostCollegeStudent ||
+    userProfile?.collegeName?.toLowerCase().includes("thapar") ||
+    userProfile?.email?.toLowerCase().endsWith("@thapar.edu")
+  );
+
+  let eventRegistrationFee = 0;
+  if (eventData?.paymentRequired) {
+    if (
+      eventData.eventType === 'team' &&
+      eventData.paymentType === 'per_individual' &&
+      teamData?.members?.length
+    ) {
+      eventRegistrationFee = teamData.members.reduce((acc: number, m: any) => {
+        return acc + (m.isHostCollegeStudent ? (eventData.registrationFee?.host || 0) : (eventData.registrationFee?.other || 0));
+      }, 0);
+    } else {
+      eventRegistrationFee = isHost
+        ? (eventData.registrationFee?.host || 0)
+        : (eventData.registrationFee?.other || 0);
+    }
+  }
+
+  const requiresPayment = !!eventData?.paymentRequired && eventRegistrationFee > 0;
+
+  const isPaid =
+    !requiresPayment ||
+    registration?.paymentStatus === "completed" ||
+    registration?.paymentStatus === "success" ||
+    registration?.paymentStatus === "paid" ||
+    teamData?.paymentStatus === "completed" ||
+    teamData?.paymentStatus === "success" ||
+    !!teamData?.paid;
+
+  const isPaymentDue = requiresPayment && !isPaid;
+
   const handleRemoveMember = (memberUserId: string, memberName: string) => {
     if (!teamData) {
       showAlert("Error", "Team data not available");
@@ -161,22 +197,7 @@ const MyEventDetailsScreen: React.FC = () => {
   const handleCompleteRegistration = async () => {
     if (!eventData || !teamData) return;
 
-    const isPaidNow =
-      registration?.paymentStatus === "completed" ||
-      registration?.paymentStatus === "success" ||
-      registration?.paymentStatus === "paid" ||
-      teamData?.paymentStatus === "completed" ||
-      teamData?.paymentStatus === "success" ||
-      !!teamData?.paid;
-
-    const requiresPaymentNow =
-      !!eventData?.paymentRequired ||
-      (eventData?.registrationFee &&
-        (userProfile?.isHostCollegeStudent
-          ? eventData.registrationFee.host > 0
-          : eventData.registrationFee.other > 0));
-
-    if (requiresPaymentNow && !isPaidNow) {
+    if (isPaymentDue) {
       showAlert(
         "Payment Required",
         "Payment is pending or due for this event. Please complete the registration payment before finalizing your registration.",
@@ -294,10 +315,10 @@ const MyEventDetailsScreen: React.FC = () => {
   // Determine computed status
   const rawStatus =
     eventData?.eventType === "team" && teamData
-      ? registration.paymentStatus === "pending"
+      ? isPaymentDue
         ? "payment_pending"
         : teamData.status || "pending"
-      : registration.paymentStatus === "pending"
+      : isPaymentDue
       ? "payment_pending"
       : registration.status || "confirmed";
 
@@ -382,30 +403,11 @@ const MyEventDetailsScreen: React.FC = () => {
   const categoryName = eventData?.category || registration.eventCategory || "Festival";
 
   // Payment status calculations
-  const isPaid =
-    registration.paymentStatus === "completed" ||
-    registration.paymentStatus === "success" ||
-    registration.paymentStatus === "paid" ||
-    teamData?.paymentStatus === "completed" ||
-    teamData?.paymentStatus === "success" ||
-    !!teamData?.paid;
-
-  const requiresPayment =
-    !!eventData?.paymentRequired ||
-    (eventData?.registrationFee &&
-      (userProfile?.isHostCollegeStudent
-        ? eventData.registrationFee.host > 0
-        : eventData.registrationFee.other > 0));
-
   const feeAmount =
     registration.paymentDetails?.amount ||
     registration.fee ||
     teamData?.paymentDetails?.amount ||
-    (eventData?.registrationFee
-      ? userProfile?.isHostCollegeStudent
-        ? eventData.registrationFee.host
-        : eventData.registrationFee.other
-      : 0);
+    eventRegistrationFee;
 
   const txnId =
     registration.paymentDetails?.txnId ||
@@ -711,7 +713,7 @@ const MyEventDetailsScreen: React.FC = () => {
         </View>
 
         {/* PAYMENT ACTION BANNER (Urgent status placed right at top when pending) */}
-        {registration.paymentStatus === "pending" && (
+        {isPaymentDue && (
           <View
             style={{
               backgroundColor: isDark ? "rgba(245, 158, 11, 0.08)" : "#FFFBEB",
@@ -782,7 +784,7 @@ const MyEventDetailsScreen: React.FC = () => {
         )}
 
         {/* PAYMENT COMPLETED RECEIPT CARD */}
-        {isPaid && (
+        {isPaid && (feeAmount > 0 || !!txnId) && (
           <View
             style={{
               backgroundColor: isDark ? "rgba(16, 185, 129, 0.08)" : "#F0FDF4",
@@ -1011,7 +1013,7 @@ const MyEventDetailsScreen: React.FC = () => {
                     {isPaid
                       ? feeAmount > 0
                         ? `Paid (₹${feeAmount})`
-                        : "Paid / Free"
+                        : "Free Entry"
                       : requiresPayment
                       ? `₹${feeAmount} (Pending)`
                       : "Free Entry"}
@@ -1110,7 +1112,7 @@ const MyEventDetailsScreen: React.FC = () => {
             userId={userId}
             isLeader={isLeader}
             submittingTeam={submittingTeam}
-            isPaymentDue={requiresPayment && !isPaid}
+            isPaymentDue={isPaymentDue}
             onPay={() =>
               router.push({
                 pathname: "/events/Payment",
@@ -1126,7 +1128,7 @@ const MyEventDetailsScreen: React.FC = () => {
         )}
 
         {/* ACCOMMODATION & FOOD PASS CARD */}
-        {!userProfile?.isHostCollegeStudent && (
+        {!isHost && (
           <View
             style={{
               backgroundColor: cardBg,

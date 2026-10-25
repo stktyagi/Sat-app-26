@@ -47,7 +47,10 @@ const ProfileScreen = () => {
   const profilePicUrl = `https://api.dicebear.com/10.x/open-peeps/png?seed=${userProfile?.userId}&hair=${getRandomHairStyle()}`;
 
   const isHostCollegeStudent =
-    userProfile?.collegeName?.toLowerCase().includes("thapar") || false;
+    userProfile?.isHostCollegeStudent ||
+    userProfile?.collegeName?.toLowerCase().includes("thapar") ||
+    userProfile?.email?.toLowerCase().endsWith("@thapar.edu") ||
+    false;
 
   const handleDebugTap = async () => {
     const newCount = debugTapCount + 1;
@@ -437,11 +440,13 @@ const ProfileScreen = () => {
         </View>
 
         {/* Menu Items List matching reference UI */}
-        <ProfileMenuItem
-          icon="bed-outline"
-          label="Accommodation & Hostel"
-          onPress={() => router.push("/profile/Accommodation")}
-        />
+        {!isHostCollegeStudent && (
+          <ProfileMenuItem
+            icon="bed-outline"
+            label="Accommodation & Hostel"
+            onPress={() => router.push("/profile/Accommodation")}
+          />
+        )}
 
         <ProfileMenuItem
           icon="restaurant-outline"

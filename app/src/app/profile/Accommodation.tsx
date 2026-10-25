@@ -259,6 +259,36 @@ export default function AccommodationScreen() {
   const bookedDaysList = FESTIVAL_DAYS.filter(
     d => user?.accommodation?.[d.key] || user?.food?.[d.key]
   );
+  const isHostCollegeStudent =
+    user?.isHostCollegeStudent ||
+    user?.collegeName?.toLowerCase().includes('thapar') ||
+    user?.email?.toLowerCase().endsWith('@thapar.edu') ||
+    false;
+
+  if (isHostCollegeStudent) {
+    return (
+      <View style={{ flex: 1, backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: isDark ? 'rgba(65, 184, 240, 0.15)' : '#E0F2FE', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+          <Ionicons name="home-outline" size={44} color="#41B8F0" />
+        </View>
+        <Text style={{ fontFamily: 'Talina', color: textColor, fontSize: 22, textAlign: 'center', marginBottom: 12 }}>
+          NOT APPLICABLE
+        </Text>
+        <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, textAlign: 'center', marginBottom: 32, lineHeight: 22, fontSize: 14 }}>
+          Campus festival accommodation is reserved for outstation participants. As a Thapar student, festival accommodation is not applicable.
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ backgroundColor: '#41B8F0', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16 }}
+        >
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 15 }}>
+            Go Back
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: bgColor }}>

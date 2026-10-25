@@ -60,6 +60,16 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [registrationStep, setRegistrationStep] =
     useState<RegistrationStep>("choice");
   const insets = useSafeAreaInsets();
+
+  const isHost =
+    userData?.isHostCollegeStudent ||
+    userData?.collegeName?.toLowerCase().includes("thapar") ||
+    userData?.email?.toLowerCase().endsWith("@thapar.edu") ||
+    false;
+  const eventFee = event.paymentRequired
+    ? (isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0))
+    : 0;
+  const requiresPayment = event.paymentRequired && eventFee > 0;
   const [teamName, setTeamName] = useState("");
   const [teamInviteCode, setTeamInviteCode] = useState("");
   const [customFieldsData, setCustomFieldsData] = useState<Record<string, any>>(
@@ -207,7 +217,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       await registerForEvent(event.eventId, registrationData);
       onSuccess();
       onClose();
-      if (event.paymentRequired) {
+      if (requiresPayment) {
         router.push({ pathname: '/events/Payment', params: { eventId: event.eventId } });
       } else {
         showModalAlert("Success", "Registration completed successfully!");
@@ -703,10 +713,10 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             />
           ) : createdInviteCode ? (
             <MetallicButton
-              title={event.paymentRequired ? "Complete Payment" : "View Registration"}
+              title={requiresPayment ? "Complete Payment" : "View Registration"}
               onPress={() => {
                 onClose();
-                if (event.paymentRequired) {
+                if (requiresPayment) {
                   router.push({
                     pathname: '/events/Payment',
                     params: { eventId: event.eventId, teamId: createdTeamId },

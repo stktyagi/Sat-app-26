@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { FirebaseEvent } from '@/types/models';
 import { useThemeStore } from '@/state/themeStore';
 
@@ -26,24 +25,24 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
     }
   };
 
-  const getFormattedDate = () => {
-    const raw = event?.dateTime || event?.startDateTime;
-    if (!raw) return 'TBA';
+  const getDateBadge = () => {
+    const raw = event?.startDateTime || event?.dateTime;
+    if (!raw) return { day: '21', month: 'Nov' };
     const d = new Date(raw);
-    if (isNaN(d.getTime())) return 'TBA';
+    if (isNaN(d.getTime())) return { day: '21', month: 'Nov' };
     const day = d.getDate();
     const month = d.toLocaleDateString('en-US', { month: 'short' });
-    return `${day} ${month}`;
+    return { day: `${day}`, month };
   };
 
-  const dateBadge = getFormattedDate();
+  const dateBadge = getDateBadge();
   const coverSource = event?.coverImage ? { uri: event.coverImage } : require('@/assets/event.jpg');
 
   const formatPrize = () => {
     const raw = event?.shortPrizes || event?.prizes;
-    if (!raw) return 'TBA';
+    if (!raw) return '1,50,000';
     const clean = raw.replace(/[*#_~]/g, '').trim();
-    if (!clean) return 'TBA';
+    if (!clean) return '1,50,000';
     const match = clean.match(/(\d[\d,]*000|\d[\d,]*\s*(?:k|lakh)?)/i);
     if (match) return match[1].replace(/^₹\s*/, '').replace(/^Rs\.?\s*/i, '');
     if (clean.length <= 15) return clean.replace(/^₹\s*/, '').replace(/^Rs\.?\s*/i, '');
@@ -51,7 +50,11 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
   };
 
   const prizeDisplay = formatPrize();
-  const venueDisplay = event?.venueName || 'Campus';
+  const venueDisplay = event?.venueName || 'CSED';
+
+  const categoryName = event?.category || 'Technical';
+  const typeTag = event?.eventType === 'team' ? 'Team' : 'Challenge';
+  const subTag = event?.eventType === 'team' ? 'Hackathon' : (categoryName === 'Technical' ? 'Coding' : 'Showcase');
 
   return (
     <TouchableOpacity
@@ -59,180 +62,266 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
       onPress={handlePress}
       style={{
         width: '100%',
-        backgroundColor: isDark ? '#141416' : '#FFFFFF',
-        borderRadius: 24,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: isDark ? '#262628' : '#E5E7EB',
+        backgroundColor: '#151518',
+        borderRadius: 26,
+        padding: 12,
         marginBottom: 20,
+        borderWidth: 1,
+        borderColor: isDark ? '#2D2D35' : '#222226',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: isDark ? 0.35 : 0.08,
-        shadowRadius: 12,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: isDark ? 0.45 : 0.16,
+        shadowRadius: 14,
+        elevation: 6,
       }}
     >
-      {/* Top Image Section */}
-      <View style={{ width: '100%', height: 185, position: 'relative', overflow: 'hidden' }}>
+      {/* Top Image Section with Inset Rounded Corners */}
+      <View
+        style={{
+          width: '100%',
+          height: 195,
+          borderRadius: 20,
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
         <Image
           source={coverSource}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
         />
 
-        {/* Top-Right Black Date Badge (e.g. 21 Nov) */}
+        {/* Floating Top-Right Date Badge */}
         <View
           style={{
             position: 'absolute',
             top: 12,
             right: 12,
-            backgroundColor: '#000000',
-            paddingHorizontal: 12,
-            paddingVertical: 5,
-            borderRadius: 10,
+            backgroundColor: 'rgba(22, 22, 26, 0.92)',
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.12)',
+            borderRadius: 14,
+            paddingHorizontal: 14,
+            paddingVertical: 6,
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 54,
           }}
         >
           <Text
             style={{
-              fontFamily: 'Poppins_600SemiBold',
+              fontFamily: 'Poppins_700Bold',
               color: '#FFFFFF',
-              fontSize: 13,
+              fontSize: 20,
+              lineHeight: 24,
             }}
           >
-            {dateBadge}
+            {dateBadge.day}
+          </Text>
+          <Text
+            style={{
+              fontFamily: 'Poppins_500Medium',
+              color: '#E0E0E0',
+              fontSize: 12,
+              lineHeight: 14,
+            }}
+          >
+            {dateBadge.month}
           </Text>
         </View>
-
-        {/* Bottom subtle gradient fade */}
-        <LinearGradient
-          colors={['transparent', isDark ? 'rgba(20, 20, 22, 0.95)' : 'rgba(255, 255, 255, 0.85)']}
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 50,
-          }}
-        />
       </View>
 
-      {/* Card Body Content */}
-      <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 18 }}>
-        {/* Title in Cyan (as shown in screenshot) */}
-        <View style={{ marginBottom: 10 }}>
+      {/* Society Branding & Tag Pills Row */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 6,
+          marginTop: 12,
+          marginBottom: 6,
+        }}
+      >
+        {/* Left: Branding */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: 8 }}>
           <Text
             style={{
               fontFamily: 'Talina',
               color: '#41B8F0',
-              fontSize: 24,
+              fontSize: 16,
               letterSpacing: 0.5,
             }}
             numberOfLines={1}
           >
-            {event?.title || 'Event'}
+            {event?.category === 'Technical' ? 'the Campus BLUEPRINT' : (event?.category || 'Saturnalia')}
           </Text>
         </View>
 
-        {/* Tags Row with 41B8F0 border */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-          {event.category ? (
-            <View
-              style={{
-                borderWidth: 1.5,
-                borderColor: '#41B8F0',
-                borderRadius: 8,
-                paddingHorizontal: 10,
-                paddingVertical: 3,
-                backgroundColor: 'transparent',
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: 'Poppins_600SemiBold',
-                  color: isDark ? '#FFFFFF' : '#000000',
-                  fontSize: 12,
-                }}
-              >
-                {event.category}
-              </Text>
-            </View>
-          ) : null}
-
+        {/* Right: Colored Tag Pills */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {/* Gold Pill */}
           <View
             style={{
-              borderWidth: 1.5,
-              borderColor: '#41B8F0',
-              borderRadius: 8,
-              paddingHorizontal: 10,
-              paddingVertical: 3,
-              backgroundColor: 'transparent',
+              backgroundColor: '#FACC15',
+              borderRadius: 9999,
+              paddingHorizontal: 9,
+              paddingVertical: 2.5,
             }}
           >
             <Text
               style={{
                 fontFamily: 'Poppins_600SemiBold',
-                color: isDark ? '#FFFFFF' : '#000000',
-                fontSize: 12,
+                color: '#000000',
+                fontSize: 10,
               }}
             >
-              {event.eventType === 'team' ? 'Team' : 'Challenge'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Short Description */}
-        <Text
-          style={{
-            fontFamily: 'Poppins_500Medium',
-            color: isDark ? '#FFFFFF' : '#111827',
-            fontSize: 14,
-            lineHeight: 20,
-            marginBottom: 14,
-          }}
-          numberOfLines={2}
-        >
-          {event?.shortDescription || event?.description || 'No description available'}
-        </Text>
-
-        {/* Metadata Row: Trophy Prize & Venue */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 20 }}>
-            <Ionicons
-              name="trophy-outline"
-              size={16}
-              color={isDark ? '#9CA3AF' : '#4B5563'}
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              style={{
-                fontFamily: 'Poppins_600SemiBold',
-                color: isDark ? '#D1D5DB' : '#374151',
-                fontSize: 14,
-              }}
-            >
-              {prizeDisplay}
+              {typeTag}
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons
-              name="location-outline"
-              size={17}
-              color={isDark ? '#9CA3AF' : '#4B5563'}
-              style={{ marginRight: 5 }}
-            />
+          {/* Rose Pill */}
+          <View
+            style={{
+              backgroundColor: '#FB7185',
+              borderRadius: 9999,
+              paddingHorizontal: 9,
+              paddingVertical: 2.5,
+            }}
+          >
             <Text
               style={{
                 fontFamily: 'Poppins_600SemiBold',
-                color: isDark ? '#D1D5DB' : '#374151',
-                fontSize: 14,
+                color: '#FFFFFF',
+                fontSize: 10,
               }}
             >
-              {venueDisplay}
+              {categoryName}
+            </Text>
+          </View>
+
+          {/* Mint Green Pill */}
+          <View
+            style={{
+              backgroundColor: '#4ADE80',
+              borderRadius: 9999,
+              paddingHorizontal: 9,
+              paddingVertical: 2.5,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'Poppins_600SemiBold',
+                color: '#052E16',
+                fontSize: 10,
+              }}
+            >
+              {subTag}
             </Text>
           </View>
         </View>
       </View>
+
+      {/* Centered Event Title */}
+      <Text
+        style={{
+          fontFamily: 'Poppins_700Bold',
+          color: '#FFFFFF',
+          fontSize: 19,
+          lineHeight: 25,
+          textAlign: 'center',
+          paddingHorizontal: 8,
+          marginVertical: 8,
+        }}
+        numberOfLines={2}
+      >
+        {event?.title || 'Event Title'}
+      </Text>
+
+      {/* Trophy Prize & Venue Row */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 4,
+          marginBottom: 14,
+        }}
+      >
+        {/* Trophy and Prize */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons
+            name="trophy-outline"
+            size={18}
+            color="#E0E0E0"
+            style={{ marginRight: 6 }}
+          />
+          <Text
+            style={{
+              fontFamily: 'Poppins_600SemiBold',
+              color: '#FFFFFF',
+              fontSize: 16,
+            }}
+          >
+            {prizeDisplay}
+          </Text>
+        </View>
+
+        {/* Crimson Vertical Divider */}
+        <View
+          style={{
+            width: 1.5,
+            height: 18,
+            backgroundColor: '#E11D48',
+            marginHorizontal: 14,
+          }}
+        />
+
+        {/* Location and Venue */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons
+            name="location-outline"
+            size={18}
+            color="#E0E0E0"
+            style={{ marginRight: 5 }}
+          />
+          <Text
+            style={{
+              fontFamily: 'Poppins_600SemiBold',
+              color: '#FFFFFF',
+              fontSize: 16,
+            }}
+          >
+            {venueDisplay}
+          </Text>
+        </View>
+      </View>
+
+      {/* Register Now Pill Button */}
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={handlePress}
+        style={{
+          backgroundColor: '#5BB5F9',
+          borderRadius: 9999,
+          paddingVertical: 10,
+          paddingHorizontal: 40,
+          alignSelf: 'center',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 4,
+          minWidth: 180,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: 'Poppins_600SemiBold',
+            color: '#0F172A',
+            fontSize: 14,
+          }}
+        >
+          Register Now
+        </Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 };

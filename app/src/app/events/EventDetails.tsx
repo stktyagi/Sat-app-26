@@ -46,7 +46,16 @@ const EventDetailsScreen: React.FC = () => {
   const myTeam = eventDetailData?.myTeam;
   const isTeamEvent = event?.eventType === 'team';
   const isLeader = myTeam ? myTeam.leaderUserId === userId : false;
-  const isPaid = existingRegistration?.paymentStatus === 'success' || !!myTeam?.paid;
+  const isHost = !!(
+    userProfile?.isHostCollegeStudent ||
+    userProfile?.collegeName?.toLowerCase().includes("thapar") ||
+    userProfile?.email?.toLowerCase().endsWith("@thapar.edu")
+  );
+  const registrationFee = event?.paymentRequired
+    ? (isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0))
+    : 0;
+  const requiresPayment = !!event?.paymentRequired && registrationFee > 0;
+  const isPaid = existingRegistration?.paymentStatus === 'success' || !!myTeam?.paid || !requiresPayment;
 
   useFocusEffect(
     React.useCallback(() => {
@@ -64,7 +73,7 @@ const EventDetailsScreen: React.FC = () => {
     }
 
     if (existingRegistration) {
-      if (existingRegistration.paymentStatus === 'pending' && (!isTeamEvent || isLeader)) {
+      if (existingRegistration.paymentStatus === 'pending' && requiresPayment && (!isTeamEvent || isLeader)) {
         const params: Record<string, string> = { eventId: event.eventId };
         if (existingRegistration.teamId) params.teamId = existingRegistration.teamId;
         router.push({ pathname: '/events/Payment', params });
@@ -172,13 +181,13 @@ const EventDetailsScreen: React.FC = () => {
       return 'Registration Disabled (Private)';
     }
     if (existingRegistration) {
-      if (isPaid) return 'View Registration';
-      if (existingRegistration.paymentStatus === 'pending') {
+      if (isPaid || !requiresPayment) return 'View Registration';
+      if (existingRegistration.paymentStatus === 'pending' && requiresPayment) {
         return isTeamEvent && !isLeader ? 'View Team (Payment Pending)' : 'Complete Payment';
       }
       return 'View Registration';
     }
-    if (event?.paymentRequired) return 'Register Now';
+    if (requiresPayment) return 'Register Now';
     return 'Register for Free';
   };
 
@@ -340,7 +349,7 @@ const EventDetailsScreen: React.FC = () => {
           )}
 
           {/* Payment Pending Badge */}
-          {existingRegistration && existingRegistration.paymentStatus === 'pending' && (
+          {existingRegistration && existingRegistration.paymentStatus === 'pending' && requiresPayment && (
             <View
               style={{
                 position: 'absolute',
@@ -859,7 +868,7 @@ const EventDetailsScreen: React.FC = () => {
           borderRadius={28}
           fontSize={16}
           variant={
-            existingRegistration?.paymentStatus === 'pending' && (!isTeamEvent || isLeader)
+            existingRegistration?.paymentStatus === 'pending' && requiresPayment && (!isTeamEvent || isLeader)
               ? 'amber'
               : 'metallic'
           }

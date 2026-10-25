@@ -39,19 +39,33 @@ const TeamSubmissionModal: React.FC<TeamSubmissionModalProps> = ({
   
   // Get user data to check if they are a host college student
   const userData = useUserStore((state) => state.userData);
-  const isNonHostStudent = userData && !userData.isHostCollegeStudent;
+  const isHostStudent = !!(
+    userData?.isHostCollegeStudent ||
+    userData?.collegeName?.toLowerCase().includes("thapar") ||
+    userData?.email?.toLowerCase().endsWith("@thapar.edu")
+  );
+  const isNonHostStudent = !isHostStudent;
 
   if (!event || !teamData) return null;
 
   const handleFinalSubmit = async (formData: Record<string, any>) => {
-    const isHostStudent = !!userData?.isHostCollegeStudent;
-    const requiresPayment =
-      !!event.paymentRequired ||
-      (event.registrationFee &&
-        (isHostStudent
-          ? event.registrationFee.host > 0
-          : event.registrationFee.other > 0));
+    let fee = 0;
+    if (event.paymentRequired) {
+      if (
+        event.eventType === 'team' &&
+        event.paymentType === 'per_individual' &&
+        teamData.members?.length
+      ) {
+        fee = teamData.members.reduce((acc: number, m: any) => {
+          return acc + (m.isHostCollegeStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
+        }, 0);
+      } else {
+        fee = isHostStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
+      }
+    }
+    const requiresPayment = !!event.paymentRequired && fee > 0;
     const isPaid =
+      !requiresPayment ||
       !!(teamData as any)?.paid ||
       (teamData as any)?.paymentStatus === "completed" ||
       (teamData as any)?.paymentStatus === "success";

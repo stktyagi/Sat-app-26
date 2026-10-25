@@ -1,6 +1,6 @@
 // src/screens/App/Home/HomeScreen.tsx
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Text, ScrollView, View, Image, Linking, TouchableOpacity, TextInput, FlatList, ActivityIndicator, RefreshControl, BackHandler, ToastAndroid, Platform, StyleSheet, _ScrollView } from 'react-native';
+import { Text, ScrollView, View, Image, Linking, TouchableOpacity, TextInput, FlatList, ActivityIndicator, RefreshControl, BackHandler, ToastAndroid, Platform, StyleSheet } from 'react-native';
 import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '@/state/userStore';
@@ -11,7 +11,7 @@ import FeaturedEventCard from '@/components/display/FeaturedEventCard';
 import MiniMap from '@/components/display/MiniMap';
 import { useEvents } from '@/hooks/useEvents';
 import ChatBot from '@/components/interactive/ChatBot';
-import { Bell, Bot, Menu, Plus } from 'lucide-react-native';
+import { Bell, Bot, Menu, Plus, BookOpen, Briefcase, ChevronRight, Code2, LayoutGrid, Music, Sparkles, X } from 'lucide-react-native';
 import { useStories } from '@/hooks/useStories';
 import { useBanners } from '@/hooks/useBanners';
 import StoryUploadButton from '@/components/story/StoryUploadButton';
@@ -34,12 +34,31 @@ const STORY_BORDER_COLORS = [
 
 const FEATURED_FILTERS = [
   'Technical',
-  'Centerstage',
-  'Workshops',
-  'Business',
   'Cultural',
+  'Business',
+  'Workshops',
+  'Centerstage',
   'All',
 ];
+
+const getCategoryIcon = (cat: string) => {
+  const iconColor = '#FFFFFF';
+  const size = 13;
+  switch (cat.toLowerCase()) {
+    case 'technical':
+      return <Code2 size={size} color={iconColor} />;
+    case 'cultural':
+      return <Music size={size} color={iconColor} />;
+    case 'business':
+      return <Briefcase size={size} color={iconColor} />;
+    case 'workshops':
+      return <BookOpen size={size} color={iconColor} />;
+    case 'centerstage':
+      return <Sparkles size={size} color={iconColor} />;
+    default:
+      return <LayoutGrid size={size} color={iconColor} />;
+  }
+};
 
 export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x: boolean) => void }) {
   const router = useRouter();
@@ -277,20 +296,8 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
           )}
         </View>
 
-        {/* Peacock Theme Illustration - Under the stories */}
-        <View style={{ width: '100%', alignItems: 'center', marginVertical: 12 }}>
-          <Image
-            source={isDark ? require('@/assets/peacock-dark.png') : require('@/assets/peacock-light.png')}
-            style={{
-              width: '100%',
-              aspectRatio: 402 / 534,
-            }}
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* Venue Map Section - Under the peacock image */}
-        <View style={{ paddingHorizontal: 24, marginTop: 4, marginBottom: 20 }}>
+        {/* Venue Map Section - Under stories */}
+        <View style={{ paddingHorizontal: 24, marginTop: 14, marginBottom: 20 }}>
           <Text
             style={{
               fontFamily: 'Talina',
@@ -328,66 +335,129 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
         </View>
 
         {/* Featured Events Section - Directly under the Venue Map */}
-        <View style={{ paddingHorizontal: 24, marginTop: 12, marginBottom: 26 }}>
-          {/* Centered Heading */}
-          <Text
+        <View style={{ paddingHorizontal: 24, marginTop: 16, marginBottom: 26 }}>
+          {/* Header Row: Left two-line title & Right See All pill button */}
+          <View
             style={{
-              fontFamily: 'Talina',
-              color: isDark ? '#FFFFFF' : '#000000',
-              textAlign: 'center',
-              fontSize: 34,
-              letterSpacing: 0.5,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: 16,
             }}
           >
-            Featured Events
-          </Text>
+            <View>
+              <Text
+                style={{
+                  fontFamily: 'Poppins_700Bold',
+                  color: isDark ? '#7B78FF' : '#52368C',
+                  fontSize: 32,
+                  lineHeight: 36,
+                  letterSpacing: -0.5,
+                }}
+              >
+                Featured{'\n'}Events
+              </Text>
+            </View>
 
-          {/* Centered Subtitle */}
-          <Text
-            style={{
-              fontFamily: 'Poppins_400Regular',
-              color: isDark ? '#9CA3AF' : '#6B7280',
-              textAlign: 'center',
-              fontSize: 14,
-              marginTop: 6,
-              marginBottom: 18,
-            }}
-          >
-            Explore headline competitions and showcases
-          </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/events')}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: isDark ? '#1C1C20' : '#E5E7EB',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 9999,
+                marginTop: 6,
+                borderWidth: isDark ? 1 : 0,
+                borderColor: '#2D2D35',
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: 'Poppins_500Medium',
+                  color: isDark ? '#E5E7EB' : '#374151',
+                  fontSize: 12,
+                  marginRight: 2,
+                }}
+              >
+                See All
+              </Text>
+              <ChevronRight size={14} color={isDark ? '#E5E7EB' : '#374151'} />
+            </TouchableOpacity>
+          </View>
 
-          {/* Category Filters with transparent background and 41B8F0 border */}
+          {/* Category Filter Pills Matching the Screenshot */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 10, paddingBottom: 2 }}
-            style={{ marginBottom: 22 }}
+            contentContainerStyle={{ gap: 10, paddingBottom: 4 }}
+            style={{ marginBottom: 20 }}
           >
             {FEATURED_FILTERS.map((cat) => {
               const isSelected = selectedFeaturedCategory.toLowerCase() === cat.toLowerCase();
               return (
                 <TouchableOpacity
                   key={cat}
-                  onPress={() => setSelectedFeaturedCategory(cat)}
+                  onPress={() => {
+                    if (isSelected && cat !== 'All') {
+                      setSelectedFeaturedCategory('All');
+                    } else {
+                      setSelectedFeaturedCategory(cat);
+                    }
+                  }}
                   activeOpacity={0.8}
                   style={{
-                    backgroundColor: isSelected ? 'rgba(65, 184, 240, 0.22)' : 'transparent',
-                    borderWidth: 1.5,
-                    borderColor: '#41B8F0',
-                    borderRadius: 10,
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: isSelected
+                      ? '#41B8F0'
+                      : (isDark ? '#18181C' : '#D9D9DE'),
+                    borderRadius: 9999,
+                    paddingLeft: 6,
+                    paddingRight: isSelected ? 10 : 16,
+                    paddingVertical: 6,
+                    borderWidth: isDark && !isSelected ? 1 : 0,
+                    borderColor: '#272730',
                   }}
                 >
+                  {/* Left Circular Icon Container */}
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: isSelected
+                        ? '#111827'
+                        : (isDark ? '#272732' : '#1E1E24'),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 8,
+                    }}
+                  >
+                    {getCategoryIcon(cat)}
+                  </View>
+
+                  {/* Category Name */}
                   <Text
                     style={{
                       fontFamily: 'Poppins_600SemiBold',
-                      color: isDark ? '#FFFFFF' : '#000000',
-                      fontSize: 14,
+                      color: isSelected
+                        ? '#0F172A'
+                        : (isDark ? '#FFFFFF' : '#1E1E24'),
+                      fontSize: 13,
                     }}
                   >
                     {cat}
                   </Text>
+
+                  {/* Selected 'X' Icon */}
+                  {isSelected && (
+                    <View style={{ marginLeft: 6 }}>
+                      <X size={14} color="#0F172A" />
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
