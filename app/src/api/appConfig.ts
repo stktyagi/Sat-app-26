@@ -19,7 +19,11 @@ export interface AppVersions {
 export interface AppAccommodation {
   amount: number;
   price?: number;
+  technicalAmount?: number;
+  culturalAmount?: number;
   foodAmount?: number;
+  technicalFoodAmount?: number;
+  culturalFoodAmount?: number;
 }
 
 export interface AppConfigResponse {

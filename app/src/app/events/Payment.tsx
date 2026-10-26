@@ -10,9 +10,8 @@ import { showAlert } from '@/components';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import { useUserStore } from '@/state/userStore';
 import { useThemeStore } from '@/state/themeStore';
-
-const ACCOMMODATION_PRICE = 300;
-const FOOD_PRICE = 200;
+import { getAppAccommodation } from '@/api/appConfig';
+import { getMyEvents } from '@/api/events';
 
 const PaymentScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -39,9 +38,68 @@ const PaymentScreen: React.FC = () => {
     day0: false, day1: false, day2: false, day3: false, day4: false,
   });
 
+  const [accPrice, setAccPrice] = useState(650);
+  const [foodPrice, setFoodPrice] = useState(150);
+
   const [couponCode, setCouponCode] = useState('');
   const [validCoupon, setValidCoupon] = useState<CouponResponse | null>(null);
   const [couponError, setCouponError] = useState('');
+
+  // Fetch accommodation & food pricing based on event category and user registrations
+  useEffect(() => {
+    Promise.all([
+      getAppAccommodation().catch(() => null),
+      getMyEvents().catch(() => []),
+    ]).then(([accConfig, myEvents]) => {
+      const techPrice = accConfig?.technicalAmount ?? accConfig?.amount ?? 650;
+      const cultPrice = accConfig?.culturalAmount ?? accConfig?.amount ?? 650;
+      const techFoodPrice = accConfig?.technicalFoodAmount ?? accConfig?.foodAmount ?? 150;
+      const cultFoodPrice = accConfig?.culturalFoodAmount ?? accConfig?.foodAmount ?? 150;
+      const baseFoodPrice = accConfig?.foodAmount && accConfig.foodAmount > 0 ? accConfig.foodAmount : 150;
+
+      let hasTech = false;
+      let hasCult = false;
+
+      // Current event category
+      const currentCat = eventData?.event?.category;
+      if (currentCat) {
+        if (currentCat.toLowerCase() === 'technical') {
+          hasTech = true;
+        } else {
+          // Any non-technical event is considered cultural
+          hasCult = true;
+        }
+      }
+
+      // User's other registered events
+      if (Array.isArray(myEvents)) {
+        for (const item of myEvents) {
+          const cat = item.event?.category;
+          if (cat) {
+            if (cat.toLowerCase() === 'technical') {
+              hasTech = true;
+            } else {
+              hasCult = true;
+            }
+          }
+        }
+      }
+
+      if (hasTech && hasCult) {
+        setAccPrice(Math.max(techPrice, cultPrice));
+        setFoodPrice(Math.max(techFoodPrice, cultFoodPrice));
+      } else if (hasTech) {
+        setAccPrice(techPrice);
+        setFoodPrice(techFoodPrice);
+      } else if (hasCult) {
+        setAccPrice(cultPrice);
+        setFoodPrice(cultFoodPrice);
+      } else {
+        setAccPrice(accConfig?.amount ?? 650);
+        setFoodPrice(baseFoodPrice);
+      }
+    });
+  }, [eventData]);
 
   // Lock already paid days from user profile
   useEffect(() => {
@@ -106,10 +164,10 @@ const PaymentScreen: React.FC = () => {
   const calculateTotal = () => {
     let accFoodFee = 0;
     Object.entries(accommodation).forEach(([day, selected]) => {
-      if (selected && !user?.accommodation?.[day]) accFoodFee += ACCOMMODATION_PRICE;
+      if (selected && !user?.accommodation?.[day]) accFoodFee += accPrice;
     });
     Object.entries(food).forEach(([day, selected]) => {
-      if (selected && !user?.food?.[day]) accFoodFee += FOOD_PRICE;
+      if (selected && !user?.food?.[day]) accFoodFee += foodPrice;
     });
 
     return baseEventFee + accFoodFee;
@@ -475,7 +533,7 @@ const PaymentScreen: React.FC = () => {
               Stay & Food (Optional)
             </Text>
             <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 13, marginBottom: 14 }}>
-              Add accommodation (₹{ACCOMMODATION_PRICE}/day) or food (₹{FOOD_PRICE}/day).
+              Add accommodation (₹{accPrice}/day) or food (₹{foodPrice}/day).
             </Text>
 
           {isTeamEvent && (
@@ -520,7 +578,7 @@ const PaymentScreen: React.FC = () => {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>Hostel Accommodation</Text>
-                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>Campus Hostel (₹{ACCOMMODATION_PRICE}/day)</Text>
+                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>Campus Hostel (₹{accPrice}/day)</Text>
                   </View>
                   {accLocked ? (
                     <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}>
@@ -540,7 +598,7 @@ const PaymentScreen: React.FC = () => {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>Meals Pass</Text>
-                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>3 Meals Included (₹{FOOD_PRICE}/day)</Text>
+                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>3 Meals Included (₹{foodPrice}/day)</Text>
                   </View>
                   {foodLocked ? (
                     <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}>

@@ -59,9 +59,13 @@ export default function AppConfigScreen() {
 
   // Document states
   const [accommodation, setAccommodation] = useState<AppAccommodation>({
-    amount: 300,
-    price: 300,
-    foodAmount: 200,
+    amount: 650,
+    price: 650,
+    technicalAmount: 650,
+    culturalAmount: 650,
+    foodAmount: 150,
+    technicalFoodAmount: 150,
+    culturalFoodAmount: 150,
   });
 
   const [maintenance, setMaintenance] = useState<AppMaintenance>({
@@ -97,9 +101,13 @@ export default function AppConfigScreen() {
       const data = await adminGetAppConfig();
       if (data.accommodation) {
         setAccommodation({
-          amount: data.accommodation.amount || data.accommodation.price || 300,
-          price: data.accommodation.amount || data.accommodation.price || 300,
-          foodAmount: data.accommodation.foodAmount ?? 200,
+          amount: data.accommodation.amount || data.accommodation.price || 650,
+          price: data.accommodation.amount || data.accommodation.price || 650,
+          technicalAmount: data.accommodation.technicalAmount || data.accommodation.amount || 650,
+          culturalAmount: data.accommodation.culturalAmount || data.accommodation.amount || 650,
+          foodAmount: data.accommodation.foodAmount ?? 150,
+          technicalFoodAmount: data.accommodation.technicalFoodAmount ?? data.accommodation.foodAmount ?? 150,
+          culturalFoodAmount: data.accommodation.culturalFoodAmount ?? data.accommodation.foodAmount ?? 150,
         });
       }
       if (data.maintenance) {
@@ -143,14 +151,22 @@ export default function AppConfigScreen() {
     setSavingTab('accommodation');
     try {
       const updated = await adminUpdateAppAccommodation({
-        amount: Number(accommodation.amount),
-        price: Number(accommodation.amount),
+        amount: Number(accommodation.amount || 650),
+        price: Number(accommodation.amount || 650),
+        technicalAmount: Number(accommodation.technicalAmount || accommodation.amount || 650),
+        culturalAmount: Number(accommodation.culturalAmount || accommodation.amount || 650),
         foodAmount: Number(accommodation.foodAmount || 0),
+        technicalFoodAmount: Number(accommodation.technicalFoodAmount || accommodation.foodAmount || 0),
+        culturalFoodAmount: Number(accommodation.culturalFoodAmount || accommodation.foodAmount || 0),
       });
       setAccommodation({
         amount: updated.amount,
         price: updated.amount,
-        foodAmount: updated.foodAmount ?? 200,
+        technicalAmount: updated.technicalAmount ?? updated.amount,
+        culturalAmount: updated.culturalAmount ?? updated.amount,
+        foodAmount: updated.foodAmount ?? 150,
+        technicalFoodAmount: updated.technicalFoodAmount ?? updated.foodAmount ?? 150,
+        culturalFoodAmount: updated.culturalFoodAmount ?? updated.foodAmount ?? 150,
       });
       showAlert('Saved', 'Accommodation and Food pricing updated successfully!');
     } catch (err: any) {
@@ -433,12 +449,100 @@ export default function AppConfigScreen() {
                     gap: 20,
                   }}
                 >
-                  {/* Room Charge */}
+                  {/* Technical Events Room Charge */}
+                  <View style={{ gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Bed size={18} color="#A855F7" />
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
+                        Technical Events Accommodation (₹ / day)
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: inputBg,
+                        borderWidth: 1,
+                        borderColor: cardBorder,
+                        borderRadius: 14,
+                        paddingHorizontal: 14,
+                      }}
+                    >
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: '#A855F7', marginRight: 6 }}>
+                        ₹
+                      </Text>
+                      <TextInput
+                        value={String(accommodation.technicalAmount ?? accommodation.amount ?? '')}
+                        onChangeText={(t) =>
+                          setAccommodation((prev) => ({
+                            ...prev,
+                            technicalAmount: Number(t.replace(/\D/g, '')),
+                          }))
+                        }
+                        placeholder="650"
+                        placeholderTextColor={textSecondary}
+                        keyboardType="number-pad"
+                        style={{
+                          flex: 1,
+                          height: 48,
+                          fontFamily: 'Poppins_600SemiBold',
+                          fontSize: 16,
+                          color: textPrimary,
+                        }}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Cultural Events Room Charge */}
+                  <View style={{ gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Bed size={18} color="#F59E0B" />
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
+                        Cultural Events Accommodation (₹ / day)
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: inputBg,
+                        borderWidth: 1,
+                        borderColor: cardBorder,
+                        borderRadius: 14,
+                        paddingHorizontal: 14,
+                      }}
+                    >
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: '#F59E0B', marginRight: 6 }}>
+                        ₹
+                      </Text>
+                      <TextInput
+                        value={String(accommodation.culturalAmount ?? accommodation.amount ?? '')}
+                        onChangeText={(t) =>
+                          setAccommodation((prev) => ({
+                            ...prev,
+                            culturalAmount: Number(t.replace(/\D/g, '')),
+                          }))
+                        }
+                        placeholder="650"
+                        placeholderTextColor={textSecondary}
+                        keyboardType="number-pad"
+                        style={{
+                          flex: 1,
+                          height: 48,
+                          fontFamily: 'Poppins_600SemiBold',
+                          fontSize: 16,
+                          color: textPrimary,
+                        }}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Default / Fallback Room Charge */}
                   <View style={{ gap: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Bed size={18} color={accentColor} />
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
-                        Room Accommodation Price (₹ / day)
+                        Default / Base Accommodation (₹ / day)
                       </Text>
                     </View>
                     <View
@@ -464,7 +568,7 @@ export default function AppConfigScreen() {
                             price: Number(t.replace(/\D/g, '')),
                           }))
                         }
-                        placeholder="300"
+                        placeholder="650"
                         placeholderTextColor={textSecondary}
                         keyboardType="number-pad"
                         style={{
@@ -476,46 +580,102 @@ export default function AppConfigScreen() {
                         }}
                       />
                     </View>
-                    {/* Quick increment helpers */}
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                      {[200, 250, 300, 350, 400].map((amt) => (
-                        <TouchableOpacity
-                          key={amt}
-                          onPress={() =>
-                            setAccommodation((prev) => ({ ...prev, amount: amt, price: amt }))
-                          }
-                          style={{
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 8,
-                            backgroundColor:
-                              accommodation.amount === amt
-                                ? accentColor
-                                : isDark
-                                ? '#242430'
-                                : '#F3F4F6',
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontFamily: 'Poppins_500Medium',
-                              fontSize: 12,
-                              color: accommodation.amount === amt ? '#FFFFFF' : textPrimary,
-                            }}
-                          >
-                            ₹{amt}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                  </View>
+
+                  {/* Technical Events Food Pass Price */}
+                  <View style={{ gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Utensils size={18} color="#A855F7" />
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
+                        Technical Events Food Pass (₹ / day)
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: inputBg,
+                        borderWidth: 1,
+                        borderColor: cardBorder,
+                        borderRadius: 14,
+                        paddingHorizontal: 14,
+                      }}
+                    >
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: '#A855F7', marginRight: 6 }}>
+                        ₹
+                      </Text>
+                      <TextInput
+                        value={String(accommodation.technicalFoodAmount ?? accommodation.foodAmount ?? '')}
+                        onChangeText={(t) =>
+                          setAccommodation((prev) => ({
+                            ...prev,
+                            technicalFoodAmount: Number(t.replace(/\D/g, '')),
+                          }))
+                        }
+                        placeholder="150"
+                        placeholderTextColor={textSecondary}
+                        keyboardType="number-pad"
+                        style={{
+                          flex: 1,
+                          height: 48,
+                          fontFamily: 'Poppins_600SemiBold',
+                          fontSize: 16,
+                          color: textPrimary,
+                        }}
+                      />
                     </View>
                   </View>
 
-                  {/* Food Pass Charge */}
+                  {/* Cultural Events Food Pass Price */}
+                  <View style={{ gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Utensils size={18} color="#F59E0B" />
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
+                        Cultural Events Food Pass (₹ / day)
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: inputBg,
+                        borderWidth: 1,
+                        borderColor: cardBorder,
+                        borderRadius: 14,
+                        paddingHorizontal: 14,
+                      }}
+                    >
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: '#F59E0B', marginRight: 6 }}>
+                        ₹
+                      </Text>
+                      <TextInput
+                        value={String(accommodation.culturalFoodAmount ?? accommodation.foodAmount ?? '')}
+                        onChangeText={(t) =>
+                          setAccommodation((prev) => ({
+                            ...prev,
+                            culturalFoodAmount: Number(t.replace(/\D/g, '')),
+                          }))
+                        }
+                        placeholder="150"
+                        placeholderTextColor={textSecondary}
+                        keyboardType="number-pad"
+                        style={{
+                          flex: 1,
+                          height: 48,
+                          fontFamily: 'Poppins_600SemiBold',
+                          fontSize: 16,
+                          color: textPrimary,
+                        }}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Default Food Pass Charge */}
                   <View style={{ gap: 8 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Utensils size={18} color="#22c55e" />
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
-                        Food Pass Price (₹ / day)
+                        Default / Base Food Pass (₹ / day)
                       </Text>
                     </View>
                     <View
@@ -540,7 +700,7 @@ export default function AppConfigScreen() {
                             foodAmount: Number(t.replace(/\D/g, '')),
                           }))
                         }
-                        placeholder="200"
+                        placeholder="150"
                         placeholderTextColor={textSecondary}
                         keyboardType="number-pad"
                         style={{
@@ -551,38 +711,6 @@ export default function AppConfigScreen() {
                           color: textPrimary,
                         }}
                       />
-                    </View>
-                    {/* Quick increment helpers */}
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                      {[150, 200, 250, 300].map((amt) => (
-                        <TouchableOpacity
-                          key={amt}
-                          onPress={() =>
-                            setAccommodation((prev) => ({ ...prev, foodAmount: amt }))
-                          }
-                          style={{
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 8,
-                            backgroundColor:
-                              accommodation.foodAmount === amt
-                                ? '#22c55e'
-                                : isDark
-                                ? '#242430'
-                                : '#F3F4F6',
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontFamily: 'Poppins_500Medium',
-                              fontSize: 12,
-                              color: accommodation.foodAmount === amt ? '#FFFFFF' : textPrimary,
-                            }}
-                          >
-                            ₹{amt}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
                     </View>
                   </View>
 
@@ -596,19 +724,35 @@ export default function AppConfigScreen() {
                     }}
                   >
                     <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: textSecondary, textTransform: 'uppercase' }}>
-                      Pricing Preview for Users
+                      Pricing Preview for Users (Per Day: Room + Food)
                     </Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: '#A855F7' }}>
+                        Technical Participant (1 Day)
+                      </Text>
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: textPrimary }}>
+                        ₹{(accommodation.technicalAmount || accommodation.amount || 0) + (accommodation.technicalFoodAmount || accommodation.foodAmount || 0)}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: '#F59E0B' }}>
+                        Cultural Participant (1 Day)
+                      </Text>
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: textPrimary }}>
+                        ₹{(accommodation.culturalAmount || accommodation.amount || 0) + (accommodation.culturalFoodAmount || accommodation.foodAmount || 0)}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: textSecondary }}>
-                        1 Day (Room + Food)
+                        Base / Default (1 Day)
                       </Text>
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: textPrimary }}>
                         ₹{(accommodation.amount || 0) + (accommodation.foodAmount || 0)}
                       </Text>
                     </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: cardBorder, paddingTop: 6 }}>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: textSecondary }}>
-                        3 Days Festival Package
+                        Base 3 Days Stay
                       </Text>
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: textPrimary }}>
                         ₹{((accommodation.amount || 0) + (accommodation.foodAmount || 0)) * 3}
@@ -616,7 +760,7 @@ export default function AppConfigScreen() {
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: textSecondary }}>
-                        Full 5 Days Stay (Day 0–4)
+                        Base Full 5 Days Stay (Day 0–4)
                       </Text>
                       <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 13, color: accentColor }}>
                         ₹{((accommodation.amount || 0) + (accommodation.foodAmount || 0)) * 5}

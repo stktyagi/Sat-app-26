@@ -132,12 +132,22 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
     try {
       const items = await fetchReels();
       if (items && items.length > 0) {
+        const sorted = [...items].sort((a, b) => {
+          const orderA = a.order ?? 0;
+          const orderB = b.order ?? 0;
+          if (orderA !== orderB) {
+            return orderB - orderA;
+          }
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
         set({
-          reels: items,
+          reels: sorted,
           reelsFetched: true,
           reelsLoading: false,
         });
-        return items;
+        return sorted;
       } else {
         set({
           reels: MOCK_REELS,

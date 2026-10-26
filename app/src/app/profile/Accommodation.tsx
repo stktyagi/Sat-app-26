@@ -9,6 +9,7 @@ import { initiateEventPayment, getPaymentStatus, validateCoupon, CouponResponse 
 import { showAlert } from '@/components';
 import { startEasebuzzPayment } from '@/services/easebuzz';
 import { getAppAccommodation } from '@/api/appConfig';
+import { getMyEvents } from '@/api/events';
 
 interface DayInfo {
   key: string;
@@ -30,8 +31,9 @@ export default function AccommodationScreen() {
   const { isDark } = useThemeStore();
   const { userData: user, refreshUserProfile } = useUserStore();
 
-  const [accPrice, setAccPrice] = useState(300);
-  const [foodPrice, setFoodPrice] = useState(200);
+  const [accPrice, setAccPrice] = useState(650);
+  const [foodPrice, setFoodPrice] = useState(150);
+  const [registeredEventsCount, setRegisteredEventsCount] = useState<number | null>(null);
 
   const [phase, setPhase] = useState<'select' | 'initiating' | 'opening' | 'verifying'>('select');
   const [selectedAcc, setSelectedAcc] = useState<Record<string, boolean>>({
@@ -59,19 +61,51 @@ export default function AccommodationScreen() {
     }, [refreshUserProfile])
   );
 
-  // Fetch dynamic accommodation price from backend app collection
+  // Fetch dynamic accommodation & food price based on user's registered event categories
   useEffect(() => {
-    getAppAccommodation()
-      .then(res => {
-        if (res) {
-          if (typeof res.amount === 'number' && res.amount > 0) {
-            setAccPrice(res.amount);
-          } else if (typeof res.price === 'number' && res.price > 0) {
-            setAccPrice(res.price);
+    Promise.all([
+      getAppAccommodation().catch(() => null),
+      getMyEvents().catch(() => []),
+    ])
+      .then(([res, myEvents]) => {
+        const count = Array.isArray(myEvents) ? myEvents.length : 0;
+        setRegisteredEventsCount(count);
+
+        const techPrice = res?.technicalAmount ?? res?.amount ?? 650;
+        const cultPrice = res?.culturalAmount ?? res?.amount ?? 650;
+        const techFoodPrice = res?.technicalFoodAmount ?? res?.foodAmount ?? 150;
+        const cultFoodPrice = res?.culturalFoodAmount ?? res?.foodAmount ?? 150;
+        const baseFoodPrice = res?.foodAmount && res.foodAmount > 0 ? res.foodAmount : 150;
+
+        let hasTech = false;
+        let hasCult = false;
+
+        if (Array.isArray(myEvents)) {
+          for (const item of myEvents) {
+            const cat = item.event?.category;
+            if (cat) {
+              if (cat.toLowerCase() === 'technical') {
+                hasTech = true;
+              } else {
+                // Any non-technical event is considered cultural
+                hasCult = true;
+              }
+            }
           }
-          if (typeof res.foodAmount === 'number' && res.foodAmount > 0) {
-            setFoodPrice(res.foodAmount);
-          }
+        }
+
+        if (hasTech && hasCult) {
+          setAccPrice(Math.max(techPrice, cultPrice));
+          setFoodPrice(Math.max(techFoodPrice, cultFoodPrice));
+        } else if (hasTech) {
+          setAccPrice(techPrice);
+          setFoodPrice(techFoodPrice);
+        } else if (hasCult) {
+          setAccPrice(cultPrice);
+          setFoodPrice(cultFoodPrice);
+        } else {
+          setAccPrice(res?.amount ?? 650);
+          setFoodPrice(baseFoodPrice);
         }
       })
       .catch(err => {
@@ -91,6 +125,13 @@ export default function AccommodationScreen() {
 
   const toggleAcc = (day: string) => {
     if (user?.accommodation?.[day]) return;
+    if (registeredEventsCount === 0) {
+      showAlert(
+        "Event Registration Required",
+        "Campus accommodation is exclusively reserved for participants registered in festival events. Please register for an event first."
+      );
+      return;
+    }
     setSelectedAcc(prev => ({ ...prev, [day]: !prev[day] }));
   };
 
@@ -182,6 +223,14 @@ export default function AccommodationScreen() {
 
     const hasAcc = Object.keys(accToPay).length > 0;
     const hasFood = Object.keys(foodToPay).length > 0;
+
+    if (hasAcc && registeredEventsCount === 0) {
+      showAlert(
+        "Event Registration Required",
+        "Campus accommodation is exclusively reserved for participants registered in festival events. Please register for an event before paying for accommodation."
+      );
+      return;
+    }
 
     let paymentType = 'accommodation';
     if (hasAcc && hasFood) paymentType = 'accommodation_and_food';
@@ -394,6 +443,48 @@ export default function AccommodationScreen() {
           </View>
         )}
 
+        {/* Event Registration Notice for Accommodation */}
+        {registeredEventsCount === 0 && (
+          <View
+            style={{
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7',
+              borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : '#FCD34D',
+              borderWidth: 1,
+              padding: 16,
+              borderRadius: 20,
+              marginBottom: 20,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+              <Ionicons name="warning" size={20} color="#f59e0b" />
+              <Text style={{ fontFamily: 'Poppins_600SemiBold', color: isDark ? '#FBBF24' : '#B45309', fontSize: 15, marginLeft: 8 }}>
+                Event Registration Required
+              </Text>
+            </View>
+            <Text style={{ fontFamily: 'Poppins_400Regular', color: textColor, fontSize: 12, lineHeight: 18, marginBottom: 12 }}>
+              Campus hostel accommodation is exclusively reserved for participants registered in at least one festival event. Please register for an event first to unlock accommodation.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/events' as any)}
+              style={{
+                backgroundColor: '#f59e0b',
+                paddingHorizontal: 16,
+                paddingVertical: 9,
+                borderRadius: 12,
+                alignSelf: 'flex-start',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 13 }}>
+                Explore Events
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Day by Day Cards */}
         {FESTIVAL_DAYS.map((day) => {
           const accLocked = user?.accommodation?.[day.key] || false;
@@ -421,7 +512,15 @@ export default function AccommodationScreen() {
               </View>
 
               {/* Accommodation Option */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: isDark ? '#2A2A30' : '#F3F4F6' }}>
+              <TouchableOpacity
+                activeOpacity={registeredEventsCount === 0 && !accLocked ? 0.7 : 1}
+                onPress={() => {
+                  if (registeredEventsCount === 0 && !accLocked) {
+                    toggleAcc(day.key);
+                  }
+                }}
+                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: isDark ? '#2A2A30' : '#F3F4F6' }}
+              >
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>
                     Hostel Stay
@@ -429,6 +528,11 @@ export default function AccommodationScreen() {
                   <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
                     Campus hostel room (₹{accPrice}/day)
                   </Text>
+                  {registeredEventsCount === 0 && !accLocked && (
+                    <Text style={{ fontFamily: 'Poppins_500Medium', color: '#f59e0b', fontSize: 11, marginTop: 2 }}>
+                      Requires event registration
+                    </Text>
+                  )}
                 </View>
                 {accLocked ? (
                   <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, flexDirection: 'row', alignItems: 'center' }}>
@@ -441,11 +545,12 @@ export default function AccommodationScreen() {
                   <Switch
                     value={selectedAcc[day.key]}
                     onValueChange={() => toggleAcc(day.key)}
+                    disabled={registeredEventsCount === 0}
                     trackColor={{ false: isDark ? '#323238' : '#D1D5DB', true: '#41B8F0' }}
                     thumbColor="#FFFFFF"
                   />
                 )}
-              </View>
+              </TouchableOpacity>
 
               {/* Food Option */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 }}>
