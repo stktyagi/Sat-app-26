@@ -58,9 +58,13 @@ func main() {
 
 	// 4. accommodation - dynamic accommodation and food amounts
 	acc := models.AppAccommodation{
-		Amount:     300,
-		Price:      300,
-		FoodAmount: 200,
+		Amount:              650,
+		Price:               650,
+		TechnicalAmount:     650,
+		CulturalAmount:      650,
+		FoodAmount:          150,
+		TechnicalFoodAmount: 150,
+		CulturalFoodAmount:  150,
 	}
 	if _, err := client.Collection("app").Doc("accommodation").Set(ctx, acc); err != nil {
 		log.Fatalf("error seeding app/accommodation: %v\n", err)

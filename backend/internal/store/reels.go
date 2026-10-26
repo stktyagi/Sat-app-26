@@ -10,7 +10,7 @@ import (
 	"backend/internal/models"
 )
 
-// AllReels loads all reels, sorted by Order ascending, then CreatedAt descending.
+// AllReels loads all reels, sorted by Order descending, then CreatedAt descending.
 func (s *Store) AllReels(ctx context.Context) ([]*models.Reel, error) {
 	iter := s.FS.Collection(ColReels).Documents(ctx)
 	defer iter.Stop()
@@ -33,7 +33,7 @@ func (s *Store) AllReels(ctx context.Context) ([]*models.Reel, error) {
 
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Order != out[j].Order {
-			return out[i].Order < out[j].Order
+			return out[i].Order > out[j].Order
 		}
 		return out[i].CreatedAt.After(out[j].CreatedAt)
 	})
