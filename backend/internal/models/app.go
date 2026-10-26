@@ -21,9 +21,13 @@ type AppVersions struct {
 
 // AppAccommodation holds dynamic accommodation and food pass pricing.
 type AppAccommodation struct {
-	Amount     int `json:"amount" firestore:"amount"`
-	Price      int `json:"price,omitempty" firestore:"price,omitempty"`
-	FoodAmount int `json:"foodAmount,omitempty" firestore:"foodAmount,omitempty"`
+	Amount          int `json:"amount" firestore:"amount"`
+	Price           int `json:"price,omitempty" firestore:"price,omitempty"`
+	TechnicalAmount int `json:"technicalAmount,omitempty" firestore:"technicalAmount,omitempty"`
+	CulturalAmount      int `json:"culturalAmount,omitempty" firestore:"culturalAmount,omitempty"`
+	FoodAmount          int `json:"foodAmount,omitempty" firestore:"foodAmount,omitempty"`
+	TechnicalFoodAmount int `json:"technicalFoodAmount,omitempty" firestore:"technicalFoodAmount,omitempty"`
+	CulturalFoodAmount  int `json:"culturalFoodAmount,omitempty" firestore:"culturalFoodAmount,omitempty"`
 }
 
 // AppConfig is the combined configuration object containing links, maintenance, versions, and accommodation pricing.

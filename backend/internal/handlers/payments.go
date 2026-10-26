@@ -113,8 +113,8 @@ type initiatePaymentBody struct {
 // Per-day prices in rupees. The app shows the same numbers (ACCOMMODATION_PRICE
 // and FOOD_PRICE in Payment.tsx), so change both together.
 const (
-	AccommodationPricePerDay = 300
-	FoodPricePerDay          = 200
+	AccommodationPricePerDay = 650
+	FoodPricePerDay          = 150
 )
 
 // stayDays are the day keys accommodation and food can be bought for; they match
@@ -143,6 +143,108 @@ func stayCharge(requested map[string]bool, owned map[string]bool, unitPrice int)
 		}
 	}
 	return days, fee, ""
+}
+
+// resolveStayPrices determines the per-day accommodation and food prices based on user's events.
+// Any event that is not Technical is treated as Cultural. If the user participates in both,
+// the higher price one is charged.
+func (a *API) resolveStayPrices(ctx context.Context, user *models.User, currentEventID string) (int, int) {
+	accPrice := AccommodationPricePerDay
+	foodPrice := FoodPricePerDay
+
+	techPrice := AccommodationPricePerDay
+	cultPrice := AccommodationPricePerDay
+
+	techFoodPrice := FoodPricePerDay
+	cultFoodPrice := FoodPricePerDay
+
+	var accDoc *models.AppAccommodation
+	if a.Store != nil {
+		if doc, err := a.Store.GetAppAccommodation(ctx); err == nil && doc != nil {
+			accDoc = doc
+			if accDoc.TechnicalAmount > 0 {
+				techPrice = accDoc.TechnicalAmount
+			} else if accDoc.Amount > 0 {
+				techPrice = accDoc.Amount
+			}
+			if accDoc.CulturalAmount > 0 {
+				cultPrice = accDoc.CulturalAmount
+			} else if accDoc.Amount > 0 {
+				cultPrice = accDoc.Amount
+			}
+
+			baseFood := FoodPricePerDay
+			if accDoc.FoodAmount > 0 {
+				baseFood = accDoc.FoodAmount
+			}
+			foodPrice = baseFood
+			techFoodPrice = baseFood
+			cultFoodPrice = baseFood
+
+			if accDoc.TechnicalFoodAmount > 0 {
+				techFoodPrice = accDoc.TechnicalFoodAmount
+			}
+			if accDoc.CulturalFoodAmount > 0 {
+				cultFoodPrice = accDoc.CulturalFoodAmount
+			}
+		}
+	}
+
+	hasTechnical := false
+	hasCultural := false
+
+	checkEvent := func(eid string) {
+		if eid == "" || a.Cache == nil {
+			return
+		}
+		ev, err := a.Cache.Get(ctx, eid)
+		if err != nil || ev == nil {
+			return
+		}
+		if strings.EqualFold(ev.Category, "Technical") {
+			hasTechnical = true
+		} else {
+			// Events that are not technical are treated as cultural
+			hasCultural = true
+		}
+	}
+
+	if currentEventID != "" {
+		checkEvent(currentEventID)
+	}
+
+	if user != nil && user.UserID != "" && a.Store != nil {
+		regs, err := a.Store.ListUserRegistrations(ctx, user.UserID)
+		if err == nil {
+			for _, r := range regs {
+				checkEvent(r.EventID)
+			}
+		}
+	}
+
+	if hasTechnical && hasCultural {
+		accPrice = max(techPrice, cultPrice)
+		foodPrice = max(techFoodPrice, cultFoodPrice)
+	} else if hasTechnical {
+		accPrice = techPrice
+		foodPrice = techFoodPrice
+	} else if hasCultural {
+		accPrice = cultPrice
+		foodPrice = cultFoodPrice
+	} else {
+		if accDoc != nil && accDoc.Amount > 0 {
+			accPrice = accDoc.Amount
+		} else {
+			accPrice = max(techPrice, cultPrice)
+		}
+		if accDoc != nil && accDoc.FoodAmount > 0 {
+			foodPrice = accDoc.FoodAmount
+		} else {
+			foodPrice = max(techFoodPrice, cultFoodPrice)
+		}
+	}
+
+	return accPrice, foodPrice
 }
 
 // InitiatePayment creates a Payment document in Firestore and returns the
@@ -250,20 +352,25 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		}
 	}
 
-	accPrice := AccommodationPricePerDay
-	if accDoc, err := a.Store.GetAppAccommodation(c.Request.Context()); err == nil && accDoc != nil && accDoc.Amount > 0 {
-		accPrice = accDoc.Amount
-	}
+	accPrice, foodPrice := a.resolveStayPrices(c.Request.Context(), user, body.EventID)
 
 	accommodationMap, accFee, bad := stayCharge(body.Accommodation, user.Accommodation, accPrice)
 	if bad != "" {
 		apierr.Respond(c, apierr.BadRequest("invalid_day", "unknown accommodation day: "+bad))
 		return
 	}
-	foodMap, foodFee, bad := stayCharge(body.Food, user.Food, FoodPricePerDay)
+	foodMap, foodFee, bad := stayCharge(body.Food, user.Food, foodPrice)
 	if bad != "" {
 		apierr.Respond(c, apierr.BadRequest("invalid_day", "unknown food day: "+bad))
 		return
+	}
+
+	if accFee > 0 && body.EventID == "" && a.Store != nil {
+		regs, err := a.Store.ListUserRegistrations(ctx, user.UserID)
+		if err != nil || len(regs) == 0 {
+			apierr.Respond(c, apierr.Forbidden("event_registration_required", "you must be registered for at least one event to book accommodation"))
+			return
+		}
 	}
 
 	accDays := map[string]int{}
@@ -272,7 +379,7 @@ func (a *API) InitiatePayment(c *gin.Context) {
 	}
 	foodDays := map[string]int{}
 	for day := range foodMap {
-		foodDays[day] = FoodPricePerDay
+		foodDays[day] = foodPrice
 	}
 
 	a.initiate(c, user, event, team, eventPaymentType, paymentType, body.CouponCode,

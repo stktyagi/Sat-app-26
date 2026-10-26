@@ -100,9 +100,11 @@ func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodati
 	if err != nil {
 		if wrap(err) == ErrNotFound {
 			return &models.AppAccommodation{
-				Amount:     300,
-				Price:      300,
-				FoodAmount: 200,
+				Amount:          650,
+				Price:           650,
+				TechnicalAmount: 650,
+				CulturalAmount:  650,
+				FoodAmount:      150,
 			}, nil
 		}
 		return nil, wrap(err)
@@ -112,20 +114,40 @@ func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodati
 	if err := snap.DataTo(&a); err != nil {
 		// Fallback manual map extraction
 		data := snap.Data()
-		amt := 300
-		foodAmt := 200
+		amt := 650
+		foodAmt := 150
+		techAmt := 650
+		cultAmt := 650
+		techFoodAmt := 150
+		cultFoodAmt := 150
 		if v, ok := data["amount"].(int64); ok {
 			amt = int(v)
 		} else if v, ok := data["price"].(int64); ok {
 			amt = int(v)
 		}
+		if v, ok := data["technicalAmount"].(int64); ok {
+			techAmt = int(v)
+		}
+		if v, ok := data["culturalAmount"].(int64); ok {
+			cultAmt = int(v)
+		}
 		if v, ok := data["foodAmount"].(int64); ok {
 			foodAmt = int(v)
 		}
+		if v, ok := data["technicalFoodAmount"].(int64); ok {
+			techFoodAmt = int(v)
+		}
+		if v, ok := data["culturalFoodAmount"].(int64); ok {
+			cultFoodAmt = int(v)
+		}
 		return &models.AppAccommodation{
-			Amount:     amt,
-			Price:      amt,
-			FoodAmount: foodAmt,
+			Amount:              amt,
+			Price:               amt,
+			TechnicalAmount:     techAmt,
+			CulturalAmount:      cultAmt,
+			FoodAmount:          foodAmt,
+			TechnicalFoodAmount: techFoodAmt,
+			CulturalFoodAmount:  cultFoodAmt,
 		}, nil
 	}
 	if a.Amount == 0 && a.Price > 0 {
@@ -135,11 +157,23 @@ func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodati
 		a.Price = a.Amount
 	}
 	if a.Amount <= 0 {
-		a.Amount = 300
-		a.Price = 300
+		a.Amount = 650
+		a.Price = 650
+	}
+	if a.TechnicalAmount <= 0 {
+		a.TechnicalAmount = a.Amount
+	}
+	if a.CulturalAmount <= 0 {
+		a.CulturalAmount = a.Amount
 	}
 	if a.FoodAmount <= 0 {
-		a.FoodAmount = 200
+		a.FoodAmount = 150
+	}
+	if a.TechnicalFoodAmount <= 0 {
+		a.TechnicalFoodAmount = a.FoodAmount
+	}
+	if a.CulturalFoodAmount <= 0 {
+		a.CulturalFoodAmount = a.FoodAmount
 	}
 	return &a, nil
 }
@@ -240,9 +274,13 @@ func (s *Store) EnsureAppDefaults(ctx context.Context) error {
 	// 4. accommodation
 	if _, err := s.appDoc(DocAppAccommodation).Get(ctx); wrap(err) == ErrNotFound {
 		defaultAcc := &models.AppAccommodation{
-			Amount:     300,
-			Price:      300,
-			FoodAmount: 200,
+			Amount:              650,
+			Price:               650,
+			TechnicalAmount:     650,
+			CulturalAmount:      650,
+			FoodAmount:          150,
+			TechnicalFoodAmount: 150,
+			CulturalFoodAmount:  150,
 		}
 		if _, err := s.appDoc(DocAppAccommodation).Set(ctx, defaultAcc); err != nil {
 			return wrap(err)

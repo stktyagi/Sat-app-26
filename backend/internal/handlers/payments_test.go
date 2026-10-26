@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha512"
 	"fmt"
 	"net/http"
@@ -12,9 +13,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"backend/internal/cache"
 	"backend/internal/config"
 	"backend/internal/isotime"
 	"backend/internal/models"
+	"backend/internal/store"
 )
 
 func sha(plain string) string { return fmt.Sprintf("%x", sha512.Sum512([]byte(plain))) }
@@ -201,3 +204,102 @@ func TestPickRetrieveEntry(t *testing.T) {
 		}
 	}
 }
+
+type stubEventSource struct {
+	events map[string]*models.Event
+}
+
+func (s *stubEventSource) AllEvents(ctx context.Context) ([]*models.Event, error) {
+	out := make([]*models.Event, 0, len(s.events))
+	for _, e := range s.events {
+		out = append(out, e)
+	}
+	return out, nil
+}
+
+func (s *stubEventSource) CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error) {
+	return map[string]int{}, nil
+}
+
+func (s *stubEventSource) GetEvent(ctx context.Context, id string) (*models.Event, error) {
+	if e, ok := s.events[id]; ok {
+		return e, nil
+	}
+	return nil, nil
+}
+
+func (s *stubEventSource) CountRegistrations(ctx context.Context, eventID string) (int, error) {
+	return 0, nil
+}
+
+func TestResolveStayPrices(t *testing.T) {
+	ctx := context.Background()
+
+	// 1. Without cache or store, fallback defaults must apply
+	apiNil := &API{}
+	acc, food := apiNil.resolveStayPrices(ctx, nil, "")
+	if acc != AccommodationPricePerDay || food != FoodPricePerDay {
+		t.Errorf("default fallback price mismatch: acc=%d, food=%d", acc, food)
+	}
+
+	// 2. With event cache
+	techEv := &models.Event{ID: "tech-1", EventID: "tech-1", Category: "Technical"}
+	cultEv := &models.Event{ID: "cult-1", EventID: "cult-1", Category: "Cultural"}
+	src := &stubEventSource{events: map[string]*models.Event{
+		"tech-1": techEv,
+		"cult-1": cultEv,
+	}}
+	mem := cache.NewMemory()
+	ec := store.NewEventCache(src, mem, mem, time.Minute)
+
+	apiWithCache := &API{Cache: ec}
+
+	// User registered for tech event
+	accTech, foodTech := apiWithCache.resolveStayPrices(ctx, nil, "tech-1")
+	if accTech != AccommodationPricePerDay || foodTech != FoodPricePerDay {
+		t.Errorf("tech event stay prices: acc=%d, food=%d", accTech, foodTech)
+	}
+
+	// User registered for cult event
+	accCult, foodCult := apiWithCache.resolveStayPrices(ctx, nil, "cult-1")
+	if accCult != AccommodationPricePerDay || foodCult != FoodPricePerDay {
+		t.Errorf("cultural event stay prices: acc=%d, food=%d", accCult, foodCult)
+	}
+}
+
+func TestStayChargeFullScenarios(t *testing.T) {
+	foodPrice := 150
+	accPrice := 650
+
+	// User owns day1 for accommodation and day2 for food
+	userAcc := map[string]bool{"day1": true}
+	userFood := map[string]bool{"day2": true}
+
+	// User wants day1, day2 accommodation and day2, day3 food
+	reqAcc := map[string]bool{"day1": true, "day2": true}
+	reqFood := map[string]bool{"day2": true, "day3": true}
+
+	accDays, accFee, badAcc := stayCharge(reqAcc, userAcc, accPrice)
+	if badAcc != "" {
+		t.Fatalf("unexpected bad acc day: %s", badAcc)
+	}
+	// day1 is already owned, only day2 charged
+	if accFee != 650 || len(accDays) != 1 || accDays["day2"] != true {
+		t.Errorf("accCharge mismatch: fee=%d, days=%v", accFee, accDays)
+	}
+
+	foodDays, foodFee, badFood := stayCharge(reqFood, userFood, foodPrice)
+	if badFood != "" {
+		t.Fatalf("unexpected bad food day: %s", badFood)
+	}
+	// day2 is already owned, only day3 charged
+	if foodFee != 150 || len(foodDays) != 1 || foodDays["day3"] != true {
+		t.Errorf("foodCharge mismatch: fee=%d, days=%v", foodFee, foodDays)
+	}
+
+	total := accFee + foodFee
+	if total != 800 {
+		t.Errorf("total stay fee mismatch: expected 800, got %d", total)
+	}
+}
+
