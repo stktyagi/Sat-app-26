@@ -92,27 +92,19 @@ const MyEventDetailsScreen: React.FC = () => {
 
   let eventRegistrationFee = 0;
   if (eventData?.paymentRequired) {
-    const isTeam = eventData.eventType?.toLowerCase() === 'team' || !!(eventData as any).isTeamEvent;
-    const isPerInd = isPerIndividualPayment(eventData.paymentType);
-    const hostFee = eventData.registrationFee?.host || 0;
-    const otherFee = eventData.registrationFee?.other || 0;
-    const myRate = isHost ? hostFee : otherFee;
-
-    if (isTeam && isPerInd) {
-      const teamMembers = teamData?.members || [];
-      const unpaidMembers = teamMembers.filter((m: any) => m.paymentStatus !== 'success');
-
-      const joinedFee = unpaidMembers.reduce((acc: number, m: any) => {
-        return acc + (m.isHostCollegeStudent ? hostFee : otherFee);
+    if (
+      eventData.eventType === 'team' &&
+      isPerIndividualPayment(eventData.paymentType) &&
+      teamData?.members?.length
+    ) {
+      const unpaidMembers = teamData.members.filter((m: any) => m.paymentStatus !== 'success');
+      eventRegistrationFee = unpaidMembers.reduce((acc: number, m: any) => {
+        return acc + (m.isHostCollegeStudent ? (eventData.registrationFee?.host || 0) : (eventData.registrationFee?.other || 0));
       }, 0);
-
-      const minSize = eventData.minTeamSize || 1;
-      const currentMemberCount = teamMembers.length || 1;
-      const unfilledSlots = Math.max(0, minSize - currentMemberCount);
-
-      eventRegistrationFee = joinedFee + (unfilledSlots * myRate);
     } else {
-      eventRegistrationFee = myRate;
+      eventRegistrationFee = isHost
+        ? (eventData.registrationFee?.host || 0)
+        : (eventData.registrationFee?.other || 0);
     }
   }
 
@@ -142,6 +134,10 @@ const MyEventDetailsScreen: React.FC = () => {
           removeTeamMemberMutation.mutate(
             { teamRef: teamData.teamId, userId: memberUserId },
             {
+              onSuccess: () => {
+                refresh();
+                showAlert("Success", `${memberName} has been removed from the team.`);
+              },
               onError: (error: any) =>
                 showAlert("Error", error.message || "Failed to remove member"),
             }

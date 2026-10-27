@@ -278,8 +278,7 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
             leaderUserId={teamData.leaderUserId}
             canRemove={
               isLeader &&
-              member.userId !== userId &&
-              teamData.status === "pending"
+              member.userId !== userId
             }
             onRemove={() => onRemoveMember(member.userId, member.name || member.displayName || 'member')}
           />
