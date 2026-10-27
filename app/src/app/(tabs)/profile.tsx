@@ -10,6 +10,7 @@ import {
   Share,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -34,6 +35,7 @@ const ProfileScreen = () => {
   const { openDrawer } = useAdminDrawerStore();
   const [showQRModal, setShowQRModal] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
 
   const boysHairStyles = ['turban', 'fonze'];
@@ -98,7 +100,31 @@ const ProfileScreen = () => {
   };
 
   const handleDeleteAccount = () => {
-    Linking.openURL("https://www.saturnalia.in/deleteuser");
+    showAlert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action is permanent and cannot be undone. All your registrations, passes, and account details will be permanently removed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              const { deleteAccount } = await import('@/api/auth');
+              await deleteAccount();
+              useUserStore.getState().logout();
+              router.replace('/(auth)');
+            } catch (error: any) {
+              console.error('Delete account error:', error);
+              showAlert('Error', error?.message || 'Failed to delete account. Please try again.');
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCheckForUpdates = async () => {
@@ -432,6 +458,7 @@ const ProfileScreen = () => {
               {/* Delete Account Button */}
               <TouchableOpacity
                 activeOpacity={0.8}
+                disabled={deletingAccount}
                 onPress={handleDeleteAccount}
                 style={{
                   flexDirection: 'row',
@@ -443,9 +470,14 @@ const ProfileScreen = () => {
                   backgroundColor: isDark ? '#1F2228' : '#FEF2F2',
                   borderWidth: 1,
                   borderColor: '#EF4444',
+                  opacity: deletingAccount ? 0.6 : 1,
                 }}
               >
-                <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                {deletingAccount ? (
+                  <ActivityIndicator size="small" color="#EF4444" />
+                ) : (
+                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                )}
                 <Text
                   style={{
                     fontFamily: 'Poppins_600SemiBold',
@@ -453,7 +485,7 @@ const ProfileScreen = () => {
                     color: '#EF4444',
                   }}
                 >
-                  Delete Account
+                  {deletingAccount ? 'Deleting...' : 'Delete Account'}
                 </Text>
               </TouchableOpacity>
           </View>

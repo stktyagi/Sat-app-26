@@ -42,6 +42,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 
 	authed.GET("/me", api.GetMe)
 	authed.PATCH("/me", api.PatchMe)
+	authed.DELETE("/me", api.DeleteSelf)
 	authed.GET("/me/events", api.GetMyEvents)
 	authed.POST("/me/fcm-token", api.UpdateFCMToken)
 	authed.POST("/me/photo", api.uploadMine("photoRef", "photoUrl", "users/photos", func(u *models.User) string { return u.PhotoRef }))

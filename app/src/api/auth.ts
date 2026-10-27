@@ -184,9 +184,35 @@ export const handleAppleSignIn = async (): Promise<{
 export const handleSignOut = async (): Promise<void> => {
   try {
     initializeGoogleSignIn();
-    await GoogleSignin.signOut();
-    await signOut(auth());
-  } catch (error) {
-    console.error("Sign out error:", error);
+    try {
+      await GoogleSignin.signOut();
+    } catch (_) {}
+
+    if (auth().currentUser) {
+      await signOut(auth());
+    }
+  } catch (error: any) {
+    if (error?.code !== "auth/no-current-user") {
+      console.error("Sign out error:", error);
+    }
   }
 };
+
+export const deleteAccount = async (): Promise<void> => {
+  const firebaseUser = auth().currentUser;
+  if (!firebaseUser) throw new Error("No authenticated user");
+
+  const response = await authedFetch("/deleteuser", firebaseUser, { method: "POST" });
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to delete account"));
+  }
+
+  try {
+    await firebaseUser.delete();
+  } catch (_) {
+    // Backend already deleted user from Firebase Auth or session is invalidated
+  }
+
+  await handleSignOut();
+};
+

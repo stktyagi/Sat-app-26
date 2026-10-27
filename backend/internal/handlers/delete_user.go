@@ -20,6 +20,10 @@ func (a *API) DeleteSelf(c *gin.Context) {
 	}
 	a.dropIdentityFiles(user)
 
+	if a.Clients != nil {
+		_ = a.Clients.DeleteUserFromAuth(c.Request.Context(), user.UserID)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 	})
