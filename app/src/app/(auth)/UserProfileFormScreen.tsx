@@ -103,7 +103,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   const isHost =
     formData.isHostCollegeStudent ||
     THAPAR_EMAIL_REGEX.test(formData.email || user?.email || "");
-  const totalStages = isHost ? 2 : 3;
+  const totalStages = isHost ? 1 : 3;
 
   const handleBackPress = () => {
     if (currentStage === 3) {
@@ -249,8 +249,14 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
       }
 
       setSavedProfile(updatedProfile);
-      // Advance to Stage 2: Profile photo live capture
-      setCurrentStage(2);
+      if (hostDetected) {
+        if (onProfileCreated) {
+          onProfileCreated(updatedProfile);
+        }
+      } else {
+        // Advance to Stage 2: Profile photo live capture (outside students only)
+        setCurrentStage(2);
+      }
     } catch (error: any) {
       const errorMessage =
         error?.message ||
@@ -347,95 +353,97 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Dynamic Progress Bar */}
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingBottom: 14,
-          backgroundColor: bgColor,
-          borderBottomWidth: 1,
-          borderBottomColor: cardBorder,
-        }}
-      >
+      {/* Dynamic Progress Bar (Only for outside students who have multiple stages) */}
+      {!isHost && (
         <View
           style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 8,
+            paddingHorizontal: 20,
+            paddingBottom: 14,
+            backgroundColor: bgColor,
+            borderBottomWidth: 1,
+            borderBottomColor: cardBorder,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-                borderRadius: 8,
-                backgroundColor: isDark
-                  ? "rgba(65, 184, 240, 0.15)"
-                  : "rgba(65, 184, 240, 0.12)",
-                marginRight: 8,
-              }}
-            >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 8,
+                  backgroundColor: isDark
+                    ? "rgba(65, 184, 240, 0.15)"
+                    : "rgba(65, 184, 240, 0.12)",
+                  marginRight: 8,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: "Poppins_600SemiBold",
+                    fontSize: 11,
+                    color: "#41B8F0",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  STAGE {currentStage} OF {totalStages}
+                </Text>
+              </View>
               <Text
                 style={{
                   fontFamily: "Poppins_600SemiBold",
-                  fontSize: 11,
-                  color: "#41B8F0",
-                  letterSpacing: 0.5,
+                  fontSize: 13,
+                  color: textColor,
                 }}
               >
-                STAGE {currentStage} OF {totalStages}
+                {currentStage === 1
+                  ? "Personal Details"
+                  : currentStage === 2
+                  ? "Profile Photo"
+                  : "College ID Card"}
               </Text>
             </View>
             <Text
               style={{
                 fontFamily: "Poppins_600SemiBold",
-                fontSize: 13,
-                color: textColor,
+                fontSize: 12,
+                color: "#41B8F0",
               }}
             >
-              {currentStage === 1
-                ? "Personal Details"
-                : currentStage === 2
-                ? "Profile Photo"
-                : "College ID Card"}
+              {Math.round((currentStage / totalStages) * 100)}%
             </Text>
           </View>
-          <Text
-            style={{
-              fontFamily: "Poppins_600SemiBold",
-              fontSize: 12,
-              color: "#41B8F0",
-            }}
-          >
-            {Math.round((currentStage / totalStages) * 100)}%
-          </Text>
-        </View>
 
-        {/* Segmented Progress Track */}
-        <View style={{ flexDirection: "row", height: 6, gap: 6 }}>
-          {Array.from({ length: totalStages }).map((_, index) => {
-            const stepNum = index + 1;
-            const isCompletedOrCurrent = currentStage >= stepNum;
-            return (
-              <View
-                key={index}
-                style={{
-                  flex: 1,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: isCompletedOrCurrent
-                    ? "#41B8F0"
-                    : isDark
-                    ? "rgba(255, 255, 255, 0.1)"
-                    : "rgba(0, 0, 0, 0.1)",
-                }}
-              />
-            );
-          })}
+          {/* Segmented Progress Track */}
+          <View style={{ flexDirection: "row", height: 6, gap: 6 }}>
+            {Array.from({ length: totalStages }).map((_, index) => {
+              const stepNum = index + 1;
+              const isCompletedOrCurrent = currentStage >= stepNum;
+              return (
+                <View
+                  key={index}
+                  style={{
+                    flex: 1,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: isCompletedOrCurrent
+                      ? "#41B8F0"
+                      : isDark
+                      ? "rgba(255, 255, 255, 0.1)"
+                      : "rgba(0, 0, 0, 0.1)",
+                  }}
+                />
+              );
+            })}
+          </View>
         </View>
-      </View>
+      )}
 
       {currentStage === 1 ? (
         <KeyboardAvoidingView
@@ -885,7 +893,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
             <ActivityIndicator size="small" color="#131316" style={{ marginRight: 8 }} />
           ) : (
             <Ionicons
-              name="arrow-forward-circle"
+              name={isHost ? "checkmark-circle" : "arrow-forward-circle"}
               size={22}
               color="#131316"
               style={{ marginRight: 8 }}
@@ -899,7 +907,11 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
               letterSpacing: 0.3,
             }}
           >
-            {isLoading ? "Saving Details..." : "Continue to Photo Verification"}
+            {isLoading
+              ? "Saving Profile..."
+              : isHost
+              ? "Complete Profile"
+              : "Continue to Photo Verification"}
           </Text>
         </TouchableOpacity>
 
@@ -939,7 +951,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
       title="Take Profile Photo"
       subtitle="Live selfie verification for festival accreditation & pass."
       instruction="Center your face inside the oval guide in good lighting. Face the camera directly."
-      confirmButtonText={isHost ? "Complete Profile" : "Continue to College ID"}
+      confirmButtonText="Continue to College ID"
       isUploading={isUploadingMedia}
       onBack={handleBackPress}
       onConfirm={async (uri) => {
@@ -947,11 +959,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           setIsUploadingMedia(true);
           const updated = await uploadProfilePhoto(uri);
           setSavedProfile(updated);
-          if (isHost) {
-            onProfileCreated(updated);
-          } else {
-            setCurrentStage(3);
-          }
+          setCurrentStage(3);
         } catch (err: any) {
           showAlert("Upload Failed", err?.message || "Failed to upload profile photo");
         } finally {
