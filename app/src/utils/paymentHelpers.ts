@@ -26,10 +26,27 @@ export const isEventPaymentDue = ({
 }: EventPaymentStatusParams): boolean => {
   if (!event?.paymentRequired) return false;
 
-  const isTeam = event?.eventType?.toLowerCase() === 'team' || !!event?.isTeamEvent;
+  const isTeam = event?.eventType === 'team';
   if (isTeam && team) {
     const isPerInd = isPerIndividualPayment(event?.paymentType);
     const isLeader = userId ? team.leaderUserId === userId : true;
+
+    // Credit-based check: if settled amount covers the team roster fee, payment is not due
+    if (team.paidTill && team.paidTill > 0) {
+      if (isPerInd && team.members?.length) {
+        const totalRosterFee = team.members.reduce((acc: number, m: any) => {
+          return acc + (m.isHostCollegeStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
+        }, 0);
+        if (totalRosterFee > 0 && team.paidTill >= totalRosterFee) {
+          return false;
+        }
+      } else if (!isPerInd) {
+        const flatFee = event.registrationFee?.host || event.registrationFee?.other || 0;
+        if (flatFee > 0 && team.paidTill >= flatFee) {
+          return false;
+        }
+      }
+    }
 
     if (isPerInd) {
       if (isLeader) {

@@ -97,10 +97,15 @@ const MyEventDetailsScreen: React.FC = () => {
       isPerIndividualPayment(eventData.paymentType) &&
       teamData?.members?.length
     ) {
-      const unpaidMembers = teamData.members.filter((m: any) => m.paymentStatus !== 'success');
-      eventRegistrationFee = unpaidMembers.reduce((acc: number, m: any) => {
+      const totalRosterFee = teamData.members.reduce((acc: number, m: any) => {
         return acc + (m.isHostCollegeStudent ? (eventData.registrationFee?.host || 0) : (eventData.registrationFee?.other || 0));
       }, 0);
+      eventRegistrationFee = Math.max(0, totalRosterFee - (teamData.paidTill || 0));
+    } else if (eventData.eventType === 'team') {
+      const flatFee = isHost
+        ? (eventData.registrationFee?.host || 0)
+        : (eventData.registrationFee?.other || 0);
+      eventRegistrationFee = Math.max(0, flatFee - (teamData?.paidTill || 0));
     } else {
       eventRegistrationFee = isHost
         ? (eventData.registrationFee?.host || 0)

@@ -52,34 +52,25 @@ const TeamSubmissionModal: React.FC<TeamSubmissionModalProps> = ({
   const handleFinalSubmit = async (formData: Record<string, any>) => {
     let fee = 0;
     const isPerInd = isPerIndividualPayment(event.paymentType);
-    const isTeam = event.eventType?.toLowerCase() === 'team' || !!(event as any).isTeamEvent;
-    const hostFee = event.registrationFee?.host || 0;
-    const otherFee = event.registrationFee?.other || 0;
-    const myRate = isHostStudent ? hostFee : otherFee;
-
     if (event.paymentRequired) {
-      if (isTeam && isPerInd) {
-        const teamMembers = teamData.members || [];
-        const unpaidMembers = teamMembers.filter((m: any) => (m as any).paymentStatus !== 'success');
-        const joinedFee = unpaidMembers.reduce((acc: number, m: any) => {
-          return acc + (m.isHostCollegeStudent ? hostFee : otherFee);
+      if (
+        event.eventType === 'team' &&
+        isPerInd &&
+        teamData.members?.length
+      ) {
+        const totalRosterFee = teamData.members.reduce((acc: number, m: any) => {
+          return acc + (m.isHostCollegeStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
         }, 0);
-        const minSize = event.minTeamSize || 1;
-        const currentMemberCount = teamMembers.length || 1;
-        const unfilledSlots = Math.max(0, minSize - currentMemberCount);
-        fee = joinedFee + (unfilledSlots * myRate);
+        fee = Math.max(0, totalRosterFee - (teamData.paidTill || 0));
+      } else if (event.eventType === 'team') {
+        const flatFee = isHostStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
+        fee = Math.max(0, flatFee - (teamData.paidTill || 0));
       } else {
-        fee = myRate;
+        fee = isHostStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
       }
     }
     const requiresPayment = !!event.paymentRequired && fee > 0;
-    const isPaid =
-      !requiresPayment ||
-      (isPerInd
-        ? !!(teamData as any)?.paid && !teamData.members?.some((m: any) => m.paymentStatus !== 'success')
-        : !!(teamData as any)?.paid ||
-          (teamData as any)?.paymentStatus === "completed" ||
-          (teamData as any)?.paymentStatus === "success");
+    const isPaid = !requiresPayment;
 
     if (requiresPayment && !isPaid) {
       showModalAlert(

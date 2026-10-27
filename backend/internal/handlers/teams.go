@@ -134,9 +134,22 @@ func (a *API) JoinTeam(c *gin.Context) {
 	regID := models.RegistrationID(event.EventID, user.UserID)
 	reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, team.InviteCode, fee, body.Responses)
 
-	// Only a per-member fee grows with the roster; a per-team fee is already covered.
-	resetPaid := event.PaymentRequired && event.IsPerIndividual()
-	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize, resetPaid)
+	// Determine if the new roster is already covered by team's settled payments.
+	coveredByCredit := !event.PaymentRequired
+	if event.PaymentRequired {
+		if !event.IsPerIndividual() {
+			coveredByCredit = team.Paid || team.PaidTill > 0
+		} else {
+			users, _ := a.Store.GetUsers(ctx, team.MemberIDs)
+			totalRosterFee := fee
+			for _, m := range users {
+				m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+				totalRosterFee += event.FeeFor(m.IsHostCollegeStudent)
+			}
+			coveredByCredit = team.PaidTill >= totalRosterFee && totalRosterFee > 0
+		}
+	}
+	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize, coveredByCredit)
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrTeamFull):
@@ -471,12 +484,16 @@ func (a *API) hydrateMembers(ctx context.Context, team *models.Team) {
 
 	members := make([]models.PublicProfile, 0, len(team.MemberIDs))
 	hasUnpaid := false
+	totalRosterFee := 0
 	for _, id := range team.MemberIDs {
 		u, ok := users[id]
 		if !ok {
 			continue
 		}
 		pub := u.ResolveHostStatus(a.Cfg.HostEmailDomain).Public()
+		if event != nil && event.PaymentRequired && event.IsPerIndividual() {
+			totalRosterFee += event.FeeFor(pub.IsHostCollegeStudent)
+		}
 		if team.EventID != "" {
 			if reg, err := a.Store.GetRegistration(ctx, models.RegistrationID(team.EventID, id)); err == nil && reg != nil {
 				pub.PaymentStatus = reg.PaymentStatus
@@ -487,10 +504,37 @@ func (a *API) hydrateMembers(ctx context.Context, team *models.Team) {
 		}
 		members = append(members, pub)
 	}
-	team.Members = members
-	if event != nil && event.PaymentRequired && (event.IsPerIndividual() || !team.Paid) && hasUnpaid {
-		team.Paid = false
+	if event != nil && event.PaymentRequired && !event.IsPerIndividual() {
+		leaderUser := users[team.LeaderUserID]
+		isHost := true
+		if leaderUser != nil {
+			isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+		}
+		totalRosterFee = event.FeeFor(isHost)
 	}
+
+	// Credit-based check: If total payments settled for this team cover the entire roster,
+	// mark all members as paid and self-heal any unconfirmed registrations.
+	if event != nil && event.PaymentRequired {
+		isCovered := (team.PaidTill >= totalRosterFee && totalRosterFee > 0) || (!event.IsPerIndividual() && team.Paid)
+		if isCovered {
+			team.Paid = true
+			hasUnpaid = false
+			for i := range members {
+				if members[i].PaymentStatus != models.RegPaymentSuccess {
+					members[i].PaymentStatus = models.RegPaymentSuccess
+					regID := models.RegistrationID(team.EventID, members[i].UserID)
+					_ = a.Store.MarkRegistrationCovered(ctx, regID)
+				}
+			}
+			if !team.Paid {
+				_ = a.Store.MarkTeamPaid(ctx, team.TeamID)
+			}
+		} else if hasUnpaid {
+			team.Paid = false
+		}
+	}
+	team.Members = members
 }
 
 func (a *API) loadTeam(c *gin.Context) (*models.Team, bool) {

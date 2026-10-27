@@ -305,28 +305,37 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				return
 			}
 
-			if event.IsPerIndividual() {
-				// Find which team members have not had their registration fee paid yet
-				unpaidMemberIDs := []string{}
-				for _, mid := range team.MemberIDs {
-					reg, err := a.Store.GetRegistration(ctx, models.RegistrationID(event.EventID, mid))
-					isUnpaid := err != nil || reg.PaymentStatus != models.RegPaymentSuccess
-					if isUnpaid {
-						unpaidMemberIDs = append(unpaidMemberIDs, mid)
-					}
-				}
-				if len(unpaidMemberIDs) == 0 && team.Paid {
-					apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed for all team members"))
-					return
-				}
-				covered = unpaidMemberIDs
-			} else {
-				if team.Paid {
-					apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
-					return
-				}
-				covered = slices.Clone(team.MemberIDs)
+			allMembers, err := a.Store.GetUsers(ctx, team.MemberIDs)
+			if err != nil {
+				apierr.Respond(c, apierr.Internal("could not price the team"))
+				return
 			}
+			totalRosterFee := 0
+			if event.IsPerIndividual() {
+				for _, mid := range team.MemberIDs {
+					m := allMembers[mid]
+					isHost := user.IsHostCollegeStudent
+					if m != nil {
+						m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+						isHost = m.IsHostCollegeStudent
+					}
+					totalRosterFee += event.FeeFor(isHost)
+				}
+			} else {
+				leaderUser := allMembers[team.LeaderUserID]
+				isHost := user.IsHostCollegeStudent
+				if leaderUser != nil {
+					isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+				}
+				totalRosterFee = event.FeeFor(isHost)
+			}
+
+			remainingDue := max(totalRosterFee-team.PaidTill, 0)
+			if remainingDue == 0 && (team.Paid || team.PaidTill > 0) {
+				apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed for all team members"))
+				return
+			}
+			covered = slices.Clone(team.MemberIDs)
 		} else {
 			covered = []string{user.UserID}
 		}
@@ -344,43 +353,35 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		}
 	}
 
-	// Event fee. A per-individual team event is priced per unpaid member, each by their
-	// own host status, plus remaining slots up to minTeamSize.
+	// Event fee. A per-individual team event is priced by remaining credit due.
 	eventFee := 0
 	memberFees := map[string]int{}
 	if event != nil {
 		eventFee = event.FeeFor(user.IsHostCollegeStudent)
-		if team != nil && event.IsPerIndividual() {
-			members, err := a.Store.GetUsers(ctx, covered)
-			if err != nil {
-				apierr.Respond(c, apierr.Internal("could not price the team"))
-				return
-			}
-			eventFee = 0
-			for _, mid := range covered {
-				m := members[mid]
-				isHost := user.IsHostCollegeStudent
-				if m != nil {
-					m.ResolveHostStatus(a.Cfg.HostEmailDomain)
-					isHost = m.IsHostCollegeStudent
+		if team != nil {
+			allMembers, _ := a.Store.GetUsers(ctx, team.MemberIDs)
+			totalRosterFee := 0
+			if event.IsPerIndividual() {
+				for _, mid := range team.MemberIDs {
+					m := allMembers[mid]
+					isHost := user.IsHostCollegeStudent
+					if m != nil {
+						m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+						isHost = m.IsHostCollegeStudent
+					}
+					f := event.FeeFor(isHost)
+					totalRosterFee += f
+					memberFees[mid] = f
 				}
-				f := event.FeeFor(isHost)
-				eventFee += f
-				memberFees[mid] = f
+			} else {
+				leaderUser := allMembers[team.LeaderUserID]
+				isHost := user.IsHostCollegeStudent
+				if leaderUser != nil {
+					isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+				}
+				totalRosterFee = event.FeeFor(isHost)
 			}
-
-			// If the team currently has fewer members than minTeamSize,
-			// charge for the remaining slots up to minTeamSize so all members of the team are covered in one payment.
-			minSize := event.MinTeamSize
-			if minSize > 1 && len(team.MemberIDs) < minSize {
-				remainingSlots := minSize - len(team.MemberIDs)
-				slotFee := event.FeeFor(user.IsHostCollegeStudent)
-				eventFee += remainingSlots * slotFee
-			}
-		}
-		// A team with a flat team fee that already paid part of the fee is charged only the rest.
-		if team != nil && !event.IsPerIndividual() {
-			eventFee = max(eventFee-team.PaidTill, 0)
+			eventFee = max(totalRosterFee-team.PaidTill, 0)
 		}
 	}
 

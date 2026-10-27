@@ -73,10 +73,9 @@ func (s *Store) CreateTeamWithLeader(ctx context.Context, team *models.Team, reg
 }
 
 // JoinTeam appends a member and creates their registration atomically. The
-// capacity and duplicate checks run inside the transaction against the value
-// isPerIndividual indicates whether the event prices per member (so joining an already-paid team
-// leaves the new member unpaid and resets team.Paid to false) or as a flat team fee.
-func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg *models.Registration, minSize, maxSize int, isPerIndividual bool) (*models.Team, error) {
+// coveredByCredit indicates whether the total fee for the new team roster is already
+// fully covered by payments previously settled for the team.
+func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg *models.Registration, minSize, maxSize int, coveredByCredit bool) (*models.Team, error) {
 	teamRef := s.FS.Collection(ColTeams).Doc(teamID)
 	regRef := s.FS.Collection(ColRegistrations).Doc(regID)
 
@@ -117,22 +116,22 @@ func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg 
 			teamUpdates = append(teamUpdates, firestore.Update{Path: "status", Value: models.StatusFor(len(members), minSize)})
 		}
 
-		if team.Paid {
-			coveredByPriorPayment := !isPerIndividual || minSize <= 0 || len(members) <= minSize
-			if coveredByPriorPayment {
-				// Flat team fee or covered by leader's upfront payment for the team
-				reg.PaymentStatus = models.RegPaymentSuccess
-				reg.PaidAt = now
-				if reg.PaymentDetails == nil {
-					reg.PaymentDetails = map[string]any{}
-				}
-				reg.PaymentDetails["amount"] = 0
-				reg.PaymentDetails["coveredByTeam"] = true
-			} else {
-				// Extra member beyond covered team size on a per-individual event
+		if coveredByCredit {
+			reg.PaymentStatus = models.RegPaymentSuccess
+			reg.PaidAt = now
+			if reg.PaymentDetails == nil {
+				reg.PaymentDetails = map[string]any{}
+			}
+			reg.PaymentDetails["amount"] = 0
+			reg.PaymentDetails["coveredByTeam"] = true
+			if !team.Paid {
+				teamUpdates = append(teamUpdates, firestore.Update{Path: "paid", Value: true})
+				team.Paid = true
+			}
+		} else if reg.PaymentStatus == models.RegPaymentPending {
+			if team.Paid {
 				teamUpdates = append(teamUpdates, firestore.Update{Path: "paid", Value: false})
 				team.Paid = false
-				reg.PaymentStatus = models.RegPaymentPending
 			}
 		}
 
@@ -267,3 +266,13 @@ func (s *Store) UpdateTeam(ctx context.Context, teamID string, fields map[string
 	_, err := s.FS.Collection(ColTeams).Doc(teamID).Set(ctx, fields, firestore.MergeAll)
 	return wrap(err)
 }
+
+// MarkTeamPaid flips the paid flag on a team document to true.
+func (s *Store) MarkTeamPaid(ctx context.Context, teamID string) error {
+	_, err := s.FS.Collection(ColTeams).Doc(teamID).Update(ctx, []firestore.Update{
+		{Path: "paid", Value: true},
+		{Path: "updatedAt", Value: isotime.Now()},
+	})
+	return wrap(err)
+}
+
