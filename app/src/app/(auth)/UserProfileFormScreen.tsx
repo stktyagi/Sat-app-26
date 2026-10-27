@@ -249,7 +249,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
       }
 
       setSavedProfile(updatedProfile);
-      if (hostDetected) {
+      if (isHost) {
         if (onProfileCreated) {
           onProfileCreated(updatedProfile);
         }
