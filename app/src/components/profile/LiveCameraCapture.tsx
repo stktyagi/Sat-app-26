@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -41,6 +41,11 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   const [isTakingPhoto, setIsTakingPhoto] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+
+  useEffect(() => {
+    setCapturedUri(null);
+    setFacing(mode === "selfie" ? "front" : "back");
+  }, [mode]);
 
   const bgColor = isDark ? "#131316" : "#F3F4F6";
   const cardBg = isDark ? "#1C1C20" : "#FFFFFF";

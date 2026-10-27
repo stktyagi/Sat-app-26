@@ -934,6 +934,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
     </KeyboardAvoidingView>
   ) : currentStage === 2 ? (
     <LiveCameraCapture
+      key="stage-2-selfie"
       mode="selfie"
       title="Take Profile Photo"
       subtitle="Live selfie verification for festival accreditation & pass."
@@ -960,6 +961,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
     />
   ) : (
     <LiveCameraCapture
+      key="stage-3-document"
       mode="document"
       title="Scan College ID Card"
       subtitle="Live capture of your physical student ID card."
