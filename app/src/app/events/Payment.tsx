@@ -12,6 +12,7 @@ import { useUserStore } from '@/state/userStore';
 import { useThemeStore } from '@/state/themeStore';
 import { getAppAccommodation } from '@/api/appConfig';
 import { getMyEvents } from '@/api/events';
+import { isPerIndividualPayment } from '@/utils/paymentHelpers';
 
 const PaymentScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -146,10 +147,11 @@ const PaymentScreen: React.FC = () => {
     if (eventData?.event?.paymentRequired) {
       if (
         eventData.event.eventType === 'team' &&
-        eventData.event.paymentType === 'per_individual' &&
+        isPerIndividualPayment(eventData.event.paymentType) &&
         eventData.myTeam?.members?.length
       ) {
-        fee = eventData.myTeam.members.reduce((acc: number, m: any) => {
+        const unpaidMembers = eventData.myTeam.members.filter((m: any) => m.paymentStatus !== 'success');
+        fee = unpaidMembers.reduce((acc: number, m: any) => {
           return acc + (m.isHostCollegeStudent ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0));
         }, 0);
       } else {
@@ -369,9 +371,27 @@ const PaymentScreen: React.FC = () => {
   }
 
   // 1. Check if user/team has ALREADY PAID for the event
-  const isAlreadyPaid =
-    eventData?.myRegistration?.paymentStatus === 'success' ||
-    (eventData?.event?.eventType === 'team' && !!eventData?.myTeam?.paid);
+  const isPerInd = isPerIndividualPayment(eventData?.event?.paymentType);
+  const isTeam = eventData?.event?.eventType === 'team';
+  const isLeader = eventData?.myTeam ? eventData.myTeam.leaderUserId === user?.userId : true;
+
+  let isAlreadyPaid = false;
+  if (!eventData?.event?.paymentRequired) {
+    isAlreadyPaid = true;
+  } else if (isTeam && eventData?.myTeam) {
+    if (isPerInd) {
+      if (isLeader) {
+        const hasUnpaid = eventData.myTeam.members?.some((m: any) => m.paymentStatus !== 'success');
+        isAlreadyPaid = !!eventData.myTeam.paid && !hasUnpaid;
+      } else {
+        isAlreadyPaid = eventData.myRegistration?.paymentStatus === 'success';
+      }
+    } else {
+      isAlreadyPaid = !!eventData.myTeam.paid;
+    }
+  } else {
+    isAlreadyPaid = eventData?.myRegistration?.paymentStatus === 'success';
+  }
 
   if (isAlreadyPaid) {
     return (

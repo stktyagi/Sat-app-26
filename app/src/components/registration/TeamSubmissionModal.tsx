@@ -8,6 +8,7 @@ import { showAlert } from '..';
 import CustomFieldsForm from './CustomFieldRenderer'
 import { useUserStore } from '@/state/userStore';
 import { confirmTeam } from '@/api/events';
+import { isPerIndividualPayment } from '@/utils/paymentHelpers';
 
 interface TeamSubmissionModalProps {
   visible: boolean;
@@ -50,10 +51,11 @@ const TeamSubmissionModal: React.FC<TeamSubmissionModalProps> = ({
 
   const handleFinalSubmit = async (formData: Record<string, any>) => {
     let fee = 0;
+    const isPerInd = isPerIndividualPayment(event.paymentType);
     if (event.paymentRequired) {
       if (
         event.eventType === 'team' &&
-        event.paymentType === 'per_individual' &&
+        isPerInd &&
         teamData.members?.length
       ) {
         fee = teamData.members.reduce((acc: number, m: any) => {
@@ -66,9 +68,11 @@ const TeamSubmissionModal: React.FC<TeamSubmissionModalProps> = ({
     const requiresPayment = !!event.paymentRequired && fee > 0;
     const isPaid =
       !requiresPayment ||
-      !!(teamData as any)?.paid ||
-      (teamData as any)?.paymentStatus === "completed" ||
-      (teamData as any)?.paymentStatus === "success";
+      (isPerInd
+        ? !!(teamData as any)?.paid && !teamData.members?.some((m: any) => m.paymentStatus !== 'success')
+        : !!(teamData as any)?.paid ||
+          (teamData as any)?.paymentStatus === "completed" ||
+          (teamData as any)?.paymentStatus === "success");
 
     if (requiresPayment && !isPaid) {
       showModalAlert(

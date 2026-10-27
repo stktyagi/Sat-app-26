@@ -180,6 +180,7 @@ type PublicProfile struct {
 	DisplayName          string `json:"displayName"`
 	CollegeName          string `json:"collegeName"`
 	IsHostCollegeStudent bool   `json:"isHostCollegeStudent"`
+	PaymentStatus        string `json:"paymentStatus,omitempty"`
 }
 
 func (u *User) Public() PublicProfile {

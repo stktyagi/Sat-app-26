@@ -135,14 +135,14 @@ func (a *API) JoinTeam(c *gin.Context) {
 	reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, team.InviteCode, fee, body.Responses)
 
 	// Only a per-member fee grows with the roster; a per-team fee is already covered.
-	resetPaid := event.PaymentRequired && event.PaymentType == "per_individual"
+	resetPaid := event.PaymentRequired && event.IsPerIndividual()
 	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize, resetPaid)
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrTeamFull):
 			apierr.Respond(c, apierr.Conflict("team_full", "this team is already at its maximum size"))
 		case errors.Is(err, store.ErrTeamLocked):
-			apierr.Respond(c, apierr.Conflict("team_payment_locked", "this team's payment is in progress or complete, so it is closed to new members"))
+			apierr.Respond(c, apierr.Conflict("team_checkout_in_progress", "a payment checkout for this team is currently in progress; please try again in a few moments"))
 		case errors.Is(err, store.ErrAlreadyMember):
 			apierr.Respond(c, apierr.Conflict("already_member", "you are already in this team"))
 		case errors.Is(err, store.ErrExists):
@@ -337,7 +337,7 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 	// If event requires payment and team is not paid, do not allow confirmation.
 	teamFee := 0
 	if event != nil && event.PaymentRequired {
-		if event.PaymentType == "per_individual" && len(team.MemberIDs) > 0 {
+		if event.IsPerIndividual() && len(team.MemberIDs) > 0 {
 			members, err := a.Store.GetUsers(c.Request.Context(), team.MemberIDs)
 			if err == nil && len(members) == len(team.MemberIDs) {
 				for _, m := range members {
@@ -464,15 +464,39 @@ func (a *API) hydrateMembers(ctx context.Context, team *models.Team) {
 	if err != nil {
 		return
 	}
+	var event *models.Event
+	if team.EventID != "" {
+		event, _ = a.Cache.Get(ctx, team.EventID)
+	}
+
 	members := make([]models.PublicProfile, 0, len(team.MemberIDs))
+	hasUnpaid := false
 	for _, id := range team.MemberIDs {
 		u, ok := users[id]
 		if !ok {
 			continue
 		}
-		members = append(members, u.ResolveHostStatus(a.Cfg.HostEmailDomain).Public())
+		pub := u.ResolveHostStatus(a.Cfg.HostEmailDomain).Public()
+		if team.EventID != "" {
+			if reg, err := a.Store.GetRegistration(ctx, models.RegistrationID(team.EventID, id)); err == nil && reg != nil {
+				pub.PaymentStatus = reg.PaymentStatus
+				// If this event is per-individual and member was mistakenly marked as coveredByTeam during previous bug, self-heal:
+				if event != nil && event.IsPerIndividual() && id != team.LeaderUserID {
+					if reg.PaymentDetails != nil && reg.PaymentDetails["coveredByTeam"] == true {
+						pub.PaymentStatus = models.RegPaymentPending
+					}
+				}
+			}
+		}
+		if pub.PaymentStatus != models.RegPaymentSuccess {
+			hasUnpaid = true
+		}
+		members = append(members, pub)
 	}
 	team.Members = members
+	if event != nil && event.PaymentRequired && (event.IsPerIndividual() || !team.Paid) && hasUnpaid {
+		team.Paid = false
+	}
 }
 
 func (a *API) loadTeam(c *gin.Context) (*models.Team, bool) {

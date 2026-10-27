@@ -203,6 +203,7 @@ func TestPaymentLocksTeamRoster(t *testing.T) {
 		t.Fatalf("join during checkout: want ErrTeamLocked, got %v", err)
 	}
 
+	// Joining is allowed after checkout finishes, even if team is already confirmed or paid.
 	must(t, s.MarkPaymentFailed(ctx, p.MerchantOrderID, "", ""))
 	if err := join("early"); err != nil {
 		t.Fatalf("join after a failed checkout should work: %v", err)
@@ -210,7 +211,10 @@ func TestPaymentLocksTeamRoster(t *testing.T) {
 
 	// A paid team still takes members, and joining clears paid so the leader
 	// can pay the difference.
-	mustWrite(t)(s.FS.Collection(ColTeams).Doc(team.TeamID).Update(ctx, []firestore.Update{{Path: "paid", Value: true}}))
+	mustWrite(t)(s.FS.Collection(ColTeams).Doc(team.TeamID).Update(ctx, []firestore.Update{
+		{Path: "paid", Value: true},
+		{Path: "status", Value: models.TeamStatusConfirmed},
+	}))
 	if err := join("after-paid"); err != nil {
 		t.Fatalf("join after payment should work: %v", err)
 	}
@@ -218,12 +222,6 @@ func TestPaymentLocksTeamRoster(t *testing.T) {
 	must(t, err)
 	if got.Paid {
 		t.Error("joining a paid team must clear paid")
-	}
-
-	// A confirmed team is closed for good.
-	mustWrite(t)(s.FS.Collection(ColTeams).Doc(team.TeamID).Update(ctx, []firestore.Update{{Path: "status", Value: models.TeamStatusConfirmed}}))
-	if err := join("after-confirm"); !errors.Is(err, ErrTeamLocked) {
-		t.Fatalf("join after confirm: want ErrTeamLocked, got %v", err)
 	}
 }
 

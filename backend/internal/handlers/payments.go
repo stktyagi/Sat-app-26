@@ -304,41 +304,62 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				apierr.Respond(c, apierr.Forbidden("leader_only", "only the team leader can initiate payment"))
 				return
 			}
-			if team.Paid {
-				apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
-				return
+
+			if event.IsPerIndividual() {
+				// Find which team members have not had their registration fee paid yet
+				unpaidMemberIDs := []string{}
+				for _, mid := range team.MemberIDs {
+					reg, err := a.Store.GetRegistration(ctx, models.RegistrationID(event.EventID, mid))
+					isUnpaid := err != nil || reg.PaymentStatus != models.RegPaymentSuccess
+					if !isUnpaid && mid != team.LeaderUserID && reg.PaymentDetails != nil && reg.PaymentDetails["coveredByTeam"] == true {
+						isUnpaid = true
+					}
+					if isUnpaid {
+						unpaidMemberIDs = append(unpaidMemberIDs, mid)
+					}
+				}
+				if len(unpaidMemberIDs) == 0 {
+					apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed for all team members"))
+					return
+				}
+				covered = unpaidMemberIDs
+			} else {
+				if team.Paid {
+					apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
+					return
+				}
+				covered = slices.Clone(team.MemberIDs)
 			}
-			covered = slices.Clone(team.MemberIDs)
 		} else {
 			covered = []string{user.UserID}
 		}
 
-		// The payer must be registered, and not already paid.
+		// The payer must be registered, and (for individual events) not already paid.
 		regID := models.RegistrationID(event.EventID, user.UserID)
 		reg, err := a.Store.GetRegistration(ctx, regID)
 		if err != nil {
 			apierr.Respond(c, apierr.NotFound("not_registered", "you are not registered for this event"))
 			return
 		}
-		if reg.PaymentStatus == models.PaymentStatusSuccess {
+		if event.EventType != models.EventTypeTeam && reg.PaymentStatus == models.PaymentStatusSuccess {
 			apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
 			return
 		}
 	}
 
-	// Event fee. A per-individual team event is priced per member, each by their
-	// own host status; the roster is frozen for the checkout (JoinTeam is locked).
+	// Event fee. A per-individual team event is priced per unpaid member, each by their
+	// own host status.
 	eventFee := 0
 	memberFees := map[string]int{}
 	if event != nil {
 		eventFee = event.FeeFor(user.IsHostCollegeStudent)
-		if team != nil && event.PaymentType == "per_individual" {
-			members, err := a.Store.GetUsers(ctx, team.MemberIDs)
+		if team != nil && event.IsPerIndividual() {
+			members, err := a.Store.GetUsers(ctx, covered)
 			if err != nil {
 				apierr.Respond(c, apierr.Internal("could not price the team"))
 				return
 			}
-			if len(members) != len(team.MemberIDs) {
+			if len(members) != len(covered) {
 				apierr.Respond(c, apierr.Internal("a team member's profile is missing; contact the organisers"))
 				return
 			}
@@ -350,8 +371,8 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				memberFees[m.UserID] = f
 			}
 		}
-		// A team that already paid part of the fee is charged only the rest.
-		if team != nil {
+		// A team with a flat team fee that already paid part of the fee is charged only the rest.
+		if team != nil && !event.IsPerIndividual() {
 			eventFee = max(eventFee-team.PaidTill, 0)
 		}
 	}
@@ -462,7 +483,7 @@ func (a *API) initiate(
 	if len(memberFees) > 0 {
 		bill["event_members"] = memberFees
 	}
-	if team != nil && team.PaidTill > 0 {
+	if team != nil && event != nil && !event.IsPerIndividual() && team.PaidTill > 0 {
 		bill["already_paid"] = team.PaidTill
 	}
 	if discountAmount > 0 {
@@ -480,6 +501,7 @@ func (a *API) initiate(
 			EventType:      eventPaymentType,
 			Amount:         eventFee,
 			CoveredUserIDs: covered,
+			PerIndividual:  event.IsPerIndividual(),
 		}
 		if team != nil {
 			teamID = team.TeamID

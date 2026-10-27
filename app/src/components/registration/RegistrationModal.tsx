@@ -168,6 +168,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       showModalAlert("Success", "Successfully joined the team!");
       onSuccess();
       onClose();
+      router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
     } catch (error: any) {
       showModalAlert("Error", error.message || "Failed to join team");
     } finally {
@@ -179,20 +180,6 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     try {
       setIsLoading(true);
 
-      // Validate team size for team events
-      if (event.eventType === "team" && event.minTeamSize && createdInviteCode) {
-        if (currentTeamSize < event.minTeamSize) {
-          showModalAlert(
-            "Insufficient Team Size",
-            `Your team needs at least ${event.minTeamSize
-            } members to submit. Currently you have ${currentTeamSize} member${currentTeamSize !== 1 ? "s" : ""
-            }.\n\nPlease share the invite code with your teammates before submitting.`
-          );
-          setIsLoading(false);
-          return;
-        }
-      }
-
       const registrationData = responsesFromFields(event.customFields || [], customFieldsData);
 
       if (event.eventType === "team") {
@@ -203,6 +190,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           setCurrentTeamSize(1);
           showModalAlert("Team Created!", "Share the invite code with your teammates.");
           onSuccess();
+          onClose();
+          router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
           return;
         } else {
           await joinEventTeam(event.eventId, teamInviteCode.trim(), registrationData);

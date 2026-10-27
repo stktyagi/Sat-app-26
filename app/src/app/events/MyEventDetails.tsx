@@ -41,6 +41,7 @@ import {
   useUnregisterForEvent,
   useConfirmTeam,
 } from "@/hooks/useEventMutations";
+import { isPerIndividualPayment, isEventPaymentDue } from "@/utils/paymentHelpers";
 
 const MyEventDetailsScreen: React.FC = () => {
   const router = useRouter();
@@ -93,10 +94,11 @@ const MyEventDetailsScreen: React.FC = () => {
   if (eventData?.paymentRequired) {
     if (
       eventData.eventType === 'team' &&
-      eventData.paymentType === 'per_individual' &&
+      isPerIndividualPayment(eventData.paymentType) &&
       teamData?.members?.length
     ) {
-      eventRegistrationFee = teamData.members.reduce((acc: number, m: any) => {
+      const unpaidMembers = teamData.members.filter((m: any) => m.paymentStatus !== 'success');
+      eventRegistrationFee = unpaidMembers.reduce((acc: number, m: any) => {
         return acc + (m.isHostCollegeStudent ? (eventData.registrationFee?.host || 0) : (eventData.registrationFee?.other || 0));
       }, 0);
     } else {
@@ -108,16 +110,13 @@ const MyEventDetailsScreen: React.FC = () => {
 
   const requiresPayment = !!eventData?.paymentRequired && eventRegistrationFee > 0;
 
-  const isPaid =
-    !requiresPayment ||
-    registration?.paymentStatus === "completed" ||
-    registration?.paymentStatus === "success" ||
-    registration?.paymentStatus === "paid" ||
-    teamData?.paymentStatus === "completed" ||
-    teamData?.paymentStatus === "success" ||
-    !!teamData?.paid;
-
-  const isPaymentDue = requiresPayment && !isPaid;
+  const isPaymentDue = isEventPaymentDue({
+    event: eventData,
+    team: teamData,
+    registration,
+    userId,
+  });
+  const isPaid = !isPaymentDue;
 
   const handleRemoveMember = (memberUserId: string, memberName: string) => {
     if (!teamData) {

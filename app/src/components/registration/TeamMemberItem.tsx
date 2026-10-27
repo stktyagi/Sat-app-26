@@ -9,6 +9,7 @@ interface TeamMember {
   displayName?: string;
   email?: string;
   collegeName?: string;
+  paymentStatus?: string;
 }
 
 interface TeamMemberItemProps {
@@ -104,6 +105,40 @@ const TeamMemberItem: React.FC<TeamMemberItemProps> = ({
                   }}
                 >
                   Leader
+                </Text>
+              </View>
+            )}
+
+            {member.paymentStatus === 'success' && (
+              <View
+                style={{
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  borderColor: 'rgba(16, 185, 129, 0.3)',
+                  borderWidth: 1,
+                  paddingHorizontal: 7,
+                  paddingVertical: 1,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 10, color: '#10B981' }}>
+                  Paid
+                </Text>
+              </View>
+            )}
+
+            {member.paymentStatus === 'pending' && (
+              <View
+                style={{
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  borderColor: 'rgba(245, 158, 11, 0.3)',
+                  borderWidth: 1,
+                  paddingHorizontal: 7,
+                  paddingVertical: 1,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 10, color: '#F59E0B' }}>
+                  Unpaid
                 </Text>
               </View>
             )}

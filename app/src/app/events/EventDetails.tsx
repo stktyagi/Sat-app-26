@@ -20,6 +20,7 @@ import RegistrationModal from '@/components/registration/RegistrationModal';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import MetallicButton from '@/components/MetallicButton';
 import EventTicketCard from '@/components/registration/EventTicketCard';
+import { isEventPaymentDue } from '@/utils/paymentHelpers';
 
 const EventDetailsScreen: React.FC = () => {
   const router = useRouter();
@@ -55,7 +56,13 @@ const EventDetailsScreen: React.FC = () => {
     ? (isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0))
     : 0;
   const requiresPayment = !!event?.paymentRequired && registrationFee > 0;
-  const isPaid = existingRegistration?.paymentStatus === 'success' || !!myTeam?.paid || !requiresPayment;
+  const isPaymentDue = requiresPayment && isEventPaymentDue({
+    event,
+    team: myTeam,
+    registration: existingRegistration,
+    userId,
+  });
+  const isPaid = !isPaymentDue;
 
   useFocusEffect(
     React.useCallback(() => {
@@ -73,7 +80,7 @@ const EventDetailsScreen: React.FC = () => {
     }
 
     if (existingRegistration) {
-      if (existingRegistration.paymentStatus === 'pending' && requiresPayment && (!isTeamEvent || isLeader)) {
+      if (isPaymentDue && (!isTeamEvent || isLeader)) {
         const params: Record<string, string> = { eventId: event.eventId };
         if (existingRegistration.teamId) params.teamId = existingRegistration.teamId;
         router.push({ pathname: '/events/Payment', params });
@@ -181,8 +188,7 @@ const EventDetailsScreen: React.FC = () => {
       return 'Registration Disabled (Private)';
     }
     if (existingRegistration) {
-      if (isPaid || !requiresPayment) return 'View Registration';
-      if (existingRegistration.paymentStatus === 'pending' && requiresPayment) {
+      if (isPaymentDue) {
         return isTeamEvent && !isLeader ? 'View Team (Payment Pending)' : 'Complete Payment';
       }
       return 'View Registration';
@@ -349,7 +355,7 @@ const EventDetailsScreen: React.FC = () => {
           )}
 
           {/* Payment Pending Badge */}
-          {existingRegistration && existingRegistration.paymentStatus === 'pending' && requiresPayment && (
+          {existingRegistration && isPaymentDue && (
             <View
               style={{
                 position: 'absolute',
@@ -600,7 +606,7 @@ const EventDetailsScreen: React.FC = () => {
         {/* Confirmed Entry Pass / Ticket Preview for Registered User */}
         {existingRegistration &&
           existingRegistration.status !== 'rejected' &&
-          existingRegistration.paymentStatus !== 'pending' && (
+          !isPaymentDue && (
             <View style={{ marginBottom: 20 }}>
               <View
                 style={{
@@ -868,7 +874,7 @@ const EventDetailsScreen: React.FC = () => {
           borderRadius={28}
           fontSize={16}
           variant={
-            existingRegistration?.paymentStatus === 'pending' && requiresPayment && (!isTeamEvent || isLeader)
+            isPaymentDue && (!isTeamEvent || isLeader)
               ? 'amber'
               : 'metallic'
           }
