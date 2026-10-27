@@ -118,14 +118,9 @@ func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg 
 		}
 
 		if team.Paid {
-			if isPerIndividual {
-				// The leader paid for prior members, but this new individual member is unpaid.
-				// Mark team paid as false so the leader can pay for the new member.
-				teamUpdates = append(teamUpdates, firestore.Update{Path: "paid", Value: false})
-				team.Paid = false
-				reg.PaymentStatus = models.RegPaymentPending
-			} else {
-				// Flat team fee: already paid by the leader, covers the new member at no additional cost.
+			coveredByPriorPayment := !isPerIndividual || minSize <= 0 || len(members) <= minSize
+			if coveredByPriorPayment {
+				// Flat team fee or covered by leader's upfront payment for the team
 				reg.PaymentStatus = models.RegPaymentSuccess
 				reg.PaidAt = now
 				if reg.PaymentDetails == nil {
@@ -133,6 +128,11 @@ func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg 
 				}
 				reg.PaymentDetails["amount"] = 0
 				reg.PaymentDetails["coveredByTeam"] = true
+			} else {
+				// Extra member beyond covered team size on a per-individual event
+				teamUpdates = append(teamUpdates, firestore.Update{Path: "paid", Value: false})
+				team.Paid = false
+				reg.PaymentStatus = models.RegPaymentPending
 			}
 		}
 

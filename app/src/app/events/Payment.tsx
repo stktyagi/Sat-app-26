@@ -21,7 +21,11 @@ const PaymentScreen: React.FC = () => {
   const queryClient = useQueryClient();
   const { eventId, teamId } = useLocalSearchParams<{ eventId: string; teamId?: string }>();
   const { userData: user } = useUserStore();
-  const { data: eventData, loading: eventLoading } = useEventDetail(eventId);
+  const { data: eventData, loading: eventLoading, refresh: refreshEventDetail } = useEventDetail(eventId);
+
+  useEffect(() => {
+    refreshEventDetail();
+  }, [refreshEventDetail]);
 
   const isHost =
     user?.isHostCollegeStudent ||
@@ -144,18 +148,31 @@ const PaymentScreen: React.FC = () => {
 
   const getBaseEventFee = () => {
     let fee = 0;
-    if (eventData?.event?.paymentRequired) {
-      if (
-        eventData.event.eventType === 'team' &&
-        isPerIndividualPayment(eventData.event.paymentType) &&
-        eventData.myTeam?.members?.length
-      ) {
-        const unpaidMembers = eventData.myTeam.members.filter((m: any) => m.paymentStatus !== 'success');
-        fee = unpaidMembers.reduce((acc: number, m: any) => {
-          return acc + (m.isHostCollegeStudent ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0));
+    const evt = eventData?.event;
+    if (evt?.paymentRequired) {
+      const isTeam = evt.eventType?.toLowerCase() === 'team' || !!(evt as any).isTeamEvent;
+      const isPerInd = isPerIndividualPayment(evt.paymentType);
+      const hostFee = evt.registrationFee?.host || 0;
+      const otherFee = evt.registrationFee?.other || 0;
+      const myRate = isHost ? hostFee : otherFee;
+
+      if (isTeam && isPerInd) {
+        const teamMembers = eventData?.myTeam?.members || [];
+        const unpaidMembers = teamMembers.filter((m: any) => m.paymentStatus !== 'success');
+
+        const joinedFee = unpaidMembers.reduce((acc: number, m: any) => {
+          return acc + (m.isHostCollegeStudent ? hostFee : otherFee);
         }, 0);
+
+        // If the team has fewer members joined than minTeamSize, also cover the remaining unfilled slots
+        // up to minTeamSize so all members of the team are covered in one payment.
+        const minSize = evt.minTeamSize || 1;
+        const currentMemberCount = teamMembers.length || 1;
+        const unfilledSlots = Math.max(0, minSize - currentMemberCount);
+
+        fee = joinedFee + (unfilledSlots * myRate);
       } else {
-        fee = isHost ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0);
+        fee = myRate;
       }
     }
     return fee;
@@ -372,7 +389,7 @@ const PaymentScreen: React.FC = () => {
 
   // 1. Check if user/team has ALREADY PAID for the event
   const isPerInd = isPerIndividualPayment(eventData?.event?.paymentType);
-  const isTeam = eventData?.event?.eventType === 'team';
+  const isTeam = eventData?.event?.eventType?.toLowerCase() === 'team' || !!(eventData?.event as any)?.isTeamEvent;
   const isLeader = eventData?.myTeam ? eventData.myTeam.leaderUserId === user?.userId : true;
 
   let isAlreadyPaid = false;
@@ -434,7 +451,7 @@ const PaymentScreen: React.FC = () => {
 
   // 2. Check if user is a team member who is NOT the leader
   const isTeamMemberNotLeader =
-    eventData?.event?.eventType === 'team' &&
+    isTeam &&
     !!eventData?.myTeam &&
     eventData.myTeam.leaderUserId !== user?.userId;
 
@@ -474,7 +491,7 @@ const PaymentScreen: React.FC = () => {
     );
   }
 
-  const isTeamEvent = eventData?.event?.eventType === 'team';
+  const isTeamEvent = isTeam;
 
   return (
     <View style={{ flex: 1, backgroundColor: bgColor }}>
@@ -541,7 +558,9 @@ const PaymentScreen: React.FC = () => {
           </Text>
           {isTeamEvent && (
             <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12, marginTop: 4 }}>
-              Covers all registered members of your team.
+              {isPerInd
+                ? `Covers all ${Math.max(eventData?.myTeam?.members?.length || 1, eventData?.event?.minTeamSize || 1)} members of your team.`
+                : 'Covers all registered members of your team.'}
             </Text>
           )}
         </View>

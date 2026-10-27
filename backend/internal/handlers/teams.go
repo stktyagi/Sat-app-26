@@ -480,12 +480,6 @@ func (a *API) hydrateMembers(ctx context.Context, team *models.Team) {
 		if team.EventID != "" {
 			if reg, err := a.Store.GetRegistration(ctx, models.RegistrationID(team.EventID, id)); err == nil && reg != nil {
 				pub.PaymentStatus = reg.PaymentStatus
-				// If this event is per-individual and member was mistakenly marked as coveredByTeam during previous bug, self-heal:
-				if event != nil && event.IsPerIndividual() && id != team.LeaderUserID {
-					if reg.PaymentDetails != nil && reg.PaymentDetails["coveredByTeam"] == true {
-						pub.PaymentStatus = models.RegPaymentPending
-					}
-				}
 			}
 		}
 		if pub.PaymentStatus != models.RegPaymentSuccess {

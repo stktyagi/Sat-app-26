@@ -52,17 +52,24 @@ const TeamSubmissionModal: React.FC<TeamSubmissionModalProps> = ({
   const handleFinalSubmit = async (formData: Record<string, any>) => {
     let fee = 0;
     const isPerInd = isPerIndividualPayment(event.paymentType);
+    const isTeam = event.eventType?.toLowerCase() === 'team' || !!(event as any).isTeamEvent;
+    const hostFee = event.registrationFee?.host || 0;
+    const otherFee = event.registrationFee?.other || 0;
+    const myRate = isHostStudent ? hostFee : otherFee;
+
     if (event.paymentRequired) {
-      if (
-        event.eventType === 'team' &&
-        isPerInd &&
-        teamData.members?.length
-      ) {
-        fee = teamData.members.reduce((acc: number, m: any) => {
-          return acc + (m.isHostCollegeStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
+      if (isTeam && isPerInd) {
+        const teamMembers = teamData.members || [];
+        const unpaidMembers = teamMembers.filter((m: any) => (m as any).paymentStatus !== 'success');
+        const joinedFee = unpaidMembers.reduce((acc: number, m: any) => {
+          return acc + (m.isHostCollegeStudent ? hostFee : otherFee);
         }, 0);
+        const minSize = event.minTeamSize || 1;
+        const currentMemberCount = teamMembers.length || 1;
+        const unfilledSlots = Math.max(0, minSize - currentMemberCount);
+        fee = joinedFee + (unfilledSlots * myRate);
       } else {
-        fee = isHostStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
+        fee = myRate;
       }
     }
     const requiresPayment = !!event.paymentRequired && fee > 0;

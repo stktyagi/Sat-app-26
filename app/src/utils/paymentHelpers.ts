@@ -26,7 +26,7 @@ export const isEventPaymentDue = ({
 }: EventPaymentStatusParams): boolean => {
   if (!event?.paymentRequired) return false;
 
-  const isTeam = event?.eventType === 'team';
+  const isTeam = event?.eventType?.toLowerCase() === 'team' || !!event?.isTeamEvent;
   if (isTeam && team) {
     const isPerInd = isPerIndividualPayment(event?.paymentType);
     const isLeader = userId ? team.leaderUserId === userId : true;

@@ -311,14 +311,11 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				for _, mid := range team.MemberIDs {
 					reg, err := a.Store.GetRegistration(ctx, models.RegistrationID(event.EventID, mid))
 					isUnpaid := err != nil || reg.PaymentStatus != models.RegPaymentSuccess
-					if !isUnpaid && mid != team.LeaderUserID && reg.PaymentDetails != nil && reg.PaymentDetails["coveredByTeam"] == true {
-						isUnpaid = true
-					}
 					if isUnpaid {
 						unpaidMemberIDs = append(unpaidMemberIDs, mid)
 					}
 				}
-				if len(unpaidMemberIDs) == 0 {
+				if len(unpaidMemberIDs) == 0 && team.Paid {
 					apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed for all team members"))
 					return
 				}
@@ -348,7 +345,7 @@ func (a *API) InitiatePayment(c *gin.Context) {
 	}
 
 	// Event fee. A per-individual team event is priced per unpaid member, each by their
-	// own host status.
+	// own host status, plus remaining slots up to minTeamSize.
 	eventFee := 0
 	memberFees := map[string]int{}
 	if event != nil {
@@ -359,16 +356,26 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				apierr.Respond(c, apierr.Internal("could not price the team"))
 				return
 			}
-			if len(members) != len(covered) {
-				apierr.Respond(c, apierr.Internal("a team member's profile is missing; contact the organisers"))
-				return
-			}
 			eventFee = 0
-			for _, m := range members {
-				m.ResolveHostStatus(a.Cfg.HostEmailDomain)
-				f := event.FeeFor(m.IsHostCollegeStudent)
+			for _, mid := range covered {
+				m := members[mid]
+				isHost := user.IsHostCollegeStudent
+				if m != nil {
+					m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+					isHost = m.IsHostCollegeStudent
+				}
+				f := event.FeeFor(isHost)
 				eventFee += f
-				memberFees[m.UserID] = f
+				memberFees[mid] = f
+			}
+
+			// If the team currently has fewer members than minTeamSize,
+			// charge for the remaining slots up to minTeamSize so all members of the team are covered in one payment.
+			minSize := event.MinTeamSize
+			if minSize > 1 && len(team.MemberIDs) < minSize {
+				remainingSlots := minSize - len(team.MemberIDs)
+				slotFee := event.FeeFor(user.IsHostCollegeStudent)
+				eventFee += remainingSlots * slotFee
 			}
 		}
 		// A team with a flat team fee that already paid part of the fee is charged only the rest.
