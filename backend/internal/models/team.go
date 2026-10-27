@@ -33,8 +33,11 @@ type Team struct {
 	InviteCode   string   `json:"inviteCode,omitempty" firestore:"inviteCode"`
 	Status       string   `json:"status"               firestore:"status"`
 	MemberIDs    []string `json:"memberIds"            firestore:"memberIds"`
-	// Paid is set when the leader's payment settles; a paid team takes no new members.
-	Paid      bool       `json:"paid"                 firestore:"paid"`
+	// Paid is set when the leader's payment covers the whole roster. A new member
+	// on a per-individual event clears it so the leader can pay the difference.
+	Paid bool `json:"paid"                 firestore:"paid"`
+	// PaidTill is the event fee already settled for this team, before discount.
+	PaidTill  int        `json:"paidTill"             firestore:"paidTill"`
 	Responses []Response `json:"responses"            firestore:"responses"`
 	CreatedAt string     `json:"createdAt"            firestore:"createdAt"`
 	UpdatedAt string     `json:"updatedAt"            firestore:"updatedAt"`

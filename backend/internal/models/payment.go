@@ -38,7 +38,8 @@ type EventRegistrationIntention struct {
 	Amount    int    `json:"amount"    firestore:"amount"` // event portion of the charge, before discount
 	// CoveredUserIDs are the users whose registrations this payment settles:
 	// the team roster at checkout time, or just the payer.
-	CoveredUserIDs []string `json:"coveredUserIds" firestore:"coveredUserIds"`
+	CoveredUserIDs []string `json:"coveredUserIds"           firestore:"coveredUserIds"`
+	PerIndividual  bool     `json:"perIndividual,omitempty" firestore:"perIndividual,omitempty"`
 }
 
 // ProcessedIntentions holds what the payment covers.

@@ -76,6 +76,14 @@ type User struct {
 	UpdatedAt                   string          `json:"updatedAt"                   firestore:"updatedAt"`
 	FCMToken                    string          `json:"fcmToken"                    firestore:"fcmToken"`
 
+	// Face photo and college ID card. The refs are storage handles, kept
+	// server-side so the files can be replaced or deleted; only the URLs go out.
+	// PublicProfile carries neither, so teammates never see them.
+	PhotoRef     string `json:"-"            firestore:"photoRef"`
+	PhotoURL     string `json:"photoUrl"     firestore:"photoUrl"`
+	CollegeIDRef string `json:"-"            firestore:"collegeIdRef"`
+	CollegeIDURL string `json:"collegeIdUrl" firestore:"collegeIdUrl"`
+
 	// IsHostCollegeStudent is derived from the verified email domain on every
 	// load, never stored. A stored copy could disagree with the token that is
 	// actually presenting the request, and this value decides both pricing and
@@ -104,6 +112,13 @@ func NewUser(uid, address, displayName, referralCode string) *User {
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
+}
+
+// NeedsIdentity reports whether this account must supply a face photo and a
+// college ID before registering. Host-college students are already identified
+// by their email domain, and admins are trusted.
+func (u *User) NeedsIdentity() bool {
+	return u != nil && !u.IsHostCollegeStudent && !u.IsAdmin()
 }
 
 func (u *User) IsAdmin() bool {
@@ -165,6 +180,7 @@ type PublicProfile struct {
 	DisplayName          string `json:"displayName"`
 	CollegeName          string `json:"collegeName"`
 	IsHostCollegeStudent bool   `json:"isHostCollegeStudent"`
+	PaymentStatus        string `json:"paymentStatus,omitempty"`
 }
 
 func (u *User) Public() PublicProfile {

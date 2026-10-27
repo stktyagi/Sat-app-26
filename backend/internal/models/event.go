@@ -117,6 +117,15 @@ func (e *Event) FeeFor(isHost bool) int {
 // decodes to.
 func (e *Event) Unlimited() bool { return e.MaxParticipants <= 0 }
 
+// IsPerIndividual checks if the event fee is priced per participant rather than a flat team fee.
+func (e *Event) IsPerIndividual() bool {
+	if e == nil {
+		return false
+	}
+	pt := strings.ToLower(strings.TrimSpace(e.PaymentType))
+	return pt == "per_individual" || pt == "perhead" || pt == "per_head" || pt == "individual"
+}
+
 func (e *Event) IsRegistrationOpen(now time.Time) bool {
 	if !e.IsPublic {
 		return false

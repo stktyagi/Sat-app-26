@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
 
+	"backend/internal/isotime"
 	"backend/internal/models"
 )
 
@@ -131,3 +132,15 @@ func (s *Store) UpdateRegistrationStatus(ctx context.Context, id, status string)
 	})
 	return wrap(err)
 }
+
+// MarkRegistrationCovered marks a registration as successfully paid via team credit.
+func (s *Store) MarkRegistrationCovered(ctx context.Context, id string) error {
+	_, err := s.FS.Collection(ColRegistrations).Doc(id).Update(ctx, []firestore.Update{
+		{Path: "paymentStatus", Value: models.RegPaymentSuccess},
+		{Path: "paidAt", Value: isotime.Now()},
+		{Path: "paymentDetails.amount", Value: 0},
+		{Path: "paymentDetails.coveredByTeam", Value: true},
+	})
+	return wrap(err)
+}
+

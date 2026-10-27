@@ -42,8 +42,11 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 
 	authed.GET("/me", api.GetMe)
 	authed.PATCH("/me", api.PatchMe)
+	authed.DELETE("/me", api.DeleteSelf)
 	authed.GET("/me/events", api.GetMyEvents)
 	authed.POST("/me/fcm-token", api.UpdateFCMToken)
+	authed.POST("/me/photo", api.uploadMine("photoRef", "photoUrl", "users/photos", func(u *models.User) string { return u.PhotoRef }))
+	authed.POST("/me/college-id", api.uploadMine("collegeIdRef", "collegeIdUrl", "users/college-ids", func(u *models.User) string { return u.CollegeIDRef }))
 
 	// Public browsing. The optional token is what lets a signed-in caller see
 	// their own fee and registration without a second request.
@@ -78,6 +81,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	registered.POST("/events/:id/teams", api.CreateTeam)
 	registered.POST("/teams/join", api.JoinTeam)
 	authed.GET("/teams/:teamRef", api.GetTeam)
+	authed.GET("/teams/:teamRef/accommodation", api.TeamAccommodation)
 	authed.PATCH("/teams/:teamRef", api.RenameTeam)
 	authed.DELETE("/teams/:teamRef", api.DeleteTeam)
 	authed.POST("/teams/:teamRef/leave", api.LeaveTeam)
@@ -119,7 +123,6 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	eventsShared.PATCH("/admin/events/:id", api.UpdateEvent)
 	eventsShared.GET("/admin/events/:id/registrations", api.ListEventRegistrations)
 	eventsShared.PATCH("/admin/events/:id/registrations/:target/status", api.AdminUpdateRegistrationStatus)
-
 
 	// Venues: Admin, EB_Events
 	venues := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents))

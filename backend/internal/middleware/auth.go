@@ -90,6 +90,17 @@ func RequireFullyRegistered() gin.HandlerFunc {
 			apierr.Respond(c, apierr.Forbidden("profile_incomplete", "complete your profile with PATCH /api/v1/me before registering"))
 			return
 		}
+		// Checked live rather than folded into fullyRegistered, so existing
+		// profiles need no migration and the host/admin exemption always
+		// follows the token presenting the request.
+		if u.NeedsIdentity() && u.PhotoURL == "" {
+			apierr.Respond(c, apierr.Forbidden("photo_required", "upload a profile photo with POST /api/v1/me/photo before registering"))
+			return
+		}
+		if u.NeedsIdentity() && u.CollegeIDURL == "" {
+			apierr.Respond(c, apierr.Forbidden("college_id_required", "upload your college ID with POST /api/v1/me/college-id before registering"))
+			return
+		}
 		c.Next()
 	}
 }
