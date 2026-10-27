@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/middleware"
+	"backend/internal/models"
 )
 
 func (a *API) DeleteSelf(c *gin.Context) {
@@ -17,8 +18,15 @@ func (a *API) DeleteSelf(c *gin.Context) {
 		})
 		return
 	}
+	a.dropIdentityFiles(user)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 	})
+}
+
+// dropIdentityFiles deletes a removed account's face photo and college ID from
+// storage. Background and best effort, via settleMedia.
+func (a *API) dropIdentityFiles(u *models.User) {
+	a.settleMedia(true, []string{u.PhotoRef, u.CollegeIDRef}, nil)
 }

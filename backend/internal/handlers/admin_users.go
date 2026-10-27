@@ -224,6 +224,7 @@ func (a *API) AdminDeleteUser(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not delete user document"))
 		return
 	}
+	a.dropIdentityFiles(user)
 
 	c.Status(http.StatusNoContent)
 }
