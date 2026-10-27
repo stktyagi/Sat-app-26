@@ -243,9 +243,9 @@ export default function HeroBanner({
               elevation: 4,
             }}
           >
-            {userProfile?.photoURL ? (
+            {(userProfile?.photoUrl || userProfile?.photoURL || userData?.photoUrl || userData?.photoURL) ? (
               <Image
-                source={{ uri: userProfile.photoURL }}
+                source={{ uri: userProfile?.photoUrl || userProfile?.photoURL || userData?.photoUrl || userData?.photoURL }}
                 style={{ width: '100%', height: '100%', borderRadius: 22 }}
                 resizeMode="cover"
               />

@@ -47,6 +47,8 @@ export interface UserProfile {
   role: string;
   roles: string[]; // New roles array
   photoURL?: string;
+  photoUrl?: string;
+  collegeIdUrl?: string;
   referralCode?: string; // blame hari for the incorret spelling
   referredBy?: string;
   createdAt: string;

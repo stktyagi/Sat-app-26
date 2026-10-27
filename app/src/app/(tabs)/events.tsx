@@ -291,9 +291,9 @@ export default function EventsTabScreen() {
               overflow: 'hidden',
             }}
           >
-            {userProfile?.photoURL ? (
+            {(userProfile?.photoUrl || userProfile?.photoURL) ? (
               <Image
-                source={{ uri: userProfile.photoURL }}
+                source={{ uri: userProfile.photoUrl || userProfile.photoURL }}
                 style={{ width: '100%', height: '100%', borderRadius: 22 }}
                 resizeMode="cover"
               />

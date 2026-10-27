@@ -7,6 +7,7 @@ import {
   StatusBar,
   Alert,
   Linking,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from 'expo-router';
@@ -140,13 +141,24 @@ const ProfileDetailsScreen = () => {
                 alignItems: "center",
                 justifyContent: "center",
                 marginRight: 16,
+                overflow: 'hidden',
+                borderWidth: 2,
+                borderColor: '#41B8F0',
               }}
             >
-              <Text
-                style={{ fontFamily: "Talina", color: '#41B8F0', fontSize: 28 }}
-              >
-                {userProfile?.displayName?.charAt(0).toUpperCase() || "U"}
-              </Text>
+              {(userProfile?.photoUrl || userProfile?.photoURL) ? (
+                <Image
+                  source={{ uri: userProfile.photoUrl || userProfile.photoURL }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text
+                  style={{ fontFamily: "Talina", color: '#41B8F0', fontSize: 28 }}
+                >
+                  {userProfile?.displayName?.charAt(0).toUpperCase() || "U"}
+                </Text>
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text

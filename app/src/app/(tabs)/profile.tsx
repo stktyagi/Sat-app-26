@@ -1,5 +1,4 @@
-// src/screens/App/ProfileScreen.tsx
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Text,
   View,
@@ -13,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
@@ -29,7 +28,7 @@ import { runAllDebugChecks } from "@/utils/debugVersion";
 const ProfileScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { userData: userProfile } = useUserStore();
+  const { userData: userProfile, refreshUserProfile } = useUserStore();
   const canSeeAdmin = isUserAdmin(userProfile);
   const { isDark, toggleTheme } = useThemeStore();
   const { openDrawer } = useAdminDrawerStore();
@@ -37,6 +36,12 @@ const ProfileScreen = () => {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshUserProfile().catch(() => {});
+    }, [refreshUserProfile])
+  );
 
   const boysHairStyles = ['turban', 'fonze'];
   const girlsHairStyles = ['full', 'pixie'];
@@ -382,9 +387,9 @@ const ProfileScreen = () => {
               }}
             >
               <View style={{ width: '100%', height: '100%', borderRadius: 30, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-                {userProfile?.photoURL ? (
+                {(userProfile?.photoUrl || userProfile?.photoURL) ? (
                   <Image
-                    source={{ uri: userProfile.photoURL }}
+                    source={{ uri: userProfile.photoUrl || userProfile.photoURL }}
                     style={{ width: '100%', height: '100%' }}
                     resizeMode="cover"
                   />
