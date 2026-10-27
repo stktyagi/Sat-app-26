@@ -6,8 +6,8 @@
 //   ? "http://172.16.212.175:6767/api/v1"
 //   : "https://api.saturnalia.in/api/v1";
 
-// export const API_BASE_URL = "https://api.saturnalia.in/api/v1";
-export const API_BASE_URL = "http://172.16.212.137:6767/api/v1";
+export const API_BASE_URL = "https://api.saturnalia.in/api/v1";
+// export const API_BASE_URL = "http://172.16.212.137:6767/api/v1";
 
 
 
