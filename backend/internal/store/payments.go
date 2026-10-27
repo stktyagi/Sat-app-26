@@ -368,8 +368,12 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			}
 		}
 
-		if markTeamPaid {
-			if err := tx.Update(teamRef, []firestore.Update{{Path: "paid", Value: true}}); err != nil {
+		if teamSnap != nil && teamSnap.Exists() && evt != nil {
+			teamUpd := []firestore.Update{{Path: "paidTill", Value: firestore.Increment(evt.Amount)}}
+			if markTeamPaid {
+				teamUpd = append(teamUpd, firestore.Update{Path: "paid", Value: true})
+			}
+			if err := tx.Update(teamRef, teamUpd); err != nil {
 				return err
 			}
 		}

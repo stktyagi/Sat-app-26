@@ -350,6 +350,10 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				memberFees[m.UserID] = f
 			}
 		}
+		// A team that already paid part of the fee is charged only the rest.
+		if team != nil {
+			eventFee = max(eventFee-team.PaidTill, 0)
+		}
 	}
 
 	accPrice, foodPrice := a.resolveStayPrices(c.Request.Context(), user, body.EventID)
@@ -457,6 +461,9 @@ func (a *API) initiate(
 	}
 	if len(memberFees) > 0 {
 		bill["event_members"] = memberFees
+	}
+	if team != nil && team.PaidTill > 0 {
+		bill["already_paid"] = team.PaidTill
 	}
 	if discountAmount > 0 {
 		bill["discount"] = discountAmount

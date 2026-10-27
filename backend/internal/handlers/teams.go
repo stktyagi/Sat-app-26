@@ -134,7 +134,9 @@ func (a *API) JoinTeam(c *gin.Context) {
 	regID := models.RegistrationID(event.EventID, user.UserID)
 	reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, team.InviteCode, fee, body.Responses)
 
-	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize)
+	// Only a per-member fee grows with the roster; a per-team fee is already covered.
+	resetPaid := event.PaymentRequired && event.PaymentType == "per_individual"
+	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize, resetPaid)
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrTeamFull):
@@ -164,6 +166,39 @@ func (a *API) GetTeam(c *gin.Context) {
 		return
 	}
 	a.presentTeam(c, team)
+}
+
+// TeamAccommodation lists the stay and food days each member holds. Only the
+// team itself (and admins) can see it.
+func (a *API) TeamAccommodation(c *gin.Context) {
+	team, ok := a.loadTeam(c)
+	if !ok {
+		return
+	}
+	user := middleware.CurrentUser(c)
+	if !team.HasMember(user.UserID) && !user.IsAdmin() {
+		apierr.Respond(c, apierr.Forbidden("not_a_member", "you are not in this team"))
+		return
+	}
+	users, err := a.Store.GetUsers(c.Request.Context(), team.MemberIDs)
+	if err != nil {
+		apierr.Respond(c, apierr.Internal("could not load team members"))
+		return
+	}
+	members := make([]gin.H, 0, len(team.MemberIDs))
+	for _, id := range team.MemberIDs {
+		u, ok := users[id]
+		if !ok {
+			continue
+		}
+		members = append(members, gin.H{
+			"userId":        u.UserID,
+			"displayName":   u.DisplayName,
+			"accommodation": u.Accommodation,
+			"food":          u.Food,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"members": members})
 }
 
 type renameTeamBody struct {
@@ -317,7 +352,10 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 		}
 	}
 
-	if teamFee > 0 && !team.Paid {
+	// paidTill covering the fee counts as paid, e.g. a fee-free member joined
+	// after the leader paid and cleared the paid flag.
+	covered := teamFee <= team.PaidTill
+	if !covered && !team.Paid {
 		apierr.Respond(c, apierr.Conflict("payment_required", "payment is pending or due for this event. Please complete payment to finalize registration"))
 		return
 	}
@@ -327,7 +365,7 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 		return
 	}
 
-	markPaid := teamFee == 0
+	markPaid := covered
 	if err := a.Store.ConfirmTeam(c.Request.Context(), team.TeamID, user.UserID, markPaid); err != nil {
 		apierr.Respond(c, apierr.Internal("could not complete team registration"))
 		return

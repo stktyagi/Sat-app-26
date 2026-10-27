@@ -75,7 +75,9 @@ func (s *Store) CreateTeamWithLeader(ctx context.Context, team *models.Team, reg
 // JoinTeam appends a member and creates their registration atomically. The
 // capacity and duplicate checks run inside the transaction against the value
 // actually read, so two people claiming the last slot cannot both succeed.
-func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg *models.Registration, minSize, maxSize int) (*models.Team, error) {
+// resetPaid clears the team's paid flag, for events where a new member adds to
+// what the team owes.
+func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg *models.Registration, minSize, maxSize int, resetPaid bool) (*models.Team, error) {
 	teamRef := s.FS.Collection(ColTeams).Doc(teamID)
 	regRef := s.FS.Collection(ColRegistrations).Doc(regID)
 
@@ -96,22 +98,28 @@ func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg 
 			return ErrTeamFull
 		}
 		// The leader's payment covers the roster as it stood at checkout, so the
-		// roster is frozen while a checkout is open and for good once paid.
+		// roster is frozen while a checkout is open and for good once confirmed.
+		// A paid team stays open; the leader pays the difference (see PaidTill).
 		locked, err := hasLiveCheckout(tx, s.FS.Collection(ColCheckouts).Doc(teamID))
 		if err != nil {
 			return err
 		}
-		if team.Paid || locked || team.Status == models.TeamStatusConfirmed {
+		if locked || team.Status == models.TeamStatusConfirmed {
 			return ErrTeamLocked
 		}
 
 		members := append(append([]string{}, team.MemberIDs...), userID)
 		now := isotime.Now()
 
-		if err := tx.Update(teamRef, []firestore.Update{
+		upd := []firestore.Update{
 			{Path: "memberIds", Value: members},
 			{Path: "updatedAt", Value: now},
-		}); err != nil {
+		}
+		if resetPaid {
+			upd = append(upd, firestore.Update{Path: "paid", Value: false})
+			team.Paid = false
+		}
+		if err := tx.Update(teamRef, upd); err != nil {
 			return err
 		}
 		if err := tx.Create(regRef, reg); err != nil {
