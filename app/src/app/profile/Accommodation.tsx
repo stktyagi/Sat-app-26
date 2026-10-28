@@ -232,9 +232,8 @@ export default function AccommodationScreen() {
       return;
     }
 
-    let paymentType = 'accommodation';
-    if (hasAcc && hasFood) paymentType = 'accommodation_and_food';
-    else if (hasFood) paymentType = 'food';
+    // The backend has no food-only type; food rides on accommodation_and_food.
+    const paymentType = hasFood ? 'accommodation_and_food' : 'accommodation';
 
     let appliedCoupon: string | undefined = undefined;
     if (validCoupon) {
@@ -257,6 +256,14 @@ export default function AccommodationScreen() {
         accommodation: accToPay,
         food: foodToPay,
       });
+
+      // Never open the gateway for an amount other than the one on screen.
+      if (res.bill?.final != null && res.bill.final !== Math.round(finalAmount)) {
+        setPhase('select');
+        showAlert("Price Updated", `The server total is ₹${res.bill.final}, not ₹${finalAmount}. Please review your selection and try again.`);
+        await refreshUserProfile();
+        return;
+      }
 
       // Only the backend's record decides the outcome; the client SDK/redirect is not solely trusted.
       const orderId = res.merchantOrderId;

@@ -269,6 +269,14 @@ const PaymentScreen: React.FC = () => {
         food: foodToPay,
       });
 
+      // Never open the gateway for an amount other than the one on screen.
+      if (res.bill?.final != null && res.bill.final !== Math.round(finalAmount)) {
+        setPhase('checkout');
+        showAlert('Price Updated', `The server total is ₹${res.bill.final}, not ₹${finalAmount}. Please review your selection and try again.`);
+        await useUserStore.getState().refreshUserProfile();
+        return;
+      }
+
       // Only the backend's record decides the outcome; the client SDK/redirect is not solely trusted.
       const orderId = res.merchantOrderId;
       setPhase('opening');
