@@ -131,6 +131,23 @@ func (a *API) AdminUpdateAppAccommodation(c *gin.Context) {
 		return
 	}
 
+	// The admin app doesn't send per-day prices yet; keep the stored ones
+	// rather than wiping them on a full Set.
+	if cur, err := a.Store.GetAppAccommodation(c.Request.Context()); err == nil && cur != nil {
+		if body.TechnicalDays == nil {
+			body.TechnicalDays = cur.TechnicalDays
+		}
+		if body.CulturalDays == nil {
+			body.CulturalDays = cur.CulturalDays
+		}
+		if body.TechnicalFoodDays == nil {
+			body.TechnicalFoodDays = cur.TechnicalFoodDays
+		}
+		if body.CulturalFoodDays == nil {
+			body.CulturalFoodDays = cur.CulturalFoodDays
+		}
+	}
+
 	if err := a.Store.SetAppAccommodation(c.Request.Context(), &body); err != nil {
 		log.Printf("[AdminUpdateAppAccommodation] error: %v", err)
 		apierr.Respond(c, apierr.Internal("could not update accommodation configuration"))
