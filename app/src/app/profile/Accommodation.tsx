@@ -33,7 +33,7 @@ export default function AccommodationScreen() {
   const { userData: user, refreshUserProfile } = useUserStore();
 
   const [accDayPrices, setAccDayPrices] = useState<Record<string, number>>({
-    day0: 0, day1: 650, day2: 650, day3: 650, day4: 0,
+    day0: 650, day1: 650, day2: 650, day3: 650, day4: 650,
   });
   const [foodDayPrices, setFoodDayPrices] = useState<Record<string, number>>({
     day0: 150, day1: 150, day2: 150, day3: 150, day4: 150,
@@ -153,10 +153,10 @@ export default function AccommodationScreen() {
   const calculateTotal = () => {
     let total = 0;
     Object.entries(selectedAcc).forEach(([day, selected]) => {
-      if (selected && !user?.accommodation?.[day]) total += (accDayPrices[day] ?? 0);
+      if (selected && !user?.accommodation?.[day]) total += (accDayPrices[day] || 650);
     });
     Object.entries(selectedFood).forEach(([day, selected]) => {
-      if (selected && !user?.food?.[day]) total += (foodDayPrices[day] ?? 0);
+      if (selected && !user?.food?.[day]) total += (foodDayPrices[day] || 150);
     });
     return total;
   };
@@ -485,8 +485,8 @@ export default function AccommodationScreen() {
         {FESTIVAL_DAYS.map((day) => {
           const accLocked = user?.accommodation?.[day.key] || false;
           const foodLocked = user?.food?.[day.key] || false;
-          const dayAccPrice = accDayPrices[day.key] ?? 0;
-          const dayFoodPrice = foodDayPrices[day.key] ?? 0;
+          const dayAccPrice = accDayPrices[day.key] || 650;
+          const dayFoodPrice = foodDayPrices[day.key] || 150;
 
           return (
             <View
@@ -524,7 +524,7 @@ export default function AccommodationScreen() {
                     Hostel Stay
                   </Text>
                   <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
-                    Campus hostel room {dayAccPrice === 0 ? '(Free)' : `(₹${dayAccPrice}/day)`}
+                    Campus hostel room (₹{dayAccPrice}/day)
                   </Text>
                   {registeredEventsCount === 0 && !accLocked && (
                     <Text style={{ fontFamily: 'Poppins_500Medium', color: '#f59e0b', fontSize: 11, marginTop: 2 }}>
@@ -557,7 +557,7 @@ export default function AccommodationScreen() {
                     Meal Pass
                   </Text>
                   <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
-                    3 fresh meals included {dayFoodPrice === 0 ? '(Free)' : `(₹${dayFoodPrice}/day)`}
+                    3 fresh meals included (₹{dayFoodPrice}/day)
                   </Text>
                 </View>
                 {foodLocked ? (

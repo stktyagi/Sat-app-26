@@ -75,8 +75,8 @@ export default function AppConfigScreen() {
     foodAmount: 150,
     technicalFoodAmount: 150,
     culturalFoodAmount: 150,
-    technicalDays: { day0: 0, day1: 650, day2: 650, day3: 650, day4: 0 },
-    culturalDays: { day0: 0, day1: 650, day2: 650, day3: 650, day4: 0 },
+    technicalDays: { day0: 650, day1: 650, day2: 650, day3: 650, day4: 650 },
+    culturalDays: { day0: 650, day1: 650, day2: 650, day3: 650, day4: 650 },
     technicalFoodDays: { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
     culturalFoodDays: { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
   });
@@ -121,8 +121,8 @@ export default function AppConfigScreen() {
           foodAmount: data.accommodation.foodAmount ?? 150,
           technicalFoodAmount: data.accommodation.technicalFoodAmount ?? data.accommodation.foodAmount ?? 150,
           culturalFoodAmount: data.accommodation.culturalFoodAmount ?? data.accommodation.foodAmount ?? 150,
-          technicalDays: data.accommodation.technicalDays || { day0: 0, day1: 650, day2: 650, day3: 650, day4: 0 },
-          culturalDays: data.accommodation.culturalDays || { day0: 0, day1: 650, day2: 650, day3: 650, day4: 0 },
+          technicalDays: data.accommodation.technicalDays || { day0: 650, day1: 650, day2: 650, day3: 650, day4: 650 },
+          culturalDays: data.accommodation.culturalDays || { day0: 650, day1: 650, day2: 650, day3: 650, day4: 650 },
           technicalFoodDays: data.accommodation.technicalFoodDays || { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
           culturalFoodDays: data.accommodation.culturalFoodDays || { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
         });
@@ -748,15 +748,15 @@ export default function AppConfigScreen() {
                       </Text>
                     </View>
                     <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 12, color: textSecondary }}>
-                      Customize pricing for each festival day. Setting ₹0 makes the day complimentary for participants.
+                      Customize pricing for each festival day.
                     </Text>
                   </View>
 
                   {/* Day Cards */}
                   {DAY_LIST.map((d) => {
-                    const techVal = accommodation.technicalDays?.[d.key] ?? accommodation.technicalAmount ?? accommodation.amount ?? 650;
-                    const cultVal = accommodation.culturalDays?.[d.key] ?? accommodation.culturalAmount ?? accommodation.amount ?? 650;
-                    const isFreeStay = techVal === 0 && cultVal === 0;
+                    const defaultTech = accommodation.technicalAmount || accommodation.amount || 650;
+                    const defaultCult = accommodation.culturalAmount || accommodation.amount || 650;
+                    const defaultFood = accommodation.technicalFoodAmount || accommodation.foodAmount || 150;
 
                     return (
                       <View
@@ -765,7 +765,7 @@ export default function AppConfigScreen() {
                           backgroundColor: isDark ? '#23232D' : '#F9FAFB',
                           borderRadius: 16,
                           borderWidth: 1,
-                          borderColor: isFreeStay ? (isDark ? 'rgba(34, 197, 94, 0.4)' : '#86EFAC') : cardBorder,
+                          borderColor: cardBorder,
                           padding: 14,
                           gap: 12,
                         }}
@@ -779,13 +779,6 @@ export default function AppConfigScreen() {
                               • {d.date}
                             </Text>
                           </View>
-                          {isFreeStay && (
-                            <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                              <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: '#22c55e' }}>
-                                Free Stay
-                              </Text>
-                            </View>
-                          )}
                         </View>
 
                         <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -815,7 +808,7 @@ export default function AppConfigScreen() {
                                     technicalDays: { ...(prev.technicalDays || {}), [d.key]: val },
                                   }));
                                 }}
-                                placeholder="0"
+                                placeholder={String(defaultTech)}
                                 placeholderTextColor={textSecondary}
                                 keyboardType="number-pad"
                                 style={{
@@ -855,7 +848,7 @@ export default function AppConfigScreen() {
                                     culturalDays: { ...(prev.culturalDays || {}), [d.key]: val },
                                   }));
                                 }}
-                                placeholder="0"
+                                placeholder={String(defaultCult)}
                                 placeholderTextColor={textSecondary}
                                 keyboardType="number-pad"
                                 style={{
@@ -896,7 +889,7 @@ export default function AppConfigScreen() {
                                     culturalFoodDays: { ...(prev.culturalFoodDays || {}), [d.key]: val },
                                   }));
                                 }}
-                                placeholder="0"
+                                placeholder={String(defaultFood)}
                                 placeholderTextColor={textSecondary}
                                 keyboardType="number-pad"
                                 style={{

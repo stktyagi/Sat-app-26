@@ -343,19 +343,19 @@ func TestStayPricesPerDay(t *testing.T) {
 		t.Errorf("per-day fee = %d, want 1550", fee)
 	}
 
-	// Zero pricing per day (e.g. day0 and day4 are free)
-	zeroDoc := &models.AppAccommodation{
+	// Zero or missing per-day prices fall back to category price
+	fallbackDoc := &models.AppAccommodation{
 		Amount:          650,
 		TechnicalAmount: 650,
 		CulturalAmount:  650,
 		TechnicalDays:   map[string]int{"day0": 0, "day4": 0},
 		CulturalDays:    map[string]int{"day0": 0, "day4": 0},
 	}
-	zeroAcc, _ := stayPrices(zeroDoc, true, false)
-	if zeroAcc["day0"] != 0 || zeroAcc["day4"] != 0 || zeroAcc["day1"] != 650 {
-		t.Errorf("zero pricing: acc=%v", zeroAcc)
+	fbAcc, _ := stayPrices(fallbackDoc, true, false)
+	if fbAcc["day0"] != 650 || fbAcc["day4"] != 650 || fbAcc["day1"] != 650 {
+		t.Errorf("fallback pricing: acc=%v", fbAcc)
 	}
-	if _, fee, _ := stayCharge(map[string]bool{"day0": true, "day1": true, "day4": true}, nil, zeroAcc); fee != 650 {
-		t.Errorf("fee with free days: got %d, want 650", fee)
+	if _, fee, _ := stayCharge(map[string]bool{"day0": true, "day1": true, "day4": true}, nil, fbAcc); fee != 1950 {
+		t.Errorf("fee with fallback days: got %d, want 1950", fee)
 	}
 }

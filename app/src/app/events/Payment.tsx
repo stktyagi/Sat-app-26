@@ -40,7 +40,7 @@ const PaymentScreen: React.FC = () => {
   });
 
   const [accDayPrices, setAccDayPrices] = useState<Record<string, number>>({
-    day0: 0, day1: 650, day2: 650, day3: 650, day4: 0,
+    day0: 650, day1: 650, day2: 650, day3: 650, day4: 650,
   });
   const [foodDayPrices, setFoodDayPrices] = useState<Record<string, number>>({
     day0: 150, day1: 150, day2: 150, day3: 150, day4: 150,
@@ -157,10 +157,10 @@ const PaymentScreen: React.FC = () => {
   const calculateTotal = () => {
     let accFoodFee = 0;
     Object.entries(accommodation).forEach(([day, selected]) => {
-      if (selected && !user?.accommodation?.[day]) accFoodFee += (accDayPrices[day] ?? 0);
+      if (selected && !user?.accommodation?.[day]) accFoodFee += (accDayPrices[day] || 650);
     });
     Object.entries(food).forEach(([day, selected]) => {
-      if (selected && !user?.food?.[day]) accFoodFee += (foodDayPrices[day] ?? 0);
+      if (selected && !user?.food?.[day]) accFoodFee += (foodDayPrices[day] || 150);
     });
 
     return baseEventFee + accFoodFee;
@@ -578,8 +578,8 @@ const PaymentScreen: React.FC = () => {
           {['day0', 'day1', 'day2', 'day3', 'day4'].map((day) => {
             const accLocked = user?.accommodation?.[day] || false;
             const foodLocked = user?.food?.[day] || false;
-            const dayAccPrice = accDayPrices[day] ?? 0;
-            const dayFoodPrice = foodDayPrices[day] ?? 0;
+            const dayAccPrice = accDayPrices[day] || 650;
+            const dayFoodPrice = foodDayPrices[day] || 150;
             return (
               <View
                 key={day}
@@ -600,7 +600,7 @@ const PaymentScreen: React.FC = () => {
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>Hostel Accommodation</Text>
                     <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
-                      Campus Hostel {dayAccPrice === 0 ? '(Free)' : `(₹${dayAccPrice}/day)`}
+                      Campus Hostel (₹{dayAccPrice}/day)
                     </Text>
                   </View>
                   {accLocked ? (
@@ -622,7 +622,7 @@ const PaymentScreen: React.FC = () => {
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>Meals Pass</Text>
                     <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
-                      3 Meals Included {dayFoodPrice === 0 ? '(Free)' : `(₹${dayFoodPrice}/day)`}
+                      3 Meals Included (₹{dayFoodPrice}/day)
                     </Text>
                   </View>
                   {foodLocked ? (

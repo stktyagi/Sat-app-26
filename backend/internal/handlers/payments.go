@@ -207,11 +207,11 @@ func stayPrices(doc *models.AppAccommodation, hasTechnical, hasCultural bool) (a
 	pick := func(day string, techDays, cultDays map[string]int, tech, cult, plain int) int {
 		t, c := tech, cult
 		hasT, hasC := false, false
-		if val, ok := techDays[day]; ok {
+		if val, ok := techDays[day]; ok && val > 0 {
 			t = val
 			hasT = true
 		}
-		if val, ok := cultDays[day]; ok {
+		if val, ok := cultDays[day]; ok && val > 0 {
 			c = val
 			hasC = true
 		}

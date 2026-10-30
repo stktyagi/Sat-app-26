@@ -35,11 +35,11 @@ export function resolveStayPrices(
     let hasT = false;
     let hasC = false;
 
-    if (techDays && techDays[day] !== undefined) {
+    if (techDays && typeof techDays[day] === 'number' && techDays[day] > 0) {
       t = techDays[day];
       hasT = true;
     }
-    if (cultDays && cultDays[day] !== undefined) {
+    if (cultDays && typeof cultDays[day] === 'number' && cultDays[day] > 0) {
       c = cultDays[day];
       hasC = true;
     }
