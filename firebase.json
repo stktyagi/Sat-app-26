@@ -17,6 +17,7 @@
     },
     "singleProjectMode": true
   },
+  
   "auth": {
     "providers": {
       "googleSignIn": {
