@@ -66,7 +66,7 @@ const ProfileScreen = () => {
           onPress: () => setShowQRModal(true),
         },
         {
-          text: "Upload Profile Photo",
+          text: "Take Live Photo",
           onPress: handleUploadPhoto,
         },
         { text: "Cancel", style: "cancel" },

@@ -62,110 +62,48 @@ export async function promptAndUploadIdentity(
   type: 'photo' | 'collegeId',
   onLoadingChange?: (loading: boolean) => void
 ): Promise<UserProfile | null> {
-  const title = type === 'photo' ? 'Profile Photo' : 'College ID Card';
-  const description =
-    type === 'photo'
-      ? 'Upload a clear front-facing photo for festival security & pass accreditation.'
-      : 'Upload a clear photo of your official college student ID card.';
+  try {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert(
+        'Camera Permission Required',
+        'Camera permission is required to capture a live picture for festival verification. Gallery uploads are not allowed.'
+      );
+      return null;
+    }
 
-  return new Promise((resolve) => {
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: type === 'photo' ? [1, 1] : [4, 3],
+      quality: 0.8,
+      cameraType: type === 'photo' ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      return null;
+    }
+
+    onLoadingChange?.(true);
+    const fileUri = result.assets[0].uri;
+    const updated =
+      type === 'photo'
+        ? await uploadProfilePhoto(fileUri)
+        : await uploadCollegeId(fileUri);
+
+    useUserStore.getState().setUserData(updated);
+    await useUserStore.getState().refreshUserProfile().catch(() => {});
+
     showAlert(
-      title,
-      description,
-      [
-        {
-          text: 'Take Photo',
-          onPress: async () => {
-            try {
-              const { status } = await ImagePicker.requestCameraPermissionsAsync();
-              if (status !== 'granted') {
-                showAlert('Permission Required', 'Camera permission is required to capture your photo.');
-                resolve(null);
-                return;
-              }
-
-              const result = await ImagePicker.launchCameraAsync({
-                allowsEditing: true,
-                aspect: type === 'photo' ? [1, 1] : [4, 3],
-                quality: 0.8,
-              });
-
-              if (result.canceled || !result.assets?.[0]?.uri) {
-                resolve(null);
-                return;
-              }
-
-              onLoadingChange?.(true);
-              const fileUri = result.assets[0].uri;
-              const updated =
-                type === 'photo'
-                  ? await uploadProfilePhoto(fileUri)
-                  : await uploadCollegeId(fileUri);
-
-              useUserStore.getState().setUserData(updated);
-              await useUserStore.getState().refreshUserProfile().catch(() => {});
-
-              showAlert(
-                'Success',
-                type === 'photo'
-                  ? 'Profile photo updated successfully!'
-                  : 'College ID card uploaded successfully!'
-              );
-              resolve(updated);
-            } catch (err: any) {
-              showAlert('Upload Failed', err?.message || 'Failed to upload image. Please try again.');
-              resolve(null);
-            } finally {
-              onLoadingChange?.(false);
-            }
-          },
-        },
-        {
-          text: 'Choose from Gallery',
-          onPress: async () => {
-            try {
-              const result = await ImagePicker.launchImageLibraryAsync({
-                allowsEditing: true,
-                aspect: type === 'photo' ? [1, 1] : [4, 3],
-                quality: 0.8,
-              });
-
-              if (result.canceled || !result.assets?.[0]?.uri) {
-                resolve(null);
-                return;
-              }
-
-              onLoadingChange?.(true);
-              const fileUri = result.assets[0].uri;
-              const updated =
-                type === 'photo'
-                  ? await uploadProfilePhoto(fileUri)
-                  : await uploadCollegeId(fileUri);
-
-              useUserStore.getState().setUserData(updated);
-              await useUserStore.getState().refreshUserProfile().catch(() => {});
-
-              showAlert(
-                'Success',
-                type === 'photo'
-                  ? 'Profile photo updated successfully!'
-                  : 'College ID card uploaded successfully!'
-              );
-              resolve(updated);
-            } catch (err: any) {
-              showAlert('Upload Failed', err?.message || 'Failed to upload image. Please try again.');
-              resolve(null);
-            } finally {
-              onLoadingChange?.(false);
-            }
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => resolve(null),
-        },
-      ]
+      'Success',
+      type === 'photo'
+        ? 'Profile photo uploaded successfully!'
+        : 'College ID card uploaded successfully!'
     );
-  });
+    return updated;
+  } catch (err: any) {
+    showAlert('Upload Failed', err?.message || 'Failed to capture or upload image. Please try again.');
+    return null;
+  } finally {
+    onLoadingChange?.(false);
+  }
 }
