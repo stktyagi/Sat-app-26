@@ -569,11 +569,11 @@ const ProfileScreen = () => {
           />
         ) : null}
 
-        <ProfileMenuItem
+        {/* <ProfileMenuItem
           icon="people-outline"
           label="Our Team"
           onPress={() => router.push("/profile/Team")}
-        />
+        /> */}
 
         <ProfileMenuItem
           icon="share-social-outline"
