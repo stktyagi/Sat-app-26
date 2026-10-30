@@ -247,7 +247,12 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
               ) : (
                 <Ionicons name="cloud-upload" size={18} color="#131316" style={{ marginRight: 6 }} />
               )}
-              <Text style={styles.confirmText}>
+              <Text
+                style={styles.confirmText}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {isUploading ? "Uploading..." : confirmButtonText}
               </Text>
             </TouchableOpacity>
@@ -516,34 +521,38 @@ const styles = StyleSheet.create({
   },
   confirmActionsRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     width: "100%",
   },
   retakeButton: {
-    flex: 1,
+    flex: 0.85,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
+    paddingHorizontal: 8,
     borderRadius: 16,
     borderWidth: 1,
   },
   retakeText: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 14,
+    fontSize: 13,
   },
   confirmButton: {
-    flex: 2,
+    flex: 2.15,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
+    paddingHorizontal: 10,
     borderRadius: 16,
     backgroundColor: "#FFBA00",
   },
   confirmText: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 14,
+    fontSize: 13,
     color: "#131316",
+    flexShrink: 1,
+    textAlign: "center",
   },
 });
