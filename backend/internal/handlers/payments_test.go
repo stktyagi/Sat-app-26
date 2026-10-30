@@ -342,4 +342,20 @@ func TestStayPricesPerDay(t *testing.T) {
 	if _, fee, _ := stayCharge(map[string]bool{"day1": true, "day2": true}, nil, acc); fee != 1550 {
 		t.Errorf("per-day fee = %d, want 1550", fee)
 	}
+
+	// Zero pricing per day (e.g. day0 and day4 are free)
+	zeroDoc := &models.AppAccommodation{
+		Amount:          650,
+		TechnicalAmount: 650,
+		CulturalAmount:  650,
+		TechnicalDays:   map[string]int{"day0": 0, "day4": 0},
+		CulturalDays:    map[string]int{"day0": 0, "day4": 0},
+	}
+	zeroAcc, _ := stayPrices(zeroDoc, true, false)
+	if zeroAcc["day0"] != 0 || zeroAcc["day4"] != 0 || zeroAcc["day1"] != 650 {
+		t.Errorf("zero pricing: acc=%v", zeroAcc)
+	}
+	if _, fee, _ := stayCharge(map[string]bool{"day0": true, "day1": true, "day4": true}, nil, zeroAcc); fee != 650 {
+		t.Errorf("fee with free days: got %d, want 650", fee)
+	}
 }

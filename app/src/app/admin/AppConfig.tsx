@@ -29,6 +29,7 @@ import {
   ShieldAlert,
   Globe,
   Apple,
+  Calendar,
 } from 'lucide-react-native';
 import { useAdminNavigation } from '@/hooks/useAdminNavigation';
 import { useThemeStore } from '@/state/themeStore';
@@ -44,6 +45,14 @@ import {
   AppMaintenance,
   AppVersions,
 } from '@/api/appConfig';
+
+const DAY_LIST = [
+  { key: 'day0', title: 'Day 0', date: '19 Nov (from 8 PM)' },
+  { key: 'day1', title: 'Day 1', date: '20 Nov (Thu)' },
+  { key: 'day2', title: 'Day 2', date: '21 Nov (Fri)' },
+  { key: 'day3', title: 'Day 3', date: '22 Nov (Sat)' },
+  { key: 'day4', title: 'Day 4', date: '23 Nov (Sun)' },
+];
 
 type TabKey = 'accommodation' | 'maintenance' | 'versions' | 'links';
 
@@ -66,6 +75,10 @@ export default function AppConfigScreen() {
     foodAmount: 150,
     technicalFoodAmount: 150,
     culturalFoodAmount: 150,
+    technicalDays: { day0: 0, day1: 650, day2: 650, day3: 650, day4: 0 },
+    culturalDays: { day0: 0, day1: 650, day2: 650, day3: 650, day4: 0 },
+    technicalFoodDays: { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
+    culturalFoodDays: { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
   });
 
   const [maintenance, setMaintenance] = useState<AppMaintenance>({
@@ -108,6 +121,10 @@ export default function AppConfigScreen() {
           foodAmount: data.accommodation.foodAmount ?? 150,
           technicalFoodAmount: data.accommodation.technicalFoodAmount ?? data.accommodation.foodAmount ?? 150,
           culturalFoodAmount: data.accommodation.culturalFoodAmount ?? data.accommodation.foodAmount ?? 150,
+          technicalDays: data.accommodation.technicalDays || { day0: 0, day1: 650, day2: 650, day3: 650, day4: 0 },
+          culturalDays: data.accommodation.culturalDays || { day0: 0, day1: 650, day2: 650, day3: 650, day4: 0 },
+          technicalFoodDays: data.accommodation.technicalFoodDays || { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
+          culturalFoodDays: data.accommodation.culturalFoodDays || { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
         });
       }
       if (data.maintenance) {
@@ -158,6 +175,10 @@ export default function AppConfigScreen() {
         foodAmount: Number(accommodation.foodAmount || 0),
         technicalFoodAmount: Number(accommodation.technicalFoodAmount || accommodation.foodAmount || 0),
         culturalFoodAmount: Number(accommodation.culturalFoodAmount || accommodation.foodAmount || 0),
+        technicalDays: accommodation.technicalDays,
+        culturalDays: accommodation.culturalDays,
+        technicalFoodDays: accommodation.technicalFoodDays,
+        culturalFoodDays: accommodation.culturalFoodDays,
       });
       setAccommodation({
         amount: updated.amount,
@@ -167,6 +188,10 @@ export default function AppConfigScreen() {
         foodAmount: updated.foodAmount ?? 150,
         technicalFoodAmount: updated.technicalFoodAmount ?? updated.foodAmount ?? 150,
         culturalFoodAmount: updated.culturalFoodAmount ?? updated.foodAmount ?? 150,
+        technicalDays: updated.technicalDays ?? accommodation.technicalDays,
+        culturalDays: updated.culturalDays ?? accommodation.culturalDays,
+        technicalFoodDays: updated.technicalFoodDays ?? accommodation.technicalFoodDays,
+        culturalFoodDays: updated.culturalFoodDays ?? accommodation.culturalFoodDays,
       });
       showAlert('Saved', 'Accommodation and Food pricing updated successfully!');
     } catch (err: any) {
@@ -713,6 +738,181 @@ export default function AppConfigScreen() {
                       />
                     </View>
                   </View>
+
+                  {/* Per-Day Breakdown Section Header */}
+                  <View style={{ borderTopWidth: 1, borderTopColor: cardBorder, paddingTop: 18, marginTop: 4, gap: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Calendar size={18} color={accentColor} />
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 15, color: textPrimary }}>
+                        Per-Day Price Breakdown
+                      </Text>
+                    </View>
+                    <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 12, color: textSecondary }}>
+                      Customize pricing for each festival day. Setting ₹0 makes the day complimentary for participants.
+                    </Text>
+                  </View>
+
+                  {/* Day Cards */}
+                  {DAY_LIST.map((d) => {
+                    const techVal = accommodation.technicalDays?.[d.key] ?? accommodation.technicalAmount ?? accommodation.amount ?? 650;
+                    const cultVal = accommodation.culturalDays?.[d.key] ?? accommodation.culturalAmount ?? accommodation.amount ?? 650;
+                    const isFreeStay = techVal === 0 && cultVal === 0;
+
+                    return (
+                      <View
+                        key={d.key}
+                        style={{
+                          backgroundColor: isDark ? '#23232D' : '#F9FAFB',
+                          borderRadius: 16,
+                          borderWidth: 1,
+                          borderColor: isFreeStay ? (isDark ? 'rgba(34, 197, 94, 0.4)' : '#86EFAC') : cardBorder,
+                          padding: 14,
+                          gap: 12,
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
+                              {d.title}
+                            </Text>
+                            <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 12, color: textSecondary }}>
+                              • {d.date}
+                            </Text>
+                          </View>
+                          {isFreeStay && (
+                            <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                              <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: '#22c55e' }}>
+                                Free Stay
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                          {/* Tech Room Input */}
+                          <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#A855F7' }}>
+                              Tech Room (₹)
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: inputBg,
+                                borderWidth: 1,
+                                borderColor: cardBorder,
+                                borderRadius: 10,
+                                paddingHorizontal: 10,
+                                height: 40,
+                              }}
+                            >
+                              <TextInput
+                                value={String(accommodation.technicalDays?.[d.key] ?? '')}
+                                onChangeText={(t) => {
+                                  const val = t.trim() === '' ? 0 : Number(t.replace(/\D/g, ''));
+                                  setAccommodation((prev) => ({
+                                    ...prev,
+                                    technicalDays: { ...(prev.technicalDays || {}), [d.key]: val },
+                                  }));
+                                }}
+                                placeholder="0"
+                                placeholderTextColor={textSecondary}
+                                keyboardType="number-pad"
+                                style={{
+                                  flex: 1,
+                                  fontFamily: 'Poppins_600SemiBold',
+                                  fontSize: 14,
+                                  color: textPrimary,
+                                  padding: 0,
+                                }}
+                              />
+                            </View>
+                          </View>
+
+                          {/* Cult Room Input */}
+                          <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#F59E0B' }}>
+                              Cult Room (₹)
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: inputBg,
+                                borderWidth: 1,
+                                borderColor: cardBorder,
+                                borderRadius: 10,
+                                paddingHorizontal: 10,
+                                height: 40,
+                              }}
+                            >
+                              <TextInput
+                                value={String(accommodation.culturalDays?.[d.key] ?? '')}
+                                onChangeText={(t) => {
+                                  const val = t.trim() === '' ? 0 : Number(t.replace(/\D/g, ''));
+                                  setAccommodation((prev) => ({
+                                    ...prev,
+                                    culturalDays: { ...(prev.culturalDays || {}), [d.key]: val },
+                                  }));
+                                }}
+                                placeholder="0"
+                                placeholderTextColor={textSecondary}
+                                keyboardType="number-pad"
+                                style={{
+                                  flex: 1,
+                                  fontFamily: 'Poppins_600SemiBold',
+                                  fontSize: 14,
+                                  color: textPrimary,
+                                  padding: 0,
+                                }}
+                              />
+                            </View>
+                          </View>
+
+                          {/* Meals Input */}
+                          <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#22c55e' }}>
+                              Meals (₹)
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: inputBg,
+                                borderWidth: 1,
+                                borderColor: cardBorder,
+                                borderRadius: 10,
+                                paddingHorizontal: 10,
+                                height: 40,
+                              }}
+                            >
+                              <TextInput
+                                value={String(accommodation.technicalFoodDays?.[d.key] ?? accommodation.culturalFoodDays?.[d.key] ?? '')}
+                                onChangeText={(t) => {
+                                  const val = t.trim() === '' ? 0 : Number(t.replace(/\D/g, ''));
+                                  setAccommodation((prev) => ({
+                                    ...prev,
+                                    technicalFoodDays: { ...(prev.technicalFoodDays || {}), [d.key]: val },
+                                    culturalFoodDays: { ...(prev.culturalFoodDays || {}), [d.key]: val },
+                                  }));
+                                }}
+                                placeholder="0"
+                                placeholderTextColor={textSecondary}
+                                keyboardType="number-pad"
+                                style={{
+                                  flex: 1,
+                                  fontFamily: 'Poppins_600SemiBold',
+                                  fontSize: 14,
+                                  color: textPrimary,
+                                  padding: 0,
+                                }}
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
 
                   {/* Pricing Projection Card */}
                   <View

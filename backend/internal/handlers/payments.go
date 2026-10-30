@@ -206,11 +206,14 @@ func stayPrices(doc *models.AppAccommodation, hasTechnical, hasCultural bool) (a
 	// user has no events and the day has no per-day price.
 	pick := func(day string, techDays, cultDays map[string]int, tech, cult, plain int) int {
 		t, c := tech, cult
-		if techDays[day] > 0 {
-			t = techDays[day]
+		hasT, hasC := false, false
+		if val, ok := techDays[day]; ok {
+			t = val
+			hasT = true
 		}
-		if cultDays[day] > 0 {
-			c = cultDays[day]
+		if val, ok := cultDays[day]; ok {
+			c = val
+			hasC = true
 		}
 		switch {
 		case hasTechnical && hasCultural:
@@ -219,7 +222,7 @@ func stayPrices(doc *models.AppAccommodation, hasTechnical, hasCultural bool) (a
 			return t
 		case hasCultural:
 			return c
-		case plain > 0 && techDays[day] <= 0 && cultDays[day] <= 0:
+		case plain > 0 && !hasT && !hasC:
 			return plain
 		default:
 			return max(t, c)

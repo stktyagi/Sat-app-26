@@ -1,3 +1,75 @@
+import type { AppAccommodation } from "@/api/appConfig";
+
+export interface StayDayPrices {
+  accDays: Record<string, number>;
+  foodDays: Record<string, number>;
+}
+
+export const FESTIVAL_DAY_KEYS = ["day0", "day1", "day2", "day3", "day4"];
+
+export function resolveStayPrices(
+  doc: AppAccommodation | null | undefined,
+  hasTechnical: boolean,
+  hasCultural: boolean
+): StayDayPrices {
+  const defaultAcc = 650;
+  const defaultFood = 150;
+
+  const techPrice = doc?.technicalAmount ?? doc?.amount ?? defaultAcc;
+  const cultPrice = doc?.culturalAmount ?? doc?.amount ?? defaultAcc;
+  const techFoodPrice = doc?.technicalFoodAmount ?? doc?.foodAmount ?? defaultFood;
+  const cultFoodPrice = doc?.culturalFoodAmount ?? doc?.foodAmount ?? defaultFood;
+  const plainAcc = doc?.amount ?? defaultAcc;
+  const plainFood = doc?.foodAmount ?? defaultFood;
+
+  const pick = (
+    day: string,
+    techDays?: Record<string, number>,
+    cultDays?: Record<string, number>,
+    tech: number = defaultAcc,
+    cult: number = defaultAcc,
+    plain: number = defaultAcc
+  ): number => {
+    let t = tech;
+    let c = cult;
+    let hasT = false;
+    let hasC = false;
+
+    if (techDays && techDays[day] !== undefined) {
+      t = techDays[day];
+      hasT = true;
+    }
+    if (cultDays && cultDays[day] !== undefined) {
+      c = cultDays[day];
+      hasC = true;
+    }
+
+    if (hasTechnical && hasCultural) {
+      return Math.max(t, c);
+    }
+    if (hasTechnical) {
+      return t;
+    }
+    if (hasCultural) {
+      return c;
+    }
+    if (plain > 0 && !hasT && !hasC) {
+      return plain;
+    }
+    return Math.max(t, c);
+  };
+
+  const accDays: Record<string, number> = {};
+  const foodDays: Record<string, number> = {};
+
+  for (const day of FESTIVAL_DAY_KEYS) {
+    accDays[day] = pick(day, doc?.technicalDays, doc?.culturalDays, techPrice, cultPrice, plainAcc);
+    foodDays[day] = pick(day, doc?.technicalFoodDays, doc?.culturalFoodDays, techFoodPrice, cultFoodPrice, plainFood);
+  }
+
+  return { accDays, foodDays };
+}
+
 /**
  * Utilities for event payment calculations and status determinations.
  */

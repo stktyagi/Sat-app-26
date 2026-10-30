@@ -20,8 +20,8 @@ func fill(existing map[string]int, price int) map[string]int {
 	out := map[string]int{}
 	for _, d := range days {
 		out[d] = price
-		if existing[d] > 0 {
-			out[d] = existing[d]
+		if val, ok := existing[d]; ok {
+			out[d] = val
 		}
 	}
 	return out

@@ -24,6 +24,10 @@ export interface AppAccommodation {
   foodAmount?: number;
   technicalFoodAmount?: number;
   culturalFoodAmount?: number;
+  technicalDays?: Record<string, number>;
+  culturalDays?: Record<string, number>;
+  technicalFoodDays?: Record<string, number>;
+  culturalFoodDays?: Record<string, number>;
 }
 
 export interface AppConfigResponse {

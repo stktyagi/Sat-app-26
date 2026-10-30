@@ -10,6 +10,7 @@ import { showAlert } from '@/components';
 import { startEasebuzzPayment } from '@/services/easebuzz';
 import { getAppAccommodation } from '@/api/appConfig';
 import { getMyEvents } from '@/api/events';
+import { resolveStayPrices } from '@/utils/paymentHelpers';
 
 interface DayInfo {
   key: string;
@@ -31,8 +32,12 @@ export default function AccommodationScreen() {
   const { isDark } = useThemeStore();
   const { userData: user, refreshUserProfile } = useUserStore();
 
-  const [accPrice, setAccPrice] = useState(650);
-  const [foodPrice, setFoodPrice] = useState(150);
+  const [accDayPrices, setAccDayPrices] = useState<Record<string, number>>({
+    day0: 0, day1: 650, day2: 650, day3: 650, day4: 0,
+  });
+  const [foodDayPrices, setFoodDayPrices] = useState<Record<string, number>>({
+    day0: 150, day1: 150, day2: 150, day3: 150, day4: 150,
+  });
   const [registeredEventsCount, setRegisteredEventsCount] = useState<number | null>(null);
 
   const [phase, setPhase] = useState<'select' | 'initiating' | 'opening' | 'verifying'>('select');
@@ -71,12 +76,6 @@ export default function AccommodationScreen() {
         const count = Array.isArray(myEvents) ? myEvents.length : 0;
         setRegisteredEventsCount(count);
 
-        const techPrice = res?.technicalAmount ?? res?.amount ?? 650;
-        const cultPrice = res?.culturalAmount ?? res?.amount ?? 650;
-        const techFoodPrice = res?.technicalFoodAmount ?? res?.foodAmount ?? 150;
-        const cultFoodPrice = res?.culturalFoodAmount ?? res?.foodAmount ?? 150;
-        const baseFoodPrice = res?.foodAmount && res.foodAmount > 0 ? res.foodAmount : 150;
-
         let hasTech = false;
         let hasCult = false;
 
@@ -94,19 +93,9 @@ export default function AccommodationScreen() {
           }
         }
 
-        if (hasTech && hasCult) {
-          setAccPrice(Math.max(techPrice, cultPrice));
-          setFoodPrice(Math.max(techFoodPrice, cultFoodPrice));
-        } else if (hasTech) {
-          setAccPrice(techPrice);
-          setFoodPrice(techFoodPrice);
-        } else if (hasCult) {
-          setAccPrice(cultPrice);
-          setFoodPrice(cultFoodPrice);
-        } else {
-          setAccPrice(res?.amount ?? 650);
-          setFoodPrice(baseFoodPrice);
-        }
+        const { accDays, foodDays } = resolveStayPrices(res, hasTech, hasCult);
+        setAccDayPrices(accDays);
+        setFoodDayPrices(foodDays);
       })
       .catch(err => {
         console.error('Failed to fetch accommodation price:', err);
@@ -164,10 +153,10 @@ export default function AccommodationScreen() {
   const calculateTotal = () => {
     let total = 0;
     Object.entries(selectedAcc).forEach(([day, selected]) => {
-      if (selected && !user?.accommodation?.[day]) total += accPrice;
+      if (selected && !user?.accommodation?.[day]) total += (accDayPrices[day] ?? 0);
     });
     Object.entries(selectedFood).forEach(([day, selected]) => {
-      if (selected && !user?.food?.[day]) total += foodPrice;
+      if (selected && !user?.food?.[day]) total += (foodDayPrices[day] ?? 0);
     });
     return total;
   };
@@ -445,7 +434,7 @@ export default function AccommodationScreen() {
               </Text>
             </View>
             <Text style={{ fontFamily: 'Poppins_400Regular', color: textColor, fontSize: 12, lineHeight: 18 }}>
-              Select festival days you need campus hostel accommodation (₹{accPrice}/day) and 3 meals/day dining pass (₹{foodPrice}/day).
+              Select festival days you need campus hostel accommodation and 3 meals/day dining pass.
             </Text>
           </View>
         )}
@@ -496,6 +485,8 @@ export default function AccommodationScreen() {
         {FESTIVAL_DAYS.map((day) => {
           const accLocked = user?.accommodation?.[day.key] || false;
           const foodLocked = user?.food?.[day.key] || false;
+          const dayAccPrice = accDayPrices[day.key] ?? 0;
+          const dayFoodPrice = foodDayPrices[day.key] ?? 0;
 
           return (
             <View
@@ -533,7 +524,7 @@ export default function AccommodationScreen() {
                     Hostel Stay
                   </Text>
                   <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
-                    Campus hostel room (₹{accPrice}/day)
+                    Campus hostel room {dayAccPrice === 0 ? '(Free)' : `(₹${dayAccPrice}/day)`}
                   </Text>
                   {registeredEventsCount === 0 && !accLocked && (
                     <Text style={{ fontFamily: 'Poppins_500Medium', color: '#f59e0b', fontSize: 11, marginTop: 2 }}>
@@ -566,7 +557,7 @@ export default function AccommodationScreen() {
                     Meal Pass
                   </Text>
                   <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
-                    3 fresh meals included (₹{foodPrice}/day)
+                    3 fresh meals included {dayFoodPrice === 0 ? '(Free)' : `(₹${dayFoodPrice}/day)`}
                   </Text>
                 </View>
                 {foodLocked ? (
