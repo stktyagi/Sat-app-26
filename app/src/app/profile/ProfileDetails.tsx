@@ -38,10 +38,12 @@ const ProfileDetailsScreen = () => {
   const hasCollegeId = Boolean(userProfile?.collegeIdUrl);
 
   const handleUploadPhoto = () => {
+    if (hasPhoto) return;
     promptAndUploadIdentity("photo", setIsUploadingPhoto);
   };
 
   const handleUploadCollegeId = () => {
+    if (hasCollegeId) return;
     promptAndUploadIdentity("collegeId", setIsUploadingCollegeId);
   };
 
@@ -446,33 +448,52 @@ const ProfileDetailsScreen = () => {
               </View>
             </View>
 
-            <TouchableOpacity
-              onPress={handleUploadPhoto}
-              disabled={isUploadingPhoto}
-              activeOpacity={0.8}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                backgroundColor: isDark ? "rgba(65, 184, 240, 0.15)" : "#E0F2FE",
-                borderWidth: 1,
-                borderColor: "#41B8F0",
-                paddingHorizontal: 14,
-                paddingVertical: 7,
-                borderRadius: 12,
-              }}
-            >
-              {isUploadingPhoto ? (
-                <ActivityIndicator size="small" color="#41B8F0" />
-              ) : (
-                <>
-                  <Ionicons name={hasPhoto ? "refresh-outline" : "camera-outline"} size={16} color="#41B8F0" />
-                  <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 12 }}>
-                    {hasPhoto ? "Change" : "Upload"}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {hasPhoto ? (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? "rgba(16, 185, 129, 0.15)" : "#DCFCE7",
+                }}
+              >
+                <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 11, color: "#10B981" }}>
+                  Added
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={handleUploadPhoto}
+                disabled={isUploadingPhoto}
+                activeOpacity={0.8}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  backgroundColor: isDark ? "rgba(65, 184, 240, 0.15)" : "#E0F2FE",
+                  borderWidth: 1,
+                  borderColor: "#41B8F0",
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  borderRadius: 12,
+                }}
+              >
+                {isUploadingPhoto ? (
+                  <ActivityIndicator size="small" color="#41B8F0" />
+                ) : (
+                  <>
+                    <Ionicons name="camera-outline" size={16} color="#41B8F0" />
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 12 }}>
+                      Upload
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* College ID Card Item */}
@@ -500,33 +521,52 @@ const ProfileDetailsScreen = () => {
                 </Text>
               </View>
 
-              <TouchableOpacity
-                onPress={handleUploadCollegeId}
-                disabled={isUploadingCollegeId}
-                activeOpacity={0.8}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  backgroundColor: isDark ? "rgba(65, 184, 240, 0.15)" : "#E0F2FE",
-                  borderWidth: 1,
-                  borderColor: "#41B8F0",
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
-                  borderRadius: 12,
-                }}
-              >
-                {isUploadingCollegeId ? (
-                  <ActivityIndicator size="small" color="#41B8F0" />
-                ) : (
-                  <>
-                    <Ionicons name={hasCollegeId ? "refresh-outline" : "card-outline"} size={16} color="#41B8F0" />
-                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 12 }}>
-                      {hasCollegeId ? "Replace ID" : "Upload ID"}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {hasCollegeId ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 10,
+                    backgroundColor: isDark ? "rgba(16, 185, 129, 0.15)" : "#DCFCE7",
+                  }}
+                >
+                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 11, color: "#10B981" }}>
+                    Added
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleUploadCollegeId}
+                  disabled={isUploadingCollegeId}
+                  activeOpacity={0.8}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    backgroundColor: isDark ? "rgba(65, 184, 240, 0.15)" : "#E0F2FE",
+                    borderWidth: 1,
+                    borderColor: "#41B8F0",
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                    borderRadius: 12,
+                  }}
+                >
+                  {isUploadingCollegeId ? (
+                    <ActivityIndicator size="small" color="#41B8F0" />
+                  ) : (
+                    <>
+                      <Ionicons name="card-outline" size={16} color="#41B8F0" />
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 12 }}>
+                        Upload ID
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* College ID Preview Card */}
