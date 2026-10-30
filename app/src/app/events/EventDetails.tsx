@@ -21,6 +21,8 @@ import { useEventDetail } from '@/hooks/useEventDetail';
 import MetallicButton from '@/components/MetallicButton';
 import EventTicketCard from '@/components/registration/EventTicketCard';
 import { isEventPaymentDue } from '@/utils/paymentHelpers';
+import { showAlert } from '@/components';
+import { isIdentityVerificationComplete, getMissingIdentityRequirements } from '@/utils/identityUpload';
 
 const EventDetailsScreen: React.FC = () => {
   const router = useRouter();
@@ -63,6 +65,7 @@ const EventDetailsScreen: React.FC = () => {
     userId,
   });
   const isPaid = !isPaymentDue;
+  const isIdentityComplete = isIdentityVerificationComplete(userProfile);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -87,6 +90,22 @@ const EventDetailsScreen: React.FC = () => {
         return;
       }
       router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
+      return;
+    }
+
+    if (!isIdentityComplete) {
+      const missing = getMissingIdentityRequirements(userProfile);
+      showAlert(
+        'Verification Required',
+        `Outside college participants must upload a ${missing.join(" and ")} before registering for festival events.`,
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'Go to Profile',
+            onPress: () => router.push('/(tabs)/profile'),
+          },
+        ]
+      );
       return;
     }
 
@@ -192,6 +211,9 @@ const EventDetailsScreen: React.FC = () => {
         return isTeamEvent && !isLeader ? 'View Team (Payment Pending)' : 'Complete Payment';
       }
       return 'View Registration';
+    }
+    if (!isIdentityComplete) {
+      return 'Verify Profile to Register';
     }
     if (requiresPayment) return 'Register Now';
     return 'Register for Free';
@@ -874,7 +896,9 @@ const EventDetailsScreen: React.FC = () => {
           borderRadius={28}
           fontSize={16}
           variant={
-            isPaymentDue && (!isTeamEvent || isLeader)
+            !existingRegistration && !isIdentityComplete
+              ? 'amber'
+              : isPaymentDue && (!isTeamEvent || isLeader)
               ? 'amber'
               : 'metallic'
           }

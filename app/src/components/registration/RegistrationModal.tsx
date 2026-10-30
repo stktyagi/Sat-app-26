@@ -26,6 +26,7 @@ import {
   joinEventTeam,
   responsesFromFields,
 } from "@/api/events";
+import { isIdentityVerificationComplete, getMissingIdentityRequirements } from "@/utils/identityUpload";
 
 interface RegistrationModalProps {
   visible: boolean;
@@ -122,6 +123,15 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const handleCreateTeam = async () => {
+    if (!isIdentityVerificationComplete(userData)) {
+      const missing = getMissingIdentityRequirements(userData);
+      showModalAlert(
+        "Verification Required",
+        `Outside college participants must upload their ${missing.join(" and ")} before creating a team.`
+      );
+      return;
+    }
+
     if (!teamName.trim()) {
       showModalAlert("Error", "Please enter a team name");
       return;
@@ -151,6 +161,15 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const handleJoinTeam = async () => {
+    if (!isIdentityVerificationComplete(userData)) {
+      const missing = getMissingIdentityRequirements(userData);
+      showModalAlert(
+        "Verification Required",
+        `Outside college participants must upload their ${missing.join(" and ")} before joining a team.`
+      );
+      return;
+    }
+
     if (!teamInviteCode.trim()) {
       showModalAlert("Error", "Please enter a team invite code");
       return;
@@ -177,6 +196,15 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const handleCompleteRegistration = async () => {
+    if (!isIdentityVerificationComplete(userData)) {
+      const missing = getMissingIdentityRequirements(userData);
+      showModalAlert(
+        "Verification Required",
+        `Outside college participants must upload their ${missing.join(" and ")} before completing registration.`
+      );
+      return;
+    }
+
     try {
       setIsLoading(true);
 
