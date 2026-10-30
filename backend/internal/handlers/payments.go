@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha512"
 	"crypto/subtle"
@@ -110,8 +111,7 @@ type initiatePaymentBody struct {
 	Food          map[string]bool `json:"food"`
 }
 
-// Per-day prices in rupees. The app shows the same numbers (ACCOMMODATION_PRICE
-// and FOOD_PRICE in Payment.tsx), so change both together.
+// Default per-day prices in rupees, used when app/accommodation doesn't set one.
 const (
 	AccommodationPricePerDay = 650
 	FoodPricePerDay          = 150
@@ -131,7 +131,7 @@ var paymentTypes = map[string]bool{
 
 // stayCharge validates the requested days and returns the days actually being
 // bought. Days the user already holds are dropped rather than charged again.
-func stayCharge(requested map[string]bool, owned map[string]bool, unitPrice int) (days map[string]any, fee int, bad string) {
+func stayCharge(requested map[string]bool, owned map[string]bool, prices map[string]int) (days map[string]any, fee int, bad string) {
 	days = map[string]any{}
 	for day, selected := range requested {
 		if !stayDays[day] {
@@ -139,54 +139,19 @@ func stayCharge(requested map[string]bool, owned map[string]bool, unitPrice int)
 		}
 		if selected && !owned[day] {
 			days[day] = true
-			fee += unitPrice
+			fee += prices[day]
 		}
 	}
 	return days, fee, ""
 }
 
 // resolveStayPrices determines the per-day accommodation and food prices based on user's events.
-// Any event that is not Technical is treated as Cultural. If the user participates in both,
-// the higher price one is charged.
-func (a *API) resolveStayPrices(ctx context.Context, user *models.User, currentEventID string) (int, int) {
-	accPrice := AccommodationPricePerDay
-	foodPrice := FoodPricePerDay
-
-	techPrice := AccommodationPricePerDay
-	cultPrice := AccommodationPricePerDay
-
-	techFoodPrice := FoodPricePerDay
-	cultFoodPrice := FoodPricePerDay
-
+// Any event that is not Technical is treated as Cultural.
+func (a *API) resolveStayPrices(ctx context.Context, user *models.User, currentEventID string) (acc, food map[string]int) {
 	var accDoc *models.AppAccommodation
 	if a.Store != nil {
-		if doc, err := a.Store.GetAppAccommodation(ctx); err == nil && doc != nil {
+		if doc, err := a.Store.GetAppAccommodation(ctx); err == nil {
 			accDoc = doc
-			if accDoc.TechnicalAmount > 0 {
-				techPrice = accDoc.TechnicalAmount
-			} else if accDoc.Amount > 0 {
-				techPrice = accDoc.Amount
-			}
-			if accDoc.CulturalAmount > 0 {
-				cultPrice = accDoc.CulturalAmount
-			} else if accDoc.Amount > 0 {
-				cultPrice = accDoc.Amount
-			}
-
-			baseFood := FoodPricePerDay
-			if accDoc.FoodAmount > 0 {
-				baseFood = accDoc.FoodAmount
-			}
-			foodPrice = baseFood
-			techFoodPrice = baseFood
-			cultFoodPrice = baseFood
-
-			if accDoc.TechnicalFoodAmount > 0 {
-				techFoodPrice = accDoc.TechnicalFoodAmount
-			}
-			if accDoc.CulturalFoodAmount > 0 {
-				cultFoodPrice = accDoc.CulturalFoodAmount
-			}
 		}
 	}
 
@@ -222,29 +187,54 @@ func (a *API) resolveStayPrices(ctx context.Context, user *models.User, currentE
 		}
 	}
 
-	if hasTechnical && hasCultural {
-		accPrice = max(techPrice, cultPrice)
-		foodPrice = max(techFoodPrice, cultFoodPrice)
-	} else if hasTechnical {
-		accPrice = techPrice
-		foodPrice = techFoodPrice
-	} else if hasCultural {
-		accPrice = cultPrice
-		foodPrice = cultFoodPrice
-	} else {
-		if accDoc != nil && accDoc.Amount > 0 {
-			accPrice = accDoc.Amount
-		} else {
-			accPrice = max(techPrice, cultPrice)
+	return stayPrices(accDoc, hasTechnical, hasCultural)
+}
+
+// stayPrices prices every stay day from the pricing doc (nil = defaults). If the
+// user has both categories the higher price is charged. A day without its own
+// price uses the flat category price.
+func stayPrices(doc *models.AppAccommodation, hasTechnical, hasCultural bool) (acc, food map[string]int) {
+	if doc == nil {
+		doc = &models.AppAccommodation{}
+	}
+	techPrice := cmp.Or(doc.TechnicalAmount, doc.Amount, AccommodationPricePerDay)
+	cultPrice := cmp.Or(doc.CulturalAmount, doc.Amount, AccommodationPricePerDay)
+	techFoodPrice := cmp.Or(doc.TechnicalFoodAmount, doc.FoodAmount, FoodPricePerDay)
+	cultFoodPrice := cmp.Or(doc.CulturalFoodAmount, doc.FoodAmount, FoodPricePerDay)
+
+	// pick applies the category rule to one day. plain is only used when the
+	// user has no events and the day has no per-day price.
+	pick := func(day string, techDays, cultDays map[string]int, tech, cult, plain int) int {
+		t, c := tech, cult
+		hasT, hasC := false, false
+		if val, ok := techDays[day]; ok {
+			t = val
+			hasT = true
 		}
-		if accDoc != nil && accDoc.FoodAmount > 0 {
-			foodPrice = accDoc.FoodAmount
-		} else {
-			foodPrice = max(techFoodPrice, cultFoodPrice)
+		if val, ok := cultDays[day]; ok {
+			c = val
+			hasC = true
+		}
+		switch {
+		case hasTechnical && hasCultural:
+			return max(t, c)
+		case hasTechnical:
+			return t
+		case hasCultural:
+			return c
+		case plain > 0 && !hasT && !hasC:
+			return plain
+		default:
+			return max(t, c)
 		}
 	}
 
-	return accPrice, foodPrice
+	acc, food = map[string]int{}, map[string]int{}
+	for day := range stayDays {
+		acc[day] = pick(day, doc.TechnicalDays, doc.CulturalDays, techPrice, cultPrice, doc.Amount)
+		food[day] = pick(day, doc.TechnicalFoodDays, doc.CulturalFoodDays, techFoodPrice, cultFoodPrice, doc.FoodAmount)
+	}
+	return acc, food
 }
 
 // InitiatePayment creates a Payment document in Firestore and returns the
@@ -385,14 +375,14 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		}
 	}
 
-	accPrice, foodPrice := a.resolveStayPrices(c.Request.Context(), user, body.EventID)
+	accPrices, foodPrices := a.resolveStayPrices(c.Request.Context(), user, body.EventID)
 
-	accommodationMap, accFee, bad := stayCharge(body.Accommodation, user.Accommodation, accPrice)
+	accommodationMap, accFee, bad := stayCharge(body.Accommodation, user.Accommodation, accPrices)
 	if bad != "" {
 		apierr.Respond(c, apierr.BadRequest("invalid_day", "unknown accommodation day: "+bad))
 		return
 	}
-	foodMap, foodFee, bad := stayCharge(body.Food, user.Food, foodPrice)
+	foodMap, foodFee, bad := stayCharge(body.Food, user.Food, foodPrices)
 	if bad != "" {
 		apierr.Respond(c, apierr.BadRequest("invalid_day", "unknown food day: "+bad))
 		return
@@ -408,11 +398,11 @@ func (a *API) InitiatePayment(c *gin.Context) {
 
 	accDays := map[string]int{}
 	for day := range accommodationMap {
-		accDays[day] = accPrice
+		accDays[day] = accPrices[day]
 	}
 	foodDays := map[string]int{}
 	for day := range foodMap {
-		foodDays[day] = foodPrice
+		foodDays[day] = foodPrices[day]
 	}
 
 	a.initiate(c, user, event, team, eventPaymentType, paymentType, body.CouponCode,

@@ -140,6 +140,17 @@ func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodati
 		if v, ok := data["culturalFoodAmount"].(int64); ok {
 			cultFoodAmt = int(v)
 		}
+		extractMap := func(key string) map[string]int {
+			m := map[string]int{}
+			if raw, ok := data[key].(map[string]any); ok {
+				for k, val := range raw {
+					if n, ok := val.(int64); ok {
+						m[k] = int(n)
+					}
+				}
+			}
+			return m
+		}
 		return &models.AppAccommodation{
 			Amount:              amt,
 			Price:               amt,
@@ -148,6 +159,10 @@ func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodati
 			FoodAmount:          foodAmt,
 			TechnicalFoodAmount: techFoodAmt,
 			CulturalFoodAmount:  cultFoodAmt,
+			TechnicalDays:       extractMap("technicalDays"),
+			CulturalDays:        extractMap("culturalDays"),
+			TechnicalFoodDays:   extractMap("technicalFoodDays"),
+			CulturalFoodDays:    extractMap("culturalFoodDays"),
 		}, nil
 	}
 	if a.Amount == 0 && a.Price > 0 {

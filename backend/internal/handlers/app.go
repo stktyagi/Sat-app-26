@@ -131,6 +131,28 @@ func (a *API) AdminUpdateAppAccommodation(c *gin.Context) {
 		return
 	}
 
+	// Merge per-day prices with stored ones so existing days are preserved
+	// when updating, while allowing overrides for specific days.
+	if cur, err := a.Store.GetAppAccommodation(c.Request.Context()); err == nil && cur != nil {
+		mergeDays := func(curMap, newMap map[string]int) map[string]int {
+			if curMap == nil && newMap == nil {
+				return nil
+			}
+			out := map[string]int{}
+			for k, v := range curMap {
+				out[k] = v
+			}
+			for k, v := range newMap {
+				out[k] = v
+			}
+			return out
+		}
+		body.TechnicalDays = mergeDays(cur.TechnicalDays, body.TechnicalDays)
+		body.CulturalDays = mergeDays(cur.CulturalDays, body.CulturalDays)
+		body.TechnicalFoodDays = mergeDays(cur.TechnicalFoodDays, body.TechnicalFoodDays)
+		body.CulturalFoodDays = mergeDays(cur.CulturalFoodDays, body.CulturalFoodDays)
+	}
+
 	if err := a.Store.SetAppAccommodation(c.Request.Context(), &body); err != nil {
 		log.Printf("[AdminUpdateAppAccommodation] error: %v", err)
 		apierr.Respond(c, apierr.Internal("could not update accommodation configuration"))
