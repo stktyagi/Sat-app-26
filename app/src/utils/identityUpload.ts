@@ -63,6 +63,26 @@ export async function promptAndUploadIdentity(
   onLoadingChange?: (loading: boolean) => void
 ): Promise<UserProfile | null> {
   try {
+    // Dev builds only: simulators have no camera, so pick from the library to test uploads.
+    // Release builds always go through the live camera below.
+    if (__DEV__) {
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: type === 'photo' ? [1, 1] : [4, 3],
+        quality: 0.8,
+      });
+      if (picked.canceled || !picked.assets?.[0]?.uri) return null;
+      onLoadingChange?.(true);
+      const updated =
+        type === 'photo'
+          ? await uploadProfilePhoto(picked.assets[0].uri)
+          : await uploadCollegeId(picked.assets[0].uri);
+      useUserStore.getState().setUserData(updated);
+      await useUserStore.getState().refreshUserProfile().catch(() => {});
+      return updated;
+    }
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       showAlert(
