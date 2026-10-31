@@ -20,6 +20,8 @@ import { useUserStore } from '@/state/userStore';
 import { showAlert } from "../index";
 import { useRouter } from "expo-router";
 import { useThemeStore } from "@/state/themeStore";
+import { API_BASE_URL } from "@/config/api";
+import { getAuthInstance } from "@/config/firebase";
 import {
   registerForEvent,
   createEventTeam,
@@ -83,6 +85,9 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [referralCode, setReferralCode] = useState("");
   const [currentTeamSize, setCurrentTeamSize] = useState<number>(0);
   const [isCreateTeamFlow, setIsCreateTeamFlow] = useState(false);
+  const [detailPhone, setDetailPhone] = useState("");
+  const [detailAge, setDetailAge] = useState("");
+  const [detailGender, setDetailGender] = useState<"" | "male" | "female" | "other">("");
 
   // Reset state when modal opens
   useEffect(() => {
@@ -95,6 +100,11 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setReferralCode("");
       setCurrentTeamSize(0);
       setIsCreateTeamFlow(false);
+
+      const profile = useUserStore.getState().userData;
+      setDetailPhone(profile?.phoneNumber ?? "");
+      setDetailAge(profile?.age ?? "");
+      setDetailGender(profile?.gender ?? "");
 
       if (event.eventType === "team") {
         setRegistrationStep("choice");
@@ -195,6 +205,43 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
+  const buildDetailsPayload = () => {
+    const payload: Record<string, string> = {};
+    if (detailPhone.trim()) {
+      const digits = detailPhone.replace(/\D/g, "");
+      if (digits.length !== 10) throw new Error("Phone number must be 10 digits");
+      payload.phoneNumber = digits;
+    }
+    const age = detailAge.trim();
+    if (age) {
+      if (!/^\d{1,3}$/.test(age)) throw new Error("Please enter a valid age");
+      payload.age = age;
+    }
+    if (detailGender) payload.gender = detailGender;
+    return payload;
+  };
+
+  const saveRegistrationDetails = async (payload: Record<string, string>) => {
+    if (Object.keys(payload).length === 0) return;
+    const currentUser = getAuthInstance().currentUser;
+    if (!currentUser) throw new Error("No authenticated user found");
+    const idToken = await currentUser.getIdToken(false);
+    const response = await fetch(`${API_BASE_URL}/me`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({} as any));
+      throw new Error(errorData?.error?.message || errorData?.message || "Failed to save your details");
+    }
+    const responseBody = await response.json();
+    if (responseBody?.user) useUserStore.getState().setUserData(responseBody.user);
+  };
+
   const handleCompleteRegistration = async () => {
     if (!isIdentityVerificationComplete(userData)) {
       const missing = getMissingIdentityRequirements(userData);
@@ -208,6 +255,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     try {
       setIsLoading(true);
 
+      await saveRegistrationDetails(buildDetailsPayload());
       const registrationData = responsesFromFields(event.customFields || [], customFieldsData);
 
       if (event.eventType === "team") {
@@ -502,6 +550,103 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     return (
       <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 }}>
+        {!createdInviteCode && (
+          <View style={{ gap: 16, marginBottom: 16 }}>
+            <Text
+              style={{
+                fontFamily: "Poppins_600SemiBold",
+                color: modalTextPrimary,
+                fontSize: 15,
+              }}
+            >
+              Your details (optional)
+            </Text>
+            <View>
+              <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
+                Phone number
+              </Text>
+              <TextInput
+                value={detailPhone}
+                onChangeText={setDetailPhone}
+                placeholder="10-digit mobile number"
+                placeholderTextColor={modalPlaceholder}
+                keyboardType="phone-pad"
+                style={{
+                  fontFamily: "Poppins_500Medium",
+                  backgroundColor: modalCardBg,
+                  color: modalTextPrimary,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: modalBorderColor,
+                  fontSize: 15,
+                }}
+              />
+            </View>
+            <View>
+              <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
+                Age
+              </Text>
+              <TextInput
+                value={detailAge}
+                onChangeText={setDetailAge}
+                placeholder="e.g. 20"
+                placeholderTextColor={modalPlaceholder}
+                keyboardType="number-pad"
+                maxLength={3}
+                style={{
+                  fontFamily: "Poppins_500Medium",
+                  backgroundColor: modalCardBg,
+                  color: modalTextPrimary,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: modalBorderColor,
+                  fontSize: 15,
+                }}
+              />
+            </View>
+            <View>
+              <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
+                Gender
+              </Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {(["male", "female", "other"] as const).map((option) => {
+                  const isSelected = detailGender === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      onPress={() => setDetailGender(isSelected ? "" : option)}
+                      style={{
+                        flex: 1,
+                        alignItems: "center",
+                        paddingVertical: 12,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: isSelected ? "#38BDF8" : modalBorderColor,
+                        backgroundColor: isSelected ? "rgba(56, 189, 248, 0.12)" : modalCardBg,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
+                          color: isSelected ? "#38BDF8" : modalTextPrimary,
+                          fontSize: 14,
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {option}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        )}
+
         {!createdInviteCode && event.customFields && event.customFields.length > 0 && (
           <View style={{ gap: 16 }}>
             {event.customFields.map((field: any) => (

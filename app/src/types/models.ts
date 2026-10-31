@@ -53,6 +53,7 @@ export interface UserProfile {
   referredBy?: string;
   createdAt: string;
   gender: 'male' | 'female' | 'other';
+  age?: string;
   sessionToken: string;
   accommodationNeeded: boolean;
   accommodation?: Record<string, boolean>;
@@ -109,6 +110,7 @@ export interface TeamRegistrationData {
   leaderUserId: string;
   inviteCode?: string;
   status?: string;
+  paidTill?: number;
   members: Array<{
     userId: string;
     name?: string;

@@ -20,7 +20,7 @@ import Input from "@/components/ui/Input";
 import { UserProfile } from "@/types/models";
 import { Ionicons } from "@expo/vector-icons";
 import { CollegeDropdown } from "@/components/ui/CollegeDropdown";
-import { getDeleteFlag } from "@/utils/versionCheck";
+
 import { getAuthInstance } from "@/config/firebase";
 import { useThemeStore } from "@/state/themeStore";
 
@@ -38,15 +38,12 @@ interface UserProfileFormProps {
 interface FormData {
   displayName: string;
   email: string;
-  phoneNumber: string;
   rollNumber?: string;
   refferedBy?: string;
   applyCampusAmbassador?: boolean;
   appleId: string;
-  age: string;
   collegeName: string;
   graduationYear: string;
-  gender: "male" | "female" | "other" | "";
   isHostCollegeStudent: boolean;
   accommodationNeeded: boolean;
   isVerified: boolean;
@@ -80,19 +77,15 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showGraduationDropdown, setShowGraduationDropdown] = useState(false);
-  const [deleteFlagChecked, setDeleteFlagChecked] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    displayName: user?.displayName || "User",
+    displayName: user?.displayName || "",
     email: user?.email || "",
-    phoneNumber: "",
     rollNumber: "",
     refferedBy: "",
     applyCampusAmbassador: false,
     appleId: user?.uid || "",
-    age: "",
     collegeName: "",
     graduationYear: "",
-    gender: "",
     isHostCollegeStudent: user?.email
       ? THAPAR_EMAIL_REGEX.test(user.email)
       : false,
@@ -140,26 +133,10 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
     }));
   }, [user]);
 
-  useEffect(() => {
-    const checkDeleteFlag = async () => {
-      const shouldDelete = await getDeleteFlag();
-      setDeleteFlagChecked(shouldDelete);
-    };
-    checkDeleteFlag();
-  }, []);
-
   const validateForm = (): string | null => {
-    if (!formData.phoneNumber.trim() && !deleteFlagChecked)
-      return "Please enter your phone number";
-    if (formData.phoneNumber.length !== 10 && !deleteFlagChecked)
-      return "Please enter a valid 10-digit phone number";
-    if (!formData.gender && !deleteFlagChecked)
-      return "Please select your gender";
     if (!formData.graduationYear)
       return "Please select your graduation year";
 
-    if (!formData.age.trim() && !deleteFlagChecked)
-      return "Please enter your age";
     if (!formData.rollNumber)
       return "Please enter your roll number";
     if (!formData.isHostCollegeStudent) {
@@ -222,10 +199,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          phoneNumber: formData.phoneNumber,
-          gender: formData.gender,
           graduationYear: formData.graduationYear,
-          age: formData.age,
           rollNumber: formData.rollNumber,
           collegeName,
           referredBy: formData.refferedBy,
@@ -605,12 +579,13 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
             </Text>
           </View>
 
+          {/* Name and email come from the sign-in provider (Apple/Google), so they are display-only and never required. */}
           <Input
             label="Full Name"
             value={formData.displayName}
             onChangeText={() => {}}
             editable={false}
-            placeholder="Enter your full name"
+            placeholder="Not provided by sign-in provider"
             className="mb-4"
           />
 
@@ -618,95 +593,12 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
             label="Email"
             value={formData.email}
             onChangeText={() => {}}
-            placeholder="Enter your email"
+            placeholder="Not provided by sign-in provider"
             keyboardType="email-address"
-            editable={!user?.email}
+            editable={false}
             className="mb-4"
           />
 
-          <Input
-            label="Phone Number *"
-            value={formData.phoneNumber}
-            onChangeText={(value) => updateField("phoneNumber", value)}
-            placeholder="Enter 10-digit mobile number"
-            keyboardType="numeric"
-            maxLength={10}
-            className="mb-4"
-          />
-
-          <Input
-            label="Age *"
-            value={formData.age}
-            onChangeText={(value) => updateField("age", value)}
-            placeholder="Enter your age (e.g. 20)"
-            keyboardType="numeric"
-            maxLength={2}
-            className="mb-4"
-          />
-
-          {/* Gender Selection */}
-          <View className="mb-2">
-            <Text
-              style={{
-                fontFamily: "Poppins_600SemiBold",
-                color: textColor,
-                fontSize: 14,
-                marginBottom: 8,
-              }}
-            >
-              Gender *
-            </Text>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {(["male", "female", "other"] as const).map((gender) => {
-                const isSelected = formData.gender === gender;
-                return (
-                  <TouchableOpacity
-                    key={gender}
-                    activeOpacity={0.75}
-                    onPress={() => updateField("gender", gender)}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 12,
-                      paddingHorizontal: 8,
-                      borderRadius: 14,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexDirection: "row",
-                      backgroundColor: isSelected
-                        ? isDark
-                          ? "rgba(255, 186, 0, 0.15)"
-                          : "rgba(255, 186, 0, 0.12)"
-                        : isDark
-                        ? "#26262B"
-                        : "#F9FAFB",
-                      borderWidth: isSelected ? 1.5 : 1,
-                      borderColor: isSelected ? "#FFBA00" : inputBorder,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: isSelected
-                          ? "Poppins_600SemiBold"
-                          : "Poppins_500Medium",
-                        fontSize: 13.5,
-                        color: isSelected ? "#FFBA00" : subTextColor,
-                      }}
-                    >
-                      {gender.charAt(0).toUpperCase() + gender.slice(1)}
-                    </Text>
-                    {isSelected && (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={16}
-                        color="#FFBA00"
-                        style={{ marginLeft: 6 }}
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
         </View>
 
         {/* Section 2: Academic Information Card */}

@@ -8,7 +8,9 @@ import { getApp } from "@react-native-firebase/app";
 import {
   getAuth,
   signInWithCredential,
+  signInWithEmailAndPassword,
   signOut,
+  updateProfile,
   GoogleAuthProvider,
   OAuthProvider,
 } from "@react-native-firebase/auth";
@@ -166,6 +168,14 @@ export const handleAppleSignIn = async (): Promise<{
       throw new Error("No user returned from Firebase Auth");
     }
 
+    // Apple only returns fullName on the first sign-in, so persist it to the Firebase profile now.
+    const fullName = [appleAuthRequestResponse.fullName?.givenName, appleAuthRequestResponse.fullName?.familyName]
+      .filter(Boolean)
+      .join(" ");
+    if (fullName && !result.user.displayName) {
+      await updateProfile(result.user, { displayName: fullName });
+    }
+
     const backendResult = await syncBackendSession(result.user);
 
     return {
@@ -180,6 +190,31 @@ export const handleAppleSignIn = async (): Promise<{
     console.error("Apple Sign-In error:", error?.message || error);
     throw error;
   }
+};
+
+// Review-only sign-in. The app has no email sign-up, so only accounts created
+// in the Firebase console can use this path.
+export const handleEmailSignIn = async (
+  email: string,
+  password: string
+): Promise<{
+  firebaseUser: FirebaseUser;
+  profile: UserProfile;
+  isFirstTime: boolean;
+}> => {
+  const result = await signInWithEmailAndPassword(auth(), email.trim(), password);
+
+  if (!result.user) {
+    throw new Error("No user returned from Firebase Auth");
+  }
+
+  const backendResult = await syncBackendSession(result.user);
+
+  return {
+    firebaseUser: result.user,
+    profile: backendResult.user,
+    isFirstTime: backendResult.created,
+  };
 };
 
 export const handleSignOut = async (): Promise<void> => {

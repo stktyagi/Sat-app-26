@@ -3,9 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>427621506808-27df1pi1urua26naeapc53jsc9j21ofv.apps.googleusercontent.com</string>
+	<string>427621506808-o5nqljprovsajeba0n204thlsp1p7l5m.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.427621506808-27df1pi1urua26naeapc53jsc9j21ofv</string>
+	<string>com.googleusercontent.apps.427621506808-o5nqljprovsajeba0n204thlsp1p7l5m</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>427621506808-30fc6ue0h5unb79t54hgu5umvugctv7m.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyA32ZCjVoo05KvlGlV3pVhZW4kfCuwX_N8</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.gauransh.saturnaliaapp2026</string>
+	<string>aaravgupta.events</string>
 	<key>PROJECT_ID</key>
 	<string>sat2026-dev</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:427621506808:ios:9605ee9247fda3b8df250d</string>
+	<string>1:427621506808:ios:cf68caed91f09f9edf250d</string>
 </dict>
 </plist>

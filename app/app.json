@@ -2,7 +2,7 @@
   "expo": {
     "name": "Saturnalia",
     "slug": "saturnalia",
-    "version": "1.0.1",
+    "version": "1.3",
     "orientation": "portrait",
     "icon": "./assets/icons/adaptive-icon.png",
     "scheme": "app",
@@ -13,8 +13,9 @@
         "light": "./assets/icons/ios-light.png",
         "tinted": "./assets/icons/ios-tinted.png"
       },
-      "bundleIdentifier": "com.gauransh.saturnaliaapp2026",
-      "buildNumber": "13",
+      "bundleIdentifier": "aaravgupta.events",
+      "appleTeamId": "3YK32DPS3W",
+      "buildNumber": "6",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Saturnalia needs camera access to scan event tickets, merchandise QR codes, and entry passes.",
@@ -69,9 +70,21 @@
           "image": "./assets/icons/splash-icon-dark.png"
         }
       ],
-      "@react-native-firebase/app",
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "disableSPM": true
+          }
+        }
+      ],
       "@react-native-firebase/auth",
-      "@react-native-google-signin/google-signin",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.427621506808-o5nqljprovsajeba0n204thlsp1p7l5m"
+        }
+      ],
       [
         "@rnmapbox/maps",
         {
@@ -94,16 +107,11 @@
       "expo-sharing",
       "expo-video",
       "react-native-video",
+      "expo-font",
       "expo-image",
       "expo-web-browser",
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "react-native",
-          "organization": "thapar-hn"
-        }
-      ]
+      "./plugins/withSceneLifecycle.js",
+      "./plugins/withSwift5Pods.js"
     ],
     "experiments": {
       "typedRoutes": true,

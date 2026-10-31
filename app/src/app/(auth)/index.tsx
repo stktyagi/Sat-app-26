@@ -1,8 +1,9 @@
 // src/screens/Auth/LoginScreen.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Text,
   View,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Image,
@@ -19,6 +20,7 @@ import { useRouter } from "expo-router";
 import {
   handleGoogleSignIn,
   handleAppleSignIn,
+  handleEmailSignIn,
   initializeGoogleSignIn,
 } from "@/api/auth";
 
@@ -27,6 +29,9 @@ const LoginScreen = () => {
   const { isSigningIn, setSigningIn, setUserData, setAuthUser } =
     useUserStore();
   const router = useRouter();
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     initializeGoogleSignIn();
@@ -62,6 +67,23 @@ const LoginScreen = () => {
         showAlert("Error", "An error occurred during sign in. Please try again.");
         console.error("Google Login error:", error);
       }
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const onEmailSignIn = async () => {
+    if (!email.trim() || !password) {
+      showAlert("Error", "Enter your email and password.");
+      return;
+    }
+    setSigningIn(true);
+    try {
+      const result = await handleEmailSignIn(email, password);
+      handleSignInSuccess(result, "Email");
+    } catch (error: any) {
+      showAlert("Error", "Could not sign in with those details.");
+      console.error("Email Login error:", error?.code || error?.message);
     } finally {
       setSigningIn(false);
     }
@@ -141,6 +163,40 @@ const LoginScreen = () => {
 
           {/* Action Buttons */}
           <View style={{ width: "100%", gap: 10 }}>
+            {/* Apple Sign-in (iOS only) */}
+            {Platform.OS === "ios" && (
+              <View style={{ width: "100%", height: 52 }}>
+                {isSigningIn ? (
+                  <View
+                    style={{
+                      width: "100%",
+                      height: 52,
+                      backgroundColor: "#000000",
+                      borderWidth: 1,
+                      borderColor: "rgba(255, 255, 255, 0.2)",
+                      borderRadius: 16,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  </View>
+                ) : (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={
+                      AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                    }
+                    buttonStyle={
+                      AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                    }
+                    style={{ width: "100%", height: 52, borderRadius: 16 }}
+                    cornerRadius={16}
+                    onPress={onAppleSignIn}
+                  />
+                )}
+              </View>
+            )}
+
             {/* Google Sign-in */}
             <TouchableOpacity
               activeOpacity={0.82}
@@ -185,37 +241,87 @@ const LoginScreen = () => {
               )}
             </TouchableOpacity>
 
-            {/* Apple Sign-in (iOS only) */}
-            {Platform.OS === "ios" && (
-              <View style={{ width: "100%", height: 52 }}>
-                {isSigningIn ? (
-                  <View
-                    style={{
-                      width: "100%",
-                      height: 52,
-                      backgroundColor: "#000000",
-                      borderWidth: 1,
-                      borderColor: "rgba(255, 255, 255, 0.2)",
-                      borderRadius: 16,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  </View>
-                ) : (
-                  <AppleAuthentication.AppleAuthenticationButton
-                    buttonType={
-                      AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
-                    }
-                    buttonStyle={
-                      AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                    }
-                    style={{ width: "100%", height: 52, borderRadius: 16 }}
-                    cornerRadius={16}
-                    onPress={onAppleSignIn}
-                  />
-                )}
+            {/* Email sign-in (App Review only; accounts are created in the Firebase console) */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setShowEmailForm((v) => !v)}
+              style={{ alignItems: "center", paddingVertical: 4 }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Poppins_500Medium",
+                  fontSize: 13,
+                  color: "rgba(255, 255, 255, 0.75)",
+                  textDecorationLine: "underline",
+                }}
+              >
+                {showEmailForm ? "Hide email sign-in" : "Sign in with email"}
+              </Text>
+            </TouchableOpacity>
+
+            {showEmailForm && (
+              <View style={{ gap: 10 }}>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email"
+                  placeholderTextColor="rgba(255, 255, 255, 0.45)"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  textContentType="username"
+                  style={{
+                    height: 48,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    color: "#FFFFFF",
+                    fontFamily: "Poppins_400Regular",
+                    fontSize: 15,
+                    backgroundColor: "rgba(28, 28, 32, 0.95)",
+                    borderWidth: 1,
+                    borderColor: "rgba(255, 255, 255, 0.2)",
+                  }}
+                />
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Password"
+                  placeholderTextColor="rgba(255, 255, 255, 0.45)"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  textContentType="password"
+                  style={{
+                    height: 48,
+                    borderRadius: 14,
+                    paddingHorizontal: 14,
+                    color: "#FFFFFF",
+                    fontFamily: "Poppins_400Regular",
+                    fontSize: 15,
+                    backgroundColor: "rgba(28, 28, 32, 0.95)",
+                    borderWidth: 1,
+                    borderColor: "rgba(255, 255, 255, 0.2)",
+                  }}
+                />
+                <TouchableOpacity
+                  activeOpacity={0.82}
+                  onPress={onEmailSignIn}
+                  disabled={isSigningIn}
+                  style={{
+                    height: 48,
+                    borderRadius: 14,
+                    backgroundColor: "#FFBA00",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {isSigningIn ? (
+                    <ActivityIndicator size="small" color="#000000" />
+                  ) : (
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 15, color: "#000000" }}>
+                      Sign in
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
             )}
           </View>
