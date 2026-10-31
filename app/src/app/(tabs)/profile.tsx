@@ -1,5 +1,4 @@
-// src/screens/App/ProfileScreen.tsx
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Text,
   View,
@@ -10,9 +9,10 @@ import {
   Share,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
@@ -24,17 +24,61 @@ import { setStringAsync } from "expo-clipboard";
 import { showAlert } from "@/components";
 import { checkAppStatus } from "@/utils/versionCheck";
 import { runAllDebugChecks } from "@/utils/debugVersion";
+import { promptAndUploadIdentity, isOutsideCollegeStudent, isIdentityVerificationComplete } from "@/utils/identityUpload";
 
 const ProfileScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { userData: userProfile } = useUserStore();
+  const { userData: userProfile, refreshUserProfile } = useUserStore();
   const canSeeAdmin = isUserAdmin(userProfile);
   const { isDark, toggleTheme } = useThemeStore();
   const { openDrawer } = useAdminDrawerStore();
   const [showQRModal, setShowQRModal] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingCollegeId, setIsUploadingCollegeId] = useState(false);
+
+  const handleUploadPhoto = () => {
+    if (userProfile?.photoUrl || userProfile?.photoURL) return;
+    promptAndUploadIdentity("photo", setIsUploadingPhoto);
+  };
+
+  const handleUploadCollegeId = () => {
+    if (userProfile?.collegeIdUrl) return;
+    promptAndUploadIdentity("collegeId", setIsUploadingCollegeId);
+  };
+
+  const handleAvatarPress = () => {
+    const hasPhoto = Boolean(userProfile?.photoUrl || userProfile?.photoURL);
+    if (hasPhoto) {
+      setShowQRModal(true);
+      return;
+    }
+
+    showAlert(
+      "Profile Photo & ID",
+      "Choose an action:",
+      [
+        {
+          text: "View Festival Pass QR",
+          onPress: () => setShowQRModal(true),
+        },
+        {
+          text: "Take Live Photo",
+          onPress: handleUploadPhoto,
+        },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshUserProfile().catch(() => {});
+    }, [refreshUserProfile])
+  );
 
   const boysHairStyles = ['turban', 'fonze'];
   const girlsHairStyles = ['full', 'pixie'];
@@ -47,7 +91,10 @@ const ProfileScreen = () => {
   const profilePicUrl = `https://api.dicebear.com/10.x/open-peeps/png?seed=${userProfile?.userId}&hair=${getRandomHairStyle()}`;
 
   const isHostCollegeStudent =
-    userProfile?.collegeName?.toLowerCase().includes("thapar") || false;
+    userProfile?.isHostCollegeStudent ||
+    userProfile?.collegeName?.toLowerCase().includes("thapar") ||
+    userProfile?.email?.toLowerCase().endsWith("@thapar.edu") ||
+    false;
 
   const handleDebugTap = async () => {
     const newCount = debugTapCount + 1;
@@ -95,7 +142,31 @@ const ProfileScreen = () => {
   };
 
   const handleDeleteAccount = () => {
-    Linking.openURL("https://www.saturnalia.in/deleteuser");
+    showAlert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action is permanent and cannot be undone. All your registrations, passes, and account details will be permanently removed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              const { deleteAccount } = await import('@/api/auth');
+              await deleteAccount();
+              useUserStore.getState().logout();
+              router.replace('/(auth)');
+            } catch (error: any) {
+              console.error('Delete account error:', error);
+              showAlert('Error', error?.message || 'Failed to delete account. Please try again.');
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCheckForUpdates = async () => {
@@ -337,10 +408,10 @@ const ProfileScreen = () => {
               </Text>
             </View>
 
-            {/* Avatar circle with cyan ring */}
+            {/* Avatar circle with cyan ring & QR badge */}
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => setShowQRModal(true)}
+              onPress={handleAvatarPress}
               style={{
                 width: 66,
                 height: 66,
@@ -350,22 +421,42 @@ const ProfileScreen = () => {
                 backgroundColor: isDark ? '#121214' : '#E5E7EB',
                 alignItems: 'center',
                 justifyContent: 'center',
-                overflow: 'hidden',
+                position: 'relative',
               }}
             >
-              {userProfile?.photoURL ? (
-                <Image
-                  source={{ uri: userProfile.photoURL }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Ionicons
-                  name="person"
-                  size={32}
-                  color={isDark ? '#9CA3AF' : '#4B5563'}
-                />
-              )}
+              <View style={{ width: '100%', height: '100%', borderRadius: 30, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                {(userProfile?.photoUrl || userProfile?.photoURL) ? (
+                  <Image
+                    source={{ uri: userProfile.photoUrl || userProfile.photoURL }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons
+                    name="person"
+                    size={32}
+                    color={isDark ? '#9CA3AF' : '#4B5563'}
+                  />
+                )}
+              </View>
+              {/* QR Mini Badge */}
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: -2,
+                  right: -2,
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: '#38BDF8',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 2,
+                  borderColor: isDark ? '#1C1C20' : '#FFFFFF',
+                }}
+              >
+                <Ionicons name="qr-code" size={11} color="#000000" />
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -401,48 +492,321 @@ const ProfileScreen = () => {
                   fontFamily: 'Poppins_600SemiBold',
                   fontSize: 13,
                   color: '#EF4444',
-                }}
-              >
-                Logout
-              </Text>
-            </TouchableOpacity>
+                  }}
+                >
+                  Logout
+                </Text>
+              </TouchableOpacity>
 
-            {/* Delete Account Button */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleDeleteAccount}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingHorizontal: 12,
-                paddingVertical: 7,
-                borderRadius: 12,
-                backgroundColor: isDark ? '#1F2228' : '#FEF2F2',
-                borderWidth: 1,
-                borderColor: '#EF4444',
-              }}
-            >
-              <Ionicons name="trash-outline" size={15} color="#EF4444" />
-              <Text
+              {/* Delete Account Button */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={deletingAccount}
+                onPress={handleDeleteAccount}
                 style={{
-                  fontFamily: 'Poppins_600SemiBold',
-                  fontSize: 13,
-                  color: '#EF4444',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderRadius: 12,
+                  backgroundColor: isDark ? '#1F2228' : '#FEF2F2',
+                  borderWidth: 1,
+                  borderColor: '#EF4444',
+                  opacity: deletingAccount ? 0.6 : 1,
                 }}
               >
-                Delete Account
-              </Text>
-            </TouchableOpacity>
+                {deletingAccount ? (
+                  <ActivityIndicator size="small" color="#EF4444" />
+                ) : (
+                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                )}
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_600SemiBold',
+                    fontSize: 13,
+                    color: '#EF4444',
+                  }}
+                >
+                  {deletingAccount ? 'Deleting...' : 'Delete Account'}
+                </Text>
+              </TouchableOpacity>
           </View>
         </View>
 
+        {/* ID Verification Card for Outside Students */}
+        {isOutsideCollegeStudent(userProfile) && (
+          <View
+            style={{
+              backgroundColor: isDark ? "#1C1C20" : "#FFFFFF",
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: isIdentityVerificationComplete(userProfile)
+                ? (isDark ? "rgba(34, 197, 94, 0.3)" : "#86EFAC")
+                : (isDark ? "rgba(245, 158, 11, 0.35)" : "#FCD34D"),
+              padding: 20,
+              marginBottom: 16,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0.25 : 0.05,
+              shadowRadius: 8,
+              elevation: 3,
+            }}
+          >
+            {/* Header */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons
+                  name={isIdentityVerificationComplete(userProfile) ? "shield-checkmark" : "shield-outline"}
+                  size={20}
+                  color={isIdentityVerificationComplete(userProfile) ? "#22C55E" : "#F59E0B"}
+                />
+                <Text
+                  style={{
+                    fontFamily: "Poppins_600SemiBold",
+                    fontSize: 16,
+                    color: isDark ? "#FFFFFF" : "#111827",
+                  }}
+                >
+                  ID Verification
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: isIdentityVerificationComplete(userProfile)
+                    ? (isDark ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7")
+                    : (isDark ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7"),
+                  paddingHorizontal: 10,
+                  paddingVertical: 3,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: isIdentityVerificationComplete(userProfile) ? "#22C55E" : "#F59E0B",
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: "Poppins_600SemiBold",
+                    fontSize: 11,
+                    color: isIdentityVerificationComplete(userProfile) ? "#22C55E" : "#F59E0B",
+                  }}
+                >
+                  {isIdentityVerificationComplete(userProfile) ? "Verified ✓" : "Action Required"}
+                </Text>
+              </View>
+            </View>
+
+            <Text
+              style={{
+                fontFamily: "Poppins_400Regular",
+                fontSize: 12,
+                color: isDark ? "#9CA3AF" : "#6B7280",
+                lineHeight: 18,
+                marginBottom: 16,
+              }}
+            >
+              {isIdentityVerificationComplete(userProfile)
+                ? "Your profile photo and college ID have been submitted. You can register for festival events."
+                : "Outside college students must upload both a live profile photo and college ID to register for events."}
+            </Text>
+
+            {/* Row 1: Profile Photo */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingVertical: 10,
+                borderTopWidth: 1,
+                borderTopColor: isDark ? "rgba(255, 255, 255, 0.08)" : "#F3F4F6",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginRight: 10 }}>
+                <View
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: isDark ? "#26262B" : "#F3F4F6",
+                    overflow: "hidden",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: 12,
+                    borderWidth: 1,
+                    borderColor: (userProfile?.photoUrl || userProfile?.photoURL) ? "#38BDF8" : (isDark ? "#3E3E48" : "#D1D5DB"),
+                  }}
+                >
+                  {(userProfile?.photoUrl || userProfile?.photoURL) ? (
+                    <Image
+                      source={{ uri: userProfile?.photoUrl || userProfile?.photoURL }}
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Ionicons name="camera-outline" size={18} color={isDark ? "#9CA3AF" : "#6B7280"} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 13, color: isDark ? "#FFFFFF" : "#111827" }}>
+                    Profile Photo
+                  </Text>
+                  <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: (userProfile?.photoUrl || userProfile?.photoURL) ? "#22C55E" : "#F59E0B" }}>
+                    {(userProfile?.photoUrl || userProfile?.photoURL) ? "✓ Uploaded" : "• Missing (Required)"}
+                  </Text>
+                </View>
+              </View>
+
+              {(userProfile?.photoUrl || userProfile?.photoURL) ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 10,
+                    backgroundColor: isDark ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7",
+                  }}
+                >
+                  <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
+                  <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 11, color: "#22C55E" }}>
+                    Added
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleUploadPhoto}
+                  disabled={isUploadingPhoto}
+                  activeOpacity={0.8}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? "#232833" : "#E0F2FE",
+                    borderWidth: 1,
+                    borderColor: "#38BDF8",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  {isUploadingPhoto ? (
+                    <ActivityIndicator size="small" color="#38BDF8" />
+                  ) : (
+                    <>
+                      <Ionicons name="cloud-upload-outline" size={14} color="#38BDF8" />
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12, color: "#38BDF8" }}>
+                        Upload
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Row 2: College ID Card */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingVertical: 10,
+                borderTopWidth: 1,
+                borderTopColor: isDark ? "rgba(255, 255, 255, 0.08)" : "#F3F4F6",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginRight: 10 }}>
+                <View
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    backgroundColor: isDark ? "#26262B" : "#F3F4F6",
+                    overflow: "hidden",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: 12,
+                    borderWidth: 1,
+                    borderColor: userProfile?.collegeIdUrl ? "#38BDF8" : (isDark ? "#3E3E48" : "#D1D5DB"),
+                  }}
+                >
+                  {userProfile?.collegeIdUrl ? (
+                    <Image
+                      source={{ uri: userProfile?.collegeIdUrl }}
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Ionicons name="card-outline" size={18} color={isDark ? "#9CA3AF" : "#6B7280"} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 13, color: isDark ? "#FFFFFF" : "#111827" }}>
+                    College ID Card
+                  </Text>
+                  <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: userProfile?.collegeIdUrl ? "#22C55E" : "#F59E0B" }}>
+                    {userProfile?.collegeIdUrl ? "✓ Uploaded" : "• Missing (Required)"}
+                  </Text>
+                </View>
+              </View>
+
+              {userProfile?.collegeIdUrl ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 10,
+                    backgroundColor: isDark ? "rgba(34, 197, 94, 0.15)" : "#DCFCE7",
+                  }}
+                >
+                  <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
+                  <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 11, color: "#22C55E" }}>
+                    Added
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleUploadCollegeId}
+                  disabled={isUploadingCollegeId}
+                  activeOpacity={0.8}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? "#232833" : "#E0F2FE",
+                    borderWidth: 1,
+                    borderColor: "#38BDF8",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  {isUploadingCollegeId ? (
+                    <ActivityIndicator size="small" color="#38BDF8" />
+                  ) : (
+                    <>
+                      <Ionicons name="cloud-upload-outline" size={14} color="#38BDF8" />
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12, color: "#38BDF8" }}>
+                        Upload
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Menu Items List matching reference UI */}
-        <ProfileMenuItem
-          icon="bed-outline"
-          label="Accommodation & Hostel"
-          onPress={() => router.push("/profile/Accommodation")}
-        />
+        {!isHostCollegeStudent && (
+          <ProfileMenuItem
+            icon="bed-outline"
+            label="Accommodation & Hostel"
+            onPress={() => router.push("/profile/Accommodation")}
+          />
+        )}
 
         <ProfileMenuItem
           icon="restaurant-outline"
@@ -508,11 +872,11 @@ const ProfileScreen = () => {
           />
         ) : null}
 
-        <ProfileMenuItem
+        {/* <ProfileMenuItem
           icon="people-outline"
           label="Our Team"
           onPress={() => router.push("/profile/Team")}
-        />
+        /> */}
 
         <ProfileMenuItem
           icon="share-social-outline"

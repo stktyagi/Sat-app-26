@@ -28,8 +28,6 @@ import Mapbox, {
   CircleLayer,
 } from "@rnmapbox/maps";
 import {
-  PanGestureHandler,
-  GestureHandlerRootView,
   Gesture,
   GestureDetector,
 } from "react-native-gesture-handler";
@@ -41,31 +39,107 @@ import Animated, {
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { User, CalendarDays, MapPin, Search, X, Navigation } from "lucide-react-native";
-import { Venue, FirebaseEvent } from '@/types/models';
-import { CAMPUS_LOCATIONS } from '@/data/campusLocations';
-import { listVenues } from '@/api/admin';
-import { listEvents } from '@/api/events';
+import {
+  User,
+  CalendarDays,
+  MapPin,
+  Search,
+  X,
+  Navigation,
+  ArrowUp,
+  ArrowLeft,
+  ArrowRight,
+  CornerDownLeft,
+  CornerDownRight,
+  Flag,
+  CheckCircle,
+} from "lucide-react-native";
+import { Venue, FirebaseEvent } from "@/types/models";
+import { useVenues } from "@/hooks/useVenues";
+import { listEvents } from "@/api/events";
 import * as Location from "expo-location";
+import {
+  useNavigationLogic,
+  parseSteps,
+  buildFallbackInstruction,
+  formatDistance,
+  RouteStep,
+  MapboxDirectionsResponse,
+} from "@/hooks/useNavigation";
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoiamFzaGFuMjAwMyIsImEiOiJjbWdhbHRkNTkwbm1vMmlxdGRrdnpvazR4In0.Uy3g_PaeGdaoUAmTdRl_-w";
-// TODO: Set your Mapbox public access token here
+// ---------------------------------------------------------------------------
+// Token
+// ---------------------------------------------------------------------------
+
+const MAPBOX_TOKEN =
+  "pk.eyJ1IjoiamFzaGFuMjAwMyIsImEiOiJjbWdhbHRkNTkwbm1vMmlxdGRrdnpvazR4In0.Uy3g_PaeGdaoUAmTdRl_-w";
 Mapbox.setAccessToken(MAPBOX_TOKEN);
 
-const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371e3; // metres
-  const φ1 = (lat1 * Math.PI) / 180; // φ, λ in radians
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+// ---------------------------------------------------------------------------
+// Destination type
+// ---------------------------------------------------------------------------
 
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+interface Destination {
+  lat: number;
+  lng: number;
+  name: string;
+}
 
-  return R * c; // in metres
+// ---------------------------------------------------------------------------
+// Maneuver icon helper
+// ---------------------------------------------------------------------------
+
+function ManeuverIcon({
+  step,
+  size = 24,
+  color = "#fff",
+}: {
+  step: RouteStep | null;
+  size?: number;
+  color?: string;
+}) {
+  if (!step) return <ArrowUp size={size} color={color} />;
+  const { type, modifier } = step.maneuver;
+  if (type === "arrive") return <Flag size={size} color={color} />;
+  if (type === "turn") {
+    if (modifier === "left" || modifier === "sharp left")
+      return <ArrowLeft size={size} color={color} />;
+    if (modifier === "right" || modifier === "sharp right")
+      return <ArrowRight size={size} color={color} />;
+    if (modifier === "slight left")
+      return <CornerDownLeft size={size} color={color} />;
+    if (modifier === "slight right")
+      return <CornerDownRight size={size} color={color} />;
+  }
+  if (type === "depart") return <Navigation size={size} color={color} />;
+  return <ArrowUp size={size} color={color} />;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// Helper to identify hostel venues that should be excluded from map blips
+const isHostelVenue = (venue: Venue): boolean => {
+  const id = (venue.venueId || "").toLowerCase();
+  const name = (venue.venueName || "").toLowerCase();
+  if (id.includes("hostel") || name.includes("hostel")) return true;
+  if (
+    id.includes("paavni") ||
+    id.includes("dhriti") ||
+    id.includes("vahni") ||
+    name.includes("paavni") ||
+    name.includes("dhriti") ||
+    name.includes("vahni")
+  ) {
+    return true;
+  }
+  return false;
 };
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function MapScreen() {
   const router = useRouter();
@@ -74,7 +148,10 @@ export default function MapScreen() {
   const carouselRef = useRef<FlatList>(null);
   const mapRef = useRef<MapView>(null);
 
-  const [venues, setVenues] = useState<Venue[]>([]);
+  const { venues, refresh: refreshVenues } = useVenues();
+  const displayVenues = useMemo(() => {
+    return (venues || []).filter((v) => !isHostelVenue(v));
+  }, [venues]);
   const [events, setEvents] = useState<FirebaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -82,32 +159,68 @@ export default function MapScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
-  const [fullRouteCoordinates, setFullRouteCoordinates] = useState<[number, number][] | null>(null);
-  const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
   const [isFollowingUser, setIsFollowingUser] = useState(false);
-  const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const [destination, setDestination] = useState<{lat: number, lng: number, name: string} | null>(null);
+  const locationSubscription = useRef<Location.LocationSubscription | null>(
+    null
+  );
+  const [destination, setDestination] = useState<Destination | null>(null);
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
 
-  const initialCenter = {
-    lat: 30.353539,
-    lng: 76.368524,
-  };
+  // Keep a ref so the GPS callback can access the latest destination without
+  // needing it in the dependency array (avoids recreating the subscription).
+  const userLocationRef = useRef(userLocation);
+  userLocationRef.current = userLocation;
 
-  // Carousel animation values
+  const initialCenter = { lat: 30.353539, lng: 76.368524 };
+
+  // ── Carousel animation ────────────────────────────────────────────────────
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-  const CAROUSEL_HEIGHT = screenHeight * 0.25; // 25% of screen height
-  const CARD_WIDTH = screenWidth * 0.8; // 80% of screen width
-  const CARD_MARGIN = 10; // Gap between cards
-  const SIDE_SPACING = (screenWidth - CARD_WIDTH) / 2; // Equal spacing on both sides
+  const CAROUSEL_HEIGHT = screenHeight * 0.25;
+  const CARD_WIDTH = screenWidth * 0.8;
+  const CARD_MARGIN = 10;
+  const SIDE_SPACING = (screenWidth - CARD_WIDTH) / 2;
   const translateY = useSharedValue(CAROUSEL_HEIGHT);
-  const buttonsTranslateY = useSharedValue(0); // Separate animation for buttons
+  const buttonsTranslateY = useSharedValue(0);
 
-  // Get user location
+  // ── Navigation hook ───────────────────────────────────────────────────────
+  const handleRerouteSuccess = useCallback(
+    (coords: [number, number][], _steps: RouteStep[]) => {
+      // Fit camera to new route after reroute
+      if (coords.length >= 2) {
+        const bounds = coords.reduce<{ ne: [number, number]; sw: [number, number] }>(
+          (acc, coord) => ({
+            ne: [Math.max(acc.ne[0], coord[0]), Math.max(acc.ne[1], coord[1])] as [number, number],
+            sw: [Math.min(acc.sw[0], coord[0]), Math.min(acc.sw[1], coord[1])] as [number, number],
+          }),
+          { ne: [coords[0][0], coords[0][1]], sw: [coords[0][0], coords[0][1]] }
+        );
+        cameraRef.current?.fitBounds(bounds.ne, bounds.sw, [100, 50, 100, 50], 1000);
+      }
+    },
+    []
+  );
+
+  const nav = useNavigationLogic(destination, MAPBOX_TOKEN, handleRerouteSuccess);
+
+  // ── Stable ref to onLocationUpdate ───────────────────────────────────────
+  // Keeps the watcher callback decoupled from the nav object identity so that
+  // getUserLocation never needs to be recreated when nav re-renders.
+  const onLocationUpdateRef = useRef(nav.onLocationUpdate);
+  onLocationUpdateRef.current = nav.onLocationUpdate;
+
+  // ── GPS subscription ──────────────────────────────────────────────────────
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // getUserLocation has NO dependency on nav — it reads via onLocationUpdateRef.
   const getUserLocation = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -125,10 +238,10 @@ export default function MapScreen() {
         lng: location.coords.longitude,
       };
 
+      if (!isMountedRef.current) return;
       setUserLocation(userLoc);
       setIsFollowingUser(true);
 
-      // Fly to user location
       if (cameraRef.current) {
         cameraRef.current.setCamera({
           centerCoordinate: [userLoc.lng, userLoc.lat],
@@ -137,129 +250,64 @@ export default function MapScreen() {
         });
       }
 
-      // Start watcher
+      // Remove any existing watcher
       if (locationSubscription.current) {
         locationSubscription.current.remove();
+        locationSubscription.current = null;
       }
-      
+
       locationSubscription.current = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
-          distanceInterval: 2, // Every 2 meters
-          timeInterval: 2000, // Or every 2 seconds
+          accuracy: Location.Accuracy.BestForNavigation,
+          distanceInterval: 3,
+          timeInterval: 2000,
         },
         (loc) => {
-          setUserLocation({
-            lat: loc.coords.latitude,
-            lng: loc.coords.longitude,
-          });
+          if (!isMountedRef.current) return;
+          const lat = loc.coords.latitude;
+          const lng = loc.coords.longitude;
+          setUserLocation({ lat, lng });
+          // Read through ref — always calls the latest version without
+          // needing nav in the dependency array.
+          onLocationUpdateRef.current(lat, lng);
         }
       );
-
     } catch (error) {
       console.error("Error getting user location:", error);
       showAlert("Error", "Failed to get your location");
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // stable — intentionally no deps
 
-  // Cleanup location watcher on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (locationSubscription.current) {
-        locationSubscription.current.remove();
-      }
+      locationSubscription.current?.remove();
     };
   }, []);
 
-  // Handle live tracking and route trimming
+  // ── Camera tracking ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (!userLocation) return;
+    if (!userLocation || !isFollowingUser) return;
+    cameraRef.current?.setCamera({
+      centerCoordinate: [userLocation.lng, userLocation.lat],
+      animationDuration: 800,
+    });
+  }, [userLocation, isFollowingUser]);
 
-    // 1. Camera Tracking
-    if (isFollowingUser && cameraRef.current) {
-      cameraRef.current.setCamera({
-        centerCoordinate: [userLocation.lng, userLocation.lat],
-        animationDuration: 1000,
-      });
-    }
-
-    // 2. Route Trimming
-    if (fullRouteCoordinates && fullRouteCoordinates.length > 0) {
-      let minDistance = Infinity;
-      let closestIndex = currentRouteIndex;
-
-      // Only search forward (lookahead of 20 points) to prevent snapping to past segments if paths cross
-      const lookahead = Math.min(currentRouteIndex + 20, fullRouteCoordinates.length);
-
-      for (let i = currentRouteIndex; i < lookahead; i++) {
-        const coord = fullRouteCoordinates[i];
-        // Mapbox coordinates are [lng, lat]
-        const dist = getDistance(userLocation.lat, userLocation.lng, coord[1], coord[0]);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestIndex = i;
-        }
-      }
-
-      // Advance the user's progress along the route
-      if (closestIndex > currentRouteIndex) {
-        setCurrentRouteIndex(closestIndex);
-      }
-
-      // If user is reasonably close to the path (e.g., within 100 meters), trim it.
-      if (minDistance < 100) {
-        let nextWaypointIndex = closestIndex;
-        
-        // Prevent drawing backwards: determine which segment the user is on
-        if (closestIndex > 0 && closestIndex < fullRouteCoordinates.length - 1) {
-          const prevCoord = fullRouteCoordinates[closestIndex - 1];
-          const nextCoord = fullRouteCoordinates[closestIndex + 1];
-          
-          const distPrev = getDistance(userLocation.lat, userLocation.lng, prevCoord[1], prevCoord[0]);
-          const distNext = getDistance(userLocation.lat, userLocation.lng, nextCoord[1], nextCoord[0]);
-          
-          if (distNext < distPrev) {
-            // User has passed closestIndex and is moving towards nextCoord
-            nextWaypointIndex = closestIndex + 1;
-          }
-        }
-
-        const remainingCoords = fullRouteCoordinates.slice(nextWaypointIndex);
-        // Insert user's exact current location at the start for a smooth connection
-        remainingCoords.unshift([userLocation.lng, userLocation.lat]);
-
-        setRouteGeoJSON({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: {},
-              geometry: {
-                type: "LineString",
-                coordinates: remainingCoords,
-              },
-            },
-          ],
-        });
-      }
-    }
-  }, [userLocation, fullRouteCoordinates, isFollowingUser, currentRouteIndex]);
-
-  // Fetch venues from Firebase
+  // ── Data fetching (cached in frontend via useVenues) ───────────────────────
   const fetchVenues = useCallback(async () => {
     try {
       setLoading(true);
-      const fetchedVenues = await listVenues();
-      setVenues(fetchedVenues);
+      await refreshVenues();
     } catch (error) {
-      console.error("Error fetching venues:", error);
+      console.error("Error refreshing venues:", error);
       showAlert("Error", "Failed to load venue locations");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshVenues]);
 
-  // Fetch events from Firebase
   const fetchEvents = useCallback(async () => {
     try {
       const fetchedEvents = await listEvents();
@@ -269,14 +317,18 @@ export default function MapScreen() {
     }
   }, []);
 
-  // Fetch venues and events on component mount
+  // Run once on mount only. fetchVenues/fetchEvents/getUserLocation are all
+  // stable useCallbacks with empty dep arrays, so listing them here is safe,
+  // but we use [] to make the intent absolutely explicit and avoid any future
+  // re-trigger if deps accidentally change.
   useEffect(() => {
     fetchVenues();
     fetchEvents();
     getUserLocation();
-  }, [fetchVenues, fetchEvents, getUserLocation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // mount-only
 
-  // Roads data as GeoJSON
+  // ── Roads GeoJSON ─────────────────────────────────────────────────────────
   const roadsGeoJSON = useMemo(
     () => ({
       type: "FeatureCollection" as const,
@@ -330,7 +382,7 @@ export default function MapScreen() {
     []
   );
 
-  // Control functions
+  // ── Map controls ──────────────────────────────────────────────────────────
   const zoomIn = useCallback(async () => {
     const zoom = await mapRef.current?.getZoom();
     if (zoom !== undefined) {
@@ -357,32 +409,41 @@ export default function MapScreen() {
       zoomLevel: 16,
       animationDuration: 1000,
     });
-  }, [initialCenter]);
+  }, [initialCenter.lat, initialCenter.lng]);
 
+  // ── Search ────────────────────────────────────────────────────────────────
   const handleSearch = async (text: string) => {
     setSearchQuery(text);
-    if (text.length < 3) {
+    if (text.trim().length < 2) {
       setSearchResults([]);
       return;
     }
-    
     try {
       setIsSearching(true);
-
-      // 1. Search Local Campus Locations
-      const queryLower = text.toLowerCase();
-      const localMatches = CAMPUS_LOCATIONS.filter(loc => {
-        if (loc.name.toLowerCase().includes(queryLower)) return true;
-        if (loc.keywords && loc.keywords.some(kw => kw.toLowerCase().includes(queryLower))) return true;
-        return false;
-      }).map(loc => ({
-        id: `local_${loc.id}`,
-        text: loc.name,
-        place_name: "Campus Location",
-        center: [loc.lng, loc.lat],
-        isLocal: true,
-      }));
-
+      const queryLower = text.toLowerCase().trim();
+      const localMatches = (venues || [])
+        .filter((venue) => {
+          const name = (venue.venueName || "").toLowerCase();
+          if (name.includes(queryLower)) return true;
+          if (
+            venue.keywords &&
+            venue.keywords.some((kw) => kw.toLowerCase().includes(queryLower))
+          ) {
+            return true;
+          }
+          return false;
+        })
+        .map((venue) => {
+          const lat = venue.lat || venue.latitude || 0;
+          const lng = venue.lng || venue.longitude || 0;
+          return {
+            id: `venue_${venue.venueId}`,
+            text: venue.venueName,
+            place_name: "Campus Venue",
+            center: [lng, lat] as [number, number],
+            isLocal: true,
+          };
+        });
       setSearchResults(localMatches);
     } catch (error) {
       console.error("Error searching location:", error);
@@ -391,63 +452,67 @@ export default function MapScreen() {
     }
   };
 
+  // ── Route fetching ────────────────────────────────────────────────────────
   const getRoute = async (destCoords: [number, number], destName: string) => {
-    if (!userLocation) {
+    if (!userLocationRef.current) {
       showAlert("Location Required", "We need your location to provide directions.");
       return;
     }
-    
+
     try {
       setLoading(true);
       setSearchResults([]);
       Keyboard.dismiss();
-      
-      const start = `${userLocation.lng},${userLocation.lat}`;
+
+      const { lat, lng } = userLocationRef.current;
+      const start = `${lng},${lat}`;
       const end = `${destCoords[0]},${destCoords[1]}`;
-      const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start};${end}?geometries=geojson&access_token=${MAPBOX_TOKEN}`;
-      
+      const url =
+        `https://api.mapbox.com/directions/v5/mapbox/walking/${start};${end}` +
+        `?geometries=geojson&steps=true&overview=full&banner_instructions=true` +
+        `&voice_instructions=true&access_token=${MAPBOX_TOKEN}`;
+
       const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.routes && data.routes.length > 0) {
-        setRouteGeoJSON({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: {},
-              geometry: data.routes[0].geometry,
-            },
-          ],
-        });
-        
-        setDestination({
-          lat: destCoords[1],
-          lng: destCoords[0],
-          name: destName
-        });
-        
-        const coords = data.routes[0].geometry.coordinates;
-        setFullRouteCoordinates(coords);
-        setCurrentRouteIndex(0); // Reset index for new route
-        
-        const bounds = coords.reduce((acc: any, coord: any) => {
-          return {
-            ne: [Math.max(acc.ne[0], coord[0]), Math.max(acc.ne[1], coord[1])],
-            sw: [Math.min(acc.sw[0], coord[0]), Math.min(acc.sw[1], coord[1])],
-          };
-        }, {
-          ne: [coords[0][0], coords[0][1]],
-          sw: [coords[0][0], coords[0][1]],
-        });
-        
-        cameraRef.current?.fitBounds(
-          bounds.ne,
-          bounds.sw,
-          [100, 50, 100, 50],
-          1000
-        );
+      if (!response.ok) {
+        showAlert("Error", `Directions request failed (${response.status})`);
+        return;
       }
+
+      const data: MapboxDirectionsResponse = await response.json();
+
+      if (data.code !== "Ok" || !data.routes?.length) {
+        showAlert("No Route", data.message ?? "Could not find a walking route.");
+        return;
+      }
+
+      const route = data.routes[0];
+      const coords: [number, number][] = route.geometry.coordinates;
+
+      if (coords.length < 2) {
+        showAlert("Error", "Route returned by server is invalid.");
+        return;
+      }
+
+      const newDest: Destination = {
+        lat: destCoords[1],
+        lng: destCoords[0],
+        name: destName,
+      };
+      setDestination(newDest);
+
+      const steps = parseSteps(route);
+      nav.initRoute(coords, steps);
+
+      // Fit camera to route
+      const bounds = coords.reduce<{ ne: [number, number]; sw: [number, number] }>(
+        (acc, coord) => ({
+          ne: [Math.max(acc.ne[0], coord[0]), Math.max(acc.ne[1], coord[1])] as [number, number],
+          sw: [Math.min(acc.sw[0], coord[0]), Math.min(acc.sw[1], coord[1])] as [number, number],
+        }),
+        { ne: [coords[0][0], coords[0][1]], sw: [coords[0][0], coords[0][1]] }
+      );
+      cameraRef.current?.fitBounds(bounds.ne, bounds.sw, [100, 50, 100, 50], 1000);
+      setIsFollowingUser(false);
     } catch (error) {
       console.error("Error fetching route:", error);
       showAlert("Error", "Failed to fetch directions.");
@@ -456,72 +521,69 @@ export default function MapScreen() {
     }
   };
 
-  const clearRoute = () => {
-    setRouteGeoJSON(null);
-    setFullRouteCoordinates(null);
-    setCurrentRouteIndex(0);
+  // ── Clear route / finish navigation ──────────────────────────────────────
+  const clearRoute = useCallback(() => {
+    nav.resetNavigation();
     setDestination(null);
     setSearchQuery("");
-    if (userLocation) {
+    if (userLocationRef.current) {
       cameraRef.current?.setCamera({
-        centerCoordinate: [userLocation.lng, userLocation.lat],
+        centerCoordinate: [userLocationRef.current.lng, userLocationRef.current.lat],
         zoomLevel: 17,
         animationDuration: 1000,
       });
     }
-  };
+  }, [nav]);
 
+  // ── Marker / carousel handlers ────────────────────────────────────────────
   const handleMarkerPress = useCallback(
     (venue: Venue) => {
       setSelectedVenue(venue);
       setShowCarousel(true);
       translateY.value = withSpring(0);
-      buttonsTranslateY.value = withSpring(-CAROUSEL_HEIGHT); // Immediately animate buttons up
+      buttonsTranslateY.value = withSpring(-CAROUSEL_HEIGHT);
     },
     [translateY, buttonsTranslateY, CAROUSEL_HEIGHT]
   );
 
   const handleMapPress = useCallback(() => {
     if (showCarousel) {
-      // Immediately update state for faster response
       setShowCarousel(false);
       setSelectedVenue(null);
       translateY.value = withSpring(CAROUSEL_HEIGHT);
-      buttonsTranslateY.value = withSpring(0); // Immediately animate buttons down
+      buttonsTranslateY.value = withSpring(0);
     }
   }, [showCarousel, CAROUSEL_HEIGHT, translateY, buttonsTranslateY]);
 
-  // Get events for selected venue
   const venueEvents = useMemo(() => {
     if (!selectedVenue) return [];
-    const targetVenueId = selectedVenue.venueId || '';
-    const targetVenueName = (selectedVenue.venueName || '').trim().toLowerCase();
+    const targetVenueId = selectedVenue.venueId || "";
+    const targetVenueName = (selectedVenue.venueName || "").trim().toLowerCase();
 
     const filteredEvents = events.filter((event) => {
-      if (targetVenueId && event.venueId === targetVenueId) {
+      if (targetVenueId && event.venueId === targetVenueId) return true;
+      if (
+        targetVenueName &&
+        event.venueName &&
+        event.venueName.trim().toLowerCase() === targetVenueName
+      )
         return true;
-      }
-      if (targetVenueName && event.venueName && event.venueName.trim().toLowerCase() === targetVenueName) {
-        return true;
-      }
       return false;
     });
 
-    // Simple array with unique keys for each event
     return filteredEvents.map((event, index) => ({
       ...event,
       uniqueKey: `${event.eventId}-${index}`,
     }));
   }, [selectedVenue, events]);
 
-  // Swipe down gesture handler
+  // ── Gesture handler ───────────────────────────────────────────────────────
   const startY = useSharedValue(0);
   const gestureHandler = Gesture.Pan()
     .onStart(() => {
       startY.value = translateY.value;
     })
     .onUpdate((event) => {
-      // Only respond to vertical swipes (more vertical than horizontal)
       if (
         event.translationY > 0 &&
         Math.abs(event.translationY) > Math.abs(event.translationX)
@@ -530,36 +592,37 @@ export default function MapScreen() {
       }
     })
     .onEnd((event) => {
-      // Only dismiss if it's a clear downward swipe
       if (
         event.translationY > 100 &&
         Math.abs(event.translationY) > Math.abs(event.translationX)
       ) {
-        // Immediately update state for faster UI response
         runOnJS(setShowCarousel)(false);
         runOnJS(setSelectedVenue)(null);
         translateY.value = withSpring(CAROUSEL_HEIGHT);
-        buttonsTranslateY.value = withSpring(0); // Animate buttons down
+        buttonsTranslateY.value = withSpring(0);
       } else {
         translateY.value = withSpring(0);
-        buttonsTranslateY.value = withSpring(-CAROUSEL_HEIGHT); // Keep buttons up
+        buttonsTranslateY.value = withSpring(-CAROUSEL_HEIGHT);
       }
     });
 
-  // Carousel animated style
-  const carouselStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }],
-    };
-  });
+  const carouselStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
-  // Control buttons animated style - move up when carousel is visible
-  const controlButtonsStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: buttonsTranslateY.value }],
-    };
-  });
+  const controlButtonsStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: buttonsTranslateY.value }],
+  }));
 
+  // ── Current step for nav card ─────────────────────────────────────────────
+  const currentStep: RouteStep | null = nav.steps[nav.currentStepIndex] ?? null;
+  const nextStep: RouteStep | null = nav.steps[nav.currentStepIndex + 1] ?? null;
+  const currentInstruction = currentStep
+    ? buildFallbackInstruction(currentStep)
+    : null;
+  const currentDistance = currentStep ? formatDistance(currentStep.distance) : null;
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
       <MapView
@@ -570,14 +633,11 @@ export default function MapScreen() {
         onTouchStart={() => setIsFollowingUser(false)}
         onDidFinishLoadingMap={() => setMapLoaded(true)}
       >
+        {/* Camera – zoomLevel and minZoomLevel must be compatible */}
         <Camera
           ref={cameraRef}
-          zoomLevel={10}
-          minZoomLevel={15}
-          maxBounds={{
-            ne: [76.37379609251491, 30.358568702840508],
-            sw: [76.35853463768679, 30.350454984234354],
-          }}
+          zoomLevel={15}
+          minZoomLevel={13}
           centerCoordinate={[initialCenter.lng, initialCenter.lat]}
           animationMode="flyTo"
           animationDuration={1000}
@@ -595,10 +655,11 @@ export default function MapScreen() {
           />
         </ShapeSource>
 
-        {/* Venue markers */}
-        {venues.map((venue) => {
+        {/* Venue markers (hostel blips excluded) */}
+        {displayVenues.map((venue) => {
           const lat = venue.lat || venue.latitude || 0;
           const lng = venue.lng || venue.longitude || 0;
+          const isSelected = selectedVenue?.venueId === venue.venueId;
 
           return (
             <MarkerView
@@ -608,11 +669,29 @@ export default function MapScreen() {
             >
               <TouchableOpacity
                 onPress={() => handleMarkerPress(venue)}
-                style={styles.venueMarker}
+                style={styles.venuePinContainer}
+                activeOpacity={0.8}
               >
-                <Image
-                  source={require("@/assets/ic_tech.png")}
-                  style={{ width: 35, height: 40, borderRadius: 12 }}
+                {isSelected && (
+                  <View style={styles.venueLabelBubble}>
+                    <Text style={styles.venueLabelText} numberOfLines={1}>
+                      {venue.venueName}
+                    </Text>
+                  </View>
+                )}
+                <View
+                  style={[
+                    styles.venuePinBubble,
+                    isSelected && styles.venuePinBubbleSelected,
+                  ]}
+                >
+                  <MapPin size={15} color="#FFFFFF" strokeWidth={2.4} />
+                </View>
+                <View
+                  style={[
+                    styles.venuePinTriangle,
+                    isSelected && styles.venuePinTriangleSelected,
+                  ]}
                 />
               </TouchableOpacity>
             </MarkerView>
@@ -622,7 +701,6 @@ export default function MapScreen() {
         {/* User location marker */}
         {userLocation && (
           <>
-            {/* Accuracy circles */}
             <ShapeSource
               id="user-location-circles"
               shape={{
@@ -662,41 +740,31 @@ export default function MapScreen() {
                     "interpolate",
                     ["linear"],
                     ["get", "radius"],
-                    10,
-                    10,
-                    40,
-                    40,
-                    60,
-                    60,
+                    10, 10,
+                    40, 40,
+                    60, 60,
                   ],
                   circleColor: [
                     "match",
                     ["get", "radius"],
-                    10,
-                    "transparent",
-                    40,
-                    "#FFB6C1",
-                    60,
-                    "#FFB6C1",
+                    10, "transparent",
+                    40, "#FFB6C1",
+                    60, "#FFB6C1",
                     "#FFB6C1",
                   ],
                   circleOpacity: [
                     "match",
                     ["get", "radius"],
-                    10,
-                    0.8,
-                    40,
-                    0.3,
-                    60,
-                    0.2,
+                    10, 0.8,
+                    40, 0.3,
+                    60, 0.2,
                     0.2,
                   ],
                   circleStrokeWidth: 1,
                   circleStrokeColor: [
                     "match",
                     ["get", "radius"],
-                    10,
-                    "transparent",
+                    10, "transparent",
                     "#FFB6C1",
                   ],
                 }}
@@ -712,9 +780,9 @@ export default function MapScreen() {
           </>
         )}
 
-        {/* Navigation Route */}
-        {routeGeoJSON && (
-          <ShapeSource id="route-source" shape={routeGeoJSON}>
+        {/* Navigation Route (trimmed) */}
+        {nav.trimmedGeoJSON && (
+          <ShapeSource id="route-source" shape={nav.trimmedGeoJSON}>
             <LineLayer
               id="route-line"
               style={{
@@ -733,9 +801,19 @@ export default function MapScreen() {
             coordinate={[destination.lng, destination.lat]}
             anchor={{ x: 0.5, y: 1 }}
           >
-            <View style={{ alignItems: 'center' }}>
-              <View style={{ backgroundColor: '#4285F4', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginBottom: 4 }}>
-                <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>{destination.name}</Text>
+            <View style={{ alignItems: "center" }}>
+              <View
+                style={{
+                  backgroundColor: "#4285F4",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  marginBottom: 4,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: 12, fontWeight: "bold" }}>
+                  {destination.name}
+                </Text>
               </View>
               <MapPin size={32} color="#4285F4" fill="#ffffff" />
             </View>
@@ -743,7 +821,7 @@ export default function MapScreen() {
         )}
       </MapView>
 
-      {/* Header with Search */}
+      {/* ── Header with Search ───────────────────────────────────────────── */}
       <View style={styles.headerContainer}>
         <View style={styles.searchBarContainer}>
           <TouchableOpacity
@@ -762,16 +840,19 @@ export default function MapScreen() {
               placeholderTextColor="#999"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => {
-                setSearchQuery("");
-                setSearchResults([]);
-              }} style={{ padding: 5, marginRight: 5 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery("");
+                  setSearchResults([]);
+                }}
+                style={{ padding: 5, marginRight: 5 }}
+              >
                 <X size={18} color="#666" />
               </TouchableOpacity>
             )}
           </View>
         </View>
-        
+
         {/* Search Results Dropdown */}
         {searchResults.length > 0 && (
           <View style={styles.searchResultsContainer}>
@@ -790,7 +871,7 @@ export default function MapScreen() {
                     <Text style={styles.searchResultTitle}>{item.text}</Text>
                     {item.place_name && (
                       <Text style={styles.searchResultSubtitle} numberOfLines={1}>
-                        {item.place_name.replace(`${item.text}, `, '')}
+                        {item.place_name.replace(`${item.text}, `, "")}
                       </Text>
                     )}
                   </View>
@@ -801,10 +882,44 @@ export default function MapScreen() {
         )}
       </View>
 
-      {/* Control Buttons */}
+      {/* ── Navigation Instruction Card ──────────────────────────────────── */}
+      {destination && !nav.hasArrived && nav.steps.length > 0 && (
+        <View style={styles.navCard}>
+          {nav.isRerouting ? (
+            <View style={styles.navCardRerouting}>
+              <ActivityIndicator size="small" color="#4285F4" />
+              <Text style={styles.navCardReroutingText}>Finding new route…</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.navCardIcon}>
+                <ManeuverIcon step={currentStep} size={26} color="#fff" />
+              </View>
+              <View style={styles.navCardContent}>
+                <Text style={styles.navCardInstruction} numberOfLines={2}>
+                  {currentInstruction ?? "Follow the route"}
+                </Text>
+                {currentDistance && (
+                  <Text style={styles.navCardDistance}>{currentDistance}</Text>
+                )}
+                {nextStep && (
+                  <Text style={styles.navCardNext} numberOfLines={1}>
+                    Then: {buildFallbackInstruction(nextStep)}
+                  </Text>
+                )}
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
+      {/* ── Control Buttons ──────────────────────────────────────────────── */}
       <Animated.View style={[styles.controlButtons, controlButtonsStyle]}>
-        {routeGeoJSON && (
-          <TouchableOpacity style={[styles.controlButton, { backgroundColor: '#FF4444' }]} onPress={clearRoute}>
+        {destination && (
+          <TouchableOpacity
+            style={[styles.controlButton, { backgroundColor: "#FF4444" }]}
+            onPress={clearRoute}
+          >
             <X size={24} color="#FFF" />
           </TouchableOpacity>
         )}
@@ -814,10 +929,7 @@ export default function MapScreen() {
         <TouchableOpacity style={styles.controlButton} onPress={zoomOut}>
           <Ionicons name="remove" size={24} color="#666" />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={goToMainLocation}
-        >
+        <TouchableOpacity style={styles.controlButton} onPress={goToMainLocation}>
           <Ionicons name="navigate" size={22} color="#666" />
         </TouchableOpacity>
         <TouchableOpacity
@@ -838,12 +950,14 @@ export default function MapScreen() {
           <Ionicons
             name="location"
             size={22}
-            color={userLocation ? (isFollowingUser ? "#4285F4" : "#333") : "#666"}
+            color={
+              userLocation ? (isFollowingUser ? "#4285F4" : "#333") : "#666"
+            }
           />
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Loading Overlay */}
+      {/* ── Loading Overlay ───────────────────────────────────────────────── */}
       {(loading || !mapLoaded) && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
@@ -853,7 +967,27 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Event Carousel */}
+      {/* ── Arrival Overlay ───────────────────────────────────────────────── */}
+      {nav.hasArrived && destination && (
+        <View style={styles.arrivalOverlay}>
+          <View style={styles.arrivalCard}>
+            <CheckCircle size={64} color="#4CAF50" />
+            <Text style={styles.arrivalHeading}>You've Arrived!</Text>
+            <Text style={styles.arrivalDestName}>{destination.name}</Text>
+            <Text style={styles.arrivalSubtext}>
+              You have reached your destination.
+            </Text>
+            <TouchableOpacity
+              style={styles.arrivalFinishBtn}
+              onPress={clearRoute}
+            >
+              <Text style={styles.arrivalFinishBtnText}>Finish Navigation</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── Event Carousel ────────────────────────────────────────────────── */}
       {showCarousel && (
         <Animated.View style={[styles.carouselContainer, carouselStyle]}>
           <GestureDetector gesture={gestureHandler}>
@@ -868,14 +1002,12 @@ export default function MapScreen() {
               horizontal
               pagingEnabled={false}
               showsHorizontalScrollIndicator={false}
-              snapToInterval={CARD_WIDTH + CARD_MARGIN * 2} // Card width + margins
+              snapToInterval={CARD_WIDTH + CARD_MARGIN * 2}
               snapToAlignment="start"
               decelerationRate="fast"
               contentContainerStyle={[
                 styles.carouselContent,
-                {
-                  paddingHorizontal: SIDE_SPACING - CARD_MARGIN, // Adjust for card margins
-                },
+                { paddingHorizontal: SIDE_SPACING - CARD_MARGIN },
               ]}
               renderItem={({ item: event }) => (
                 <TouchableOpacity
@@ -883,7 +1015,10 @@ export default function MapScreen() {
                   onPress={() => {
                     setShowCarousel(false);
                     setSelectedVenue(null);
-                    router.push({ pathname: "/events/EventDetails", params: { eventData: JSON.stringify(event) } });
+                    router.push({
+                      pathname: "/events/EventDetails",
+                      params: { eventData: JSON.stringify(event) },
+                    });
                   }}
                 >
                   <View style={styles.carouselCardImageContainer}>
@@ -962,120 +1097,108 @@ export default function MapScreen() {
   );
 }
 
-// Helper function to calculate distance
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371e3;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+
+  // Loading
   loadingOverlay: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
   },
-  loadingCard: {
-    backgroundColor: "transparent",
-    alignItems: "center",
-  },
+  loadingCard: { backgroundColor: "transparent", alignItems: "center" },
   loadingText: {
     marginTop: 15,
     fontSize: 16,
     color: "#333",
     fontWeight: "500",
   },
-  venueMarker: {
-    backgroundColor: "#FF4444",
+
+  // Venue markers / pins
+  venuePinContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  venueLabelBubble: {
+    backgroundColor: "#1E1B4B",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  venueLabelText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  venuePinBubble: {
+    backgroundColor: "#EF4444",
     width: 30,
     height: 30,
     borderRadius: 15,
-    borderWidth: 3,
-    borderColor: "white",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
     elevation: 5,
-    justifyContent: "center",
-    alignItems: "center",
   },
-  venueMarkerInner: {
-    justifyContent: "center",
-    alignItems: "center",
+  venuePinBubbleSelected: {
+    backgroundColor: "#A855F7",
+    borderColor: "#FFFFFF",
+    transform: [{ scale: 1.15 }],
+    shadowColor: "#A855F7",
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  venueMarkerText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "bold",
+  venuePinTriangle: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6,
+    borderStyle: "solid",
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#EF4444",
+    marginTop: -1,
+  },
+  venuePinTriangleSelected: {
+    borderTopColor: "#A855F7",
   },
 
-  header: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    paddingTop: Platform.OS === "ios" ? 50 : 40,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    zIndex: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  backButton: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
+  // Header / search
   headerContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: Platform.OS === "ios" ? 50 : 40,
     left: 20,
     right: 20,
     zIndex: 10,
   },
   searchBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   backButtonInline: {
@@ -1093,8 +1216,8 @@ const styles = StyleSheet.create({
   },
   searchInputContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 25,
     height: 50,
@@ -1120,25 +1243,81 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#f0f0f0",
   },
   searchResultTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 2,
   },
-  searchResultSubtitle: {
-    fontSize: 13,
-    color: '#666',
+  searchResultSubtitle: { fontSize: 13, color: "#666" },
+
+  // Navigation card (placed below the search header)
+  navCard: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 120 : 110,
+    left: 20,
+    right: 20,
+    backgroundColor: "#1A1A2E",
+    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    zIndex: 9,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
+  navCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#4285F4",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  navCardContent: { flex: 1 },
+  navCardInstruction: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    lineHeight: 22,
+  },
+  navCardDistance: {
+    fontSize: 13,
+    color: "#A0AEC0",
+    marginTop: 3,
+  },
+  navCardNext: {
+    fontSize: 12,
+    color: "#718096",
+    marginTop: 3,
+    fontStyle: "italic",
+  },
+  navCardRerouting: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  navCardReroutingText: {
+    color: "#A0AEC0",
+    fontSize: 14,
+    fontStyle: "italic",
+  },
+
+  // Control buttons
   controlButtons: {
     position: "absolute",
     bottom: 100,
@@ -1159,11 +1338,67 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     marginBottom: 12,
   },
-  locationStatus: {
-    fontSize: 12,
-    color: "#4285F4",
-    marginTop: 2,
+
+  // Arrival overlay
+  arrivalOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 100,
   },
+  arrivalCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 28,
+    paddingVertical: 40,
+    paddingHorizontal: 32,
+    alignItems: "center",
+    width: "80%",
+    elevation: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+  },
+  arrivalHeading: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#1A1A2E",
+    marginTop: 18,
+    textAlign: "center",
+  },
+  arrivalDestName: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#4285F4",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  arrivalSubtext: {
+    fontSize: 14,
+    color: "#718096",
+    marginTop: 10,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  arrivalFinishBtn: {
+    marginTop: 28,
+    backgroundColor: "#4285F4",
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 50,
+  },
+  arrivalFinishBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  // Carousel
   carouselContainer: {
     position: "absolute",
     bottom: 100,
@@ -1183,13 +1418,11 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: "center",
   },
-  carouselContent: {
-    // Dynamic padding will be applied inline based on number of events
-  },
+  carouselContent: {},
   carouselCard: {
-    width: Dimensions.get("window").width * 0.8, // 80% width
+    width: Dimensions.get("window").width * 0.8,
     height: Dimensions.get("window").height * 0.2,
-    marginHorizontal: 10, // Gap between cards
+    marginHorizontal: 10,
     borderRadius: 16,
     overflow: "hidden",
     backgroundColor: "#fff",
@@ -1205,10 +1438,7 @@ const styles = StyleSheet.create({
     height: "100%",
     position: "relative",
   },
-  carouselCardImage: {
-    width: "100%",
-    height: "100%",
-  },
+  carouselCardImage: { width: "100%", height: "100%" },
   carouselCardImagePlaceholder: {
     width: "100%",
     height: "100%",
@@ -1258,30 +1488,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  carouselCardDate: {
-    fontSize: 11,
-    color: "#666",
-    fontWeight: "500",
-  },
+  carouselCardDate: { fontSize: 11, color: "#666", fontWeight: "500" },
   carouselCardPriceContainer: {
     backgroundColor: "#f0f0f0",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  carouselCardPrice: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#333",
-  },
+  carouselCardPrice: { fontSize: 11, fontWeight: "600", color: "#333" },
   carouselEmptyContainer: {
     width: "100%",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal:
-      (Dimensions.get("window").width - Dimensions.get("window").width * 0.8) /
+      (Dimensions.get("window").width -
+        Dimensions.get("window").width * 0.8) /
         2 -
-      10, // Same as SIDE_SPACING - CARD_MARGIN
+      10,
   },
   carouselEmptyCard: {
     width: Dimensions.get("window").width * 0.8,

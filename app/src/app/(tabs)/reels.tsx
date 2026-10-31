@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   View,
@@ -541,6 +541,21 @@ const ReelsScreen: React.FC = () => {
   const { userData } = useUserStore();
   const canSeeAdmin = isUserAdmin(userData);
   const { reels, loading: isLoading, refresh: refreshReels } = useReels();
+
+  // Order reels in decreasing order (from bigger order to lower)
+  const sortedReels = useMemo(() => {
+    return [...reels].sort((a, b) => {
+      const orderA = a.order ?? 0;
+      const orderB = b.order ?? 0;
+      if (orderA !== orderB) {
+        return orderB - orderA;
+      }
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [reels]);
+
   const [isMuted, setIsMuted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -663,7 +678,7 @@ const ReelsScreen: React.FC = () => {
     [USABLE_HEIGHT]
   );
 
-  if (isLoading && reels.length === 0) {
+  if (isLoading && sortedReels.length === 0) {
     return (
       <View
         style={{
@@ -688,7 +703,7 @@ const ReelsScreen: React.FC = () => {
     );
   }
 
-  if (reels.length === 0) {
+  if (sortedReels.length === 0) {
     return (
       <View
         style={{
@@ -817,7 +832,7 @@ const ReelsScreen: React.FC = () => {
 
       <FlatList
         ref={flatListRef}
-        data={reels}
+        data={sortedReels}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         pagingEnabled

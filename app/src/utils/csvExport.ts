@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system"; 
+import * as FileSystem from "expo-file-system/legacy"; 
 import { Platform } from "react-native";
 import { showAlert } from "../components";
 import * as Sharing from "expo-sharing";
@@ -152,7 +152,8 @@ export const exportRegistrationsToCSV = async (
     }
 
     const filename = `${eventTitle.replace(/[^a-zA-Z0-9]/g, "_")}_registrations.csv`;
-    const fileUri = `${FileSystem.documentDirectory}${filename}`;
+    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory || "";
+    const fileUri = `${baseDir}${filename}`;
     await FileSystem.writeAsStringAsync(fileUri, csvContent, {
       encoding: FileSystem.EncodingType.UTF8,
     });

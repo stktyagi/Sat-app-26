@@ -28,6 +28,7 @@ import {
   joinEventTeam,
   responsesFromFields,
 } from "@/api/events";
+import { isIdentityVerificationComplete, getMissingIdentityRequirements } from "@/utils/identityUpload";
 
 interface RegistrationModalProps {
   visible: boolean;
@@ -62,6 +63,16 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [registrationStep, setRegistrationStep] =
     useState<RegistrationStep>("choice");
   const insets = useSafeAreaInsets();
+
+  const isHost =
+    userData?.isHostCollegeStudent ||
+    userData?.collegeName?.toLowerCase().includes("thapar") ||
+    userData?.email?.toLowerCase().endsWith("@thapar.edu") ||
+    false;
+  const eventFee = event.paymentRequired
+    ? (isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0))
+    : 0;
+  const requiresPayment = event.paymentRequired && eventFee > 0;
   const [teamName, setTeamName] = useState("");
   const [teamInviteCode, setTeamInviteCode] = useState("");
   const [customFieldsData, setCustomFieldsData] = useState<Record<string, any>>(
@@ -124,6 +135,15 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const handleCreateTeam = async () => {
+    if (!isIdentityVerificationComplete(userData)) {
+      const missing = getMissingIdentityRequirements(userData);
+      showModalAlert(
+        "Verification Required",
+        `Outside college participants must upload their ${missing.join(" and ")} before creating a team.`
+      );
+      return;
+    }
+
     if (!teamName.trim()) {
       showModalAlert("Error", "Please enter a team name");
       return;
@@ -153,6 +173,15 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const handleJoinTeam = async () => {
+    if (!isIdentityVerificationComplete(userData)) {
+      const missing = getMissingIdentityRequirements(userData);
+      showModalAlert(
+        "Verification Required",
+        `Outside college participants must upload their ${missing.join(" and ")} before joining a team.`
+      );
+      return;
+    }
+
     if (!teamInviteCode.trim()) {
       showModalAlert("Error", "Please enter a team invite code");
       return;
@@ -170,6 +199,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       showModalAlert("Success", "Successfully joined the team!");
       onSuccess();
       onClose();
+      router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
     } catch (error: any) {
       showModalAlert("Error", error.message || "Failed to join team");
     } finally {
@@ -228,25 +258,19 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const handleCompleteRegistration = async () => {
+    if (!isIdentityVerificationComplete(userData)) {
+      const missing = getMissingIdentityRequirements(userData);
+      showModalAlert(
+        "Verification Required",
+        `Outside college participants must upload their ${missing.join(" and ")} before completing registration.`
+      );
+      return;
+    }
+
     try {
       setIsLoading(true);
 
-      // Validate team size for team events
-      if (event.eventType === "team" && event.minTeamSize && createdInviteCode) {
-        if (currentTeamSize < event.minTeamSize) {
-          showModalAlert(
-            "Insufficient Team Size",
-            `Your team needs at least ${event.minTeamSize
-            } members to submit. Currently you have ${currentTeamSize} member${currentTeamSize !== 1 ? "s" : ""
-            }.\n\nPlease share the invite code with your teammates before submitting.`
-          );
-          setIsLoading(false);
-          return;
-        }
-      }
-
       await saveRegistrationDetails(buildDetailsPayload());
-
       const registrationData = responsesFromFields(event.customFields || [], customFieldsData);
 
       if (event.eventType === "team") {
@@ -257,6 +281,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           setCurrentTeamSize(1);
           showModalAlert("Team Created!", "Share the invite code with your teammates.");
           onSuccess();
+          onClose();
+          router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
           return;
         } else {
           await joinEventTeam(event.eventId, teamInviteCode.trim(), registrationData);
@@ -271,7 +297,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       await registerForEvent(event.eventId, registrationData);
       onSuccess();
       onClose();
-      if (event.paymentRequired) {
+      if (requiresPayment) {
         router.push({ pathname: '/events/Payment', params: { eventId: event.eventId } });
       } else {
         showModalAlert("Success", "Registration completed successfully!");
@@ -895,10 +921,10 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             />
           ) : createdInviteCode ? (
             <MetallicButton
-              title={event.paymentRequired ? "Complete Payment" : "View Registration"}
+              title={requiresPayment ? "Complete Payment" : "View Registration"}
               onPress={() => {
                 onClose();
-                if (event.paymentRequired) {
+                if (requiresPayment) {
                   router.push({
                     pathname: '/events/Payment',
                     params: { eventId: event.eventId, teamId: createdTeamId },

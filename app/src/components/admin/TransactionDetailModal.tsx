@@ -21,6 +21,7 @@ import {
   MapPin,
   Sparkles,
   ShieldAlert,
+  Receipt,
 } from "lucide-react-native";
 import { PaymentTransaction } from "@/types/adminTypes";
 
@@ -369,6 +370,118 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                 }
                 isLast
               />
+            </View>
+          )}
+
+          {/* Bill Map Breakdown */}
+          {transaction.bill && (
+            <View
+              className="bg-white mx-4 mt-4 rounded-2xl p-4 border border-[#A0B3D0]/60"
+              style={{ boxShadow: "0px 4px 12px rgba(12, 53, 114, 0.06)" } as any}
+            >
+              <View className="flex-row items-center mb-2">
+                <Receipt size={18} color="#0C3572" />
+                <Text
+                  style={{ fontFamily: "Outfit_700Bold" }}
+                  className="text-[#0C3572] text-base ml-2"
+                >
+                  Bill Breakdown
+                </Text>
+              </View>
+
+              {transaction.bill.event !== undefined && (
+                <DetailRow
+                  icon={<DollarSign size={16} color="#2175C0" />}
+                  label="Event Amount"
+                  value={formatAmount(Number(transaction.bill.event))}
+                />
+              )}
+
+              {transaction.bill.accommodation !== undefined && (
+                <DetailRow
+                  icon={<DollarSign size={16} color="#EEB170" />}
+                  label="Accommodation Amount"
+                  value={formatAmount(Number(transaction.bill.accommodation))}
+                />
+              )}
+
+              {transaction.bill.accommodation_days && typeof transaction.bill.accommodation_days === "object" && (
+                <View className="py-2 pl-11 border-b border-slate-100">
+                  <Text
+                    style={{ fontFamily: "Outfit_600SemiBold" }}
+                    className="text-slate-500 text-xs uppercase mb-1"
+                  >
+                    Accommodation Days
+                  </Text>
+                  {Object.entries(transaction.bill.accommodation_days).map(([day, price]) => (
+                    <View key={day} className="flex-row justify-between py-0.5">
+                      <Text style={{ fontFamily: "Outfit_400Regular" }} className="text-slate-600 text-xs capitalize">
+                        {day}
+                      </Text>
+                      <Text style={{ fontFamily: "Outfit_600SemiBold" }} className="text-slate-700 text-xs">
+                        {formatAmount(Number(price))}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {transaction.bill.food !== undefined && (
+                <DetailRow
+                  icon={<DollarSign size={16} color="#10B981" />}
+                  label="Food Amount"
+                  value={formatAmount(Number(transaction.bill.food))}
+                />
+              )}
+
+              {transaction.bill.food_days && typeof transaction.bill.food_days === "object" && (
+                <View className="py-2 pl-11 border-b border-slate-100">
+                  <Text
+                    style={{ fontFamily: "Outfit_600SemiBold" }}
+                    className="text-slate-500 text-xs uppercase mb-1"
+                  >
+                    Food Days
+                  </Text>
+                  {Object.entries(transaction.bill.food_days).map(([day, price]) => (
+                    <View key={day} className="flex-row justify-between py-0.5">
+                      <Text style={{ fontFamily: "Outfit_400Regular" }} className="text-slate-600 text-xs capitalize">
+                        {day}
+                      </Text>
+                      <Text style={{ fontFamily: "Outfit_600SemiBold" }} className="text-slate-700 text-xs">
+                        {formatAmount(Number(price))}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {transaction.bill.total !== undefined && (
+                <DetailRow
+                  icon={<CreditCard size={16} color="#0C3572" />}
+                  label="Total Accumulated"
+                  value={formatAmount(Number(transaction.bill.total))}
+                  valueColor="text-[#0C3572] font-bold"
+                />
+              )}
+
+              {transaction.bill.discount !== undefined && Number(transaction.bill.discount) > 0 && (
+                <DetailRow
+                  icon={<Sparkles size={16} color="#059669" />}
+                  label="Discount"
+                  value={`-${formatAmount(Number(transaction.bill.discount))}`}
+                  valueColor="text-emerald-700"
+                />
+              )}
+
+              {transaction.bill.final !== undefined && (
+                <DetailRow
+                  icon={<CreditCard size={16} color="#EEB170" />}
+                  label="Final Charged"
+                  value={formatAmount(Number(transaction.bill.final))}
+                  valueColor="text-[#EEB170] font-bold"
+                  isLast
+                />
+              )}
             </View>
           )}
 

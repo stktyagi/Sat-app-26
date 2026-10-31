@@ -10,7 +10,13 @@ import { useThemeStore } from "@/state/themeStore";
 import { useLocalSearchParams } from "expo-router";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { hasAnyRole } from "@/utils/roles";
+import {
+  hasAnyRole,
+  isEventCoordinator,
+  ROLE_ADMIN,
+  ROLE_EB_EVENTS,
+  ROLE_EVENT_POC,
+} from "@/utils/roles";
 
 export default function EventDetails() {
   const navigation = useAdminNavigation();
@@ -34,29 +40,10 @@ export default function EventDetails() {
   const showRegistrationsTab = () => {
     if (!userProfile) return false;
 
-    const allowedRoles = [
-      "event_admin",
-      "admin",
-      "super_admin",
-      "superadmin",
-      "dev",
-      "outreach_admin",
-      "outreach_member",
-      "hospitality_member",
-      "hospitality_admin",
-    ];
+    if (hasAnyRole(userProfile, [ROLE_ADMIN, ROLE_EB_EVENTS])) return true;
 
-    if (hasAnyRole(userProfile, allowedRoles)) return true;
-
-    if (hasAnyRole(userProfile, ["event_coordinator"])) {
-      const userEmail = (userProfile.email || "").toLowerCase().trim();
-      const userId = userProfile.userId;
-      const isCoordinator = event?.coordinators?.some((c: any) => {
-        const cEmail = (c.email || "").toLowerCase().trim();
-        const cId = c.userID || c.userId || "";
-        return (userEmail && cEmail && cEmail === userEmail) || (userId && cId && cId === userId);
-      });
-      if (isCoordinator) return true;
+    if (hasAnyRole(userProfile, [ROLE_EVENT_POC])) {
+      return isEventCoordinator(userProfile, event);
     }
 
     return false;

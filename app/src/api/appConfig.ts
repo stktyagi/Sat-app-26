@@ -19,7 +19,15 @@ export interface AppVersions {
 export interface AppAccommodation {
   amount: number;
   price?: number;
+  technicalAmount?: number;
+  culturalAmount?: number;
   foodAmount?: number;
+  technicalFoodAmount?: number;
+  culturalFoodAmount?: number;
+  technicalDays?: Record<string, number>;
+  culturalDays?: Record<string, number>;
+  technicalFoodDays?: Record<string, number>;
+  culturalFoodDays?: Record<string, number>;
 }
 
 export interface AppConfigResponse {
@@ -167,4 +175,16 @@ export async function adminUpdateAppAccommodation(acc: AppAccommodation): Promis
   }
   const data = await res.json();
   return data.accommodation;
+}
+
+/**
+ * Admin: Fetch full app configuration (links, maintenance, versions, accommodation) with auth.
+ */
+export async function adminGetAppConfig(): Promise<AppConfigResponse> {
+  const res = await apiFetch('/admin/app', { method: 'GET' }, 'required');
+  if (!res.ok) {
+    const msg = await readError(res, 'Failed to fetch admin app config');
+    throw new Error(msg);
+  }
+  return res.json();
 }

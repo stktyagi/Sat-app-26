@@ -27,7 +27,8 @@ import { useThemeStore } from "@/state/themeStore";
 import { API_BASE_URL } from "@/config/api";
 import { useUserStore } from "@/state/userStore";
 import { useRouter, Redirect } from "expo-router";
-import { handleSignOut } from "@/api/auth";
+import { handleSignOut, uploadProfilePhoto, uploadCollegeId } from "@/api/auth";
+import { LiveCameraCapture } from "@/components/profile/LiveCameraCapture";
 
 interface UserProfileFormProps {
   user: any; // Firebase user
@@ -71,6 +72,9 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   const { isDark } = useThemeStore();
   const { logout } = useUserStore();
 
+  const [currentStage, setCurrentStage] = useState<1 | 2 | 3>(1);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showGraduationDropdown, setShowGraduationDropdown] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -88,6 +92,21 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
     accommodationNeeded: false,
     isVerified: true,
   });
+
+  const isHost =
+    formData.isHostCollegeStudent ||
+    THAPAR_EMAIL_REGEX.test(formData.email || user?.email || "");
+  const totalStages = isHost ? 1 : 3;
+
+  const handleBackPress = () => {
+    if (currentStage === 3) {
+      setCurrentStage(2);
+    } else if (currentStage === 2) {
+      setCurrentStage(1);
+    } else {
+      handleSignOutPress();
+    }
+  };
 
   const bgColor = isDark ? "#131316" : "#E0E0E0";
   const cardBg = isDark ? "#1C1C20" : "#FFFFFF";
@@ -199,10 +218,18 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
       const responseBody = await response.json();
       const updatedProfile = responseBody?.user;
 
-      if (onProfileCreated && updatedProfile) {
-        onProfileCreated(updatedProfile);
+      if (!updatedProfile) {
+        throw new Error("Failed to retrieve updated profile.");
+      }
+
+      setSavedProfile(updatedProfile);
+      if (isHost) {
+        if (onProfileCreated) {
+          onProfileCreated(updatedProfile);
+        }
       } else {
-        showAlert("Error", "Failed to retrieve updated profile.");
+        // Advance to Stage 2: Profile photo live capture (outside students only)
+        setCurrentStage(2);
       }
     } catch (error: any) {
       const errorMessage =
@@ -217,28 +244,22 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: bgColor }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-    >
+    <View style={{ flex: 1, backgroundColor: bgColor }}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
       {/* Top Header Bar */}
       <View
         style={{
           paddingTop: Math.max(insets.top + 8, 44),
-          paddingBottom: 16,
+          paddingBottom: 14,
           paddingHorizontal: 20,
           flexDirection: "row",
           alignItems: "center",
           backgroundColor: bgColor,
-          borderBottomWidth: 1,
-          borderBottomColor: cardBorder,
         }}
       >
         <TouchableOpacity
-          onPress={handleSignOutPress}
+          onPress={handleBackPress}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           activeOpacity={0.75}
           style={{
@@ -260,17 +281,21 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           <Text
             style={{
               fontFamily: "Talina",
-              fontSize: 24,
+              fontSize: 22,
               color: textColor,
               letterSpacing: 0.5,
             }}
           >
-            COMPLETE PROFILE
+            {currentStage === 1
+              ? "COMPLETE PROFILE"
+              : currentStage === 2
+              ? "PROFILE PHOTO"
+              : "COLLEGE ID CARD"}
           </Text>
           <Text
             style={{
               fontFamily: "Poppins_500Medium",
-              fontSize: 13,
+              fontSize: 12,
               color: "#41B8F0",
             }}
           >
@@ -302,7 +327,105 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      {/* Dynamic Progress Bar (Only for outside students who have multiple stages) */}
+      {!isHost && (
+        <View
+          style={{
+            paddingHorizontal: 20,
+            paddingBottom: 14,
+            backgroundColor: bgColor,
+            borderBottomWidth: 1,
+            borderBottomColor: cardBorder,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 8,
+                  backgroundColor: isDark
+                    ? "rgba(65, 184, 240, 0.15)"
+                    : "rgba(65, 184, 240, 0.12)",
+                  marginRight: 8,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: "Poppins_600SemiBold",
+                    fontSize: 11,
+                    color: "#41B8F0",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  STAGE {currentStage} OF {totalStages}
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 13,
+                  color: textColor,
+                }}
+              >
+                {currentStage === 1
+                  ? "Personal Details"
+                  : currentStage === 2
+                  ? "Profile Photo"
+                  : "College ID Card"}
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontFamily: "Poppins_600SemiBold",
+                fontSize: 12,
+                color: "#41B8F0",
+              }}
+            >
+              {Math.round((currentStage / totalStages) * 100)}%
+            </Text>
+          </View>
+
+          {/* Segmented Progress Track */}
+          <View style={{ flexDirection: "row", height: 6, gap: 6 }}>
+            {Array.from({ length: totalStages }).map((_, index) => {
+              const stepNum = index + 1;
+              const isCompletedOrCurrent = currentStage >= stepNum;
+              return (
+                <View
+                  key={index}
+                  style={{
+                    flex: 1,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: isCompletedOrCurrent
+                      ? "#41B8F0"
+                      : isDark
+                      ? "rgba(255, 255, 255, 0.1)"
+                      : "rgba(0, 0, 0, 0.1)",
+                  }}
+                />
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {currentStage === 1 ? (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: 20,
@@ -662,8 +785,8 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
             <ActivityIndicator size="small" color="#131316" style={{ marginRight: 8 }} />
           ) : (
             <Ionicons
-              name="checkmark-circle"
-              size={20}
+              name={isHost ? "checkmark-circle" : "arrow-forward-circle"}
+              size={22}
               color="#131316"
               style={{ marginRight: 8 }}
             />
@@ -676,7 +799,11 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
               letterSpacing: 0.3,
             }}
           >
-            {isLoading ? "Saving Profile..." : "Complete Profile"}
+            {isLoading
+              ? "Saving Profile..."
+              : isHost
+              ? "Complete Profile"
+              : "Continue to Photo Verification"}
           </Text>
         </TouchableOpacity>
 
@@ -708,6 +835,54 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           .
         </Text>
       </ScrollView>
+    </KeyboardAvoidingView>
+  ) : currentStage === 2 ? (
+    <LiveCameraCapture
+      key="stage-2-selfie"
+      mode="selfie"
+      title="Take Profile Photo"
+      subtitle="Live selfie verification for festival accreditation & pass."
+      instruction="Center your face inside the oval guide in good lighting. Face the camera directly."
+      confirmButtonText="Continue to College ID"
+      isUploading={isUploadingMedia}
+      onBack={handleBackPress}
+      onConfirm={async (uri) => {
+        try {
+          setIsUploadingMedia(true);
+          const updated = await uploadProfilePhoto(uri);
+          setSavedProfile(updated);
+          setCurrentStage(3);
+        } catch (err: any) {
+          showAlert("Upload Failed", err?.message || "Failed to upload profile photo");
+        } finally {
+          setIsUploadingMedia(false);
+        }
+      }}
+    />
+  ) : (
+    <LiveCameraCapture
+      key="stage-3-document"
+      mode="document"
+      title="Scan College ID Card"
+      subtitle="Live capture of your physical student ID card."
+      instruction="Align your physical college ID card inside the frame. Ensure your name and roll number are legible."
+      confirmButtonText="Complete Profile"
+      isUploading={isUploadingMedia}
+      onBack={handleBackPress}
+      onConfirm={async (uri) => {
+        try {
+          setIsUploadingMedia(true);
+          const updated = await uploadCollegeId(uri);
+          setSavedProfile(updated);
+          onProfileCreated(updated);
+        } catch (err: any) {
+          showAlert("Upload Failed", err?.message || "Failed to upload college ID card");
+        } finally {
+          setIsUploadingMedia(false);
+        }
+      }}
+    />
+  )}
 
       {/* Graduation Year Modal */}
       <Modal
@@ -841,7 +1016,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           </Pressable>
         </Pressable>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 

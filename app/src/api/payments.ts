@@ -26,11 +26,15 @@ export interface Payment {
   };
   couponCode?: string;
   discountAmount?: number;
+  bill?: Record<string, any>;
 }
 
 export interface InitiatePaymentResponse {
   paymentUrl: string;
   merchantOrderId: string;
+  accessKey?: string;
+  payMode?: string;
+  bill?: Record<string, any>;
 }
 
 /**

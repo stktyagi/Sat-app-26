@@ -13,11 +13,11 @@ interface TeamDetailsCardProps {
   eventData: FirebaseEvent | null;
   userId: string;
   isLeader: boolean;
-  submittingTeam: boolean;
+  submittingTeam?: boolean;
   isPaymentDue?: boolean;
   onPay?: () => void;
   onRemoveMember: (memberUserId: string, memberName: string) => void;
-  onSubmitTeam: () => void;
+  onSubmitTeam?: () => void;
 }
 
 const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
@@ -278,8 +278,7 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
             leaderUserId={teamData.leaderUserId}
             canRemove={
               isLeader &&
-              member.userId !== userId &&
-              teamData.status === "pending"
+              member.userId !== userId
             }
             onRemove={() => onRemoveMember(member.userId, member.name || member.displayName || 'member')}
           />
@@ -287,145 +286,116 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
       </View>
 
       {/* Team Status & Action Area for Pending State */}
-      {teamData.status === "pending" && (
-        <View style={{ marginTop: 6 }}>
-          {!hasEnoughMembers && (
-            <View
+      {/* Team Status & Actions Area */}
+      <View style={{ marginTop: 6 }}>
+        {!hasEnoughMembers && (
+          <View
+            style={{
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)',
+              borderColor: 'rgba(245, 158, 11, 0.3)',
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 8,
+            }}
+          >
+            <Text
               style={{
-                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)',
-                borderColor: 'rgba(245, 158, 11, 0.3)',
-                borderWidth: 1,
-                borderRadius: 12,
-                padding: 12,
+                fontFamily: 'Poppins_500Medium',
+                fontSize: 12,
+                color: '#F59E0B',
+                lineHeight: 18,
+              }}
+            >
+              ⚠️ Your team needs at least {minSize} members to participate (currently {memberCount}). Share your invite code with teammates.
+            </Text>
+          </View>
+        )}
+
+        {isPaymentDue && (
+          <View
+            style={{
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+              borderColor: 'rgba(245, 158, 11, 0.3)',
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <AlertTriangle size={15} color="#F59E0B" style={{ marginRight: 6 }} />
+              <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: '#F59E0B' }}>
+                Payment Required
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontFamily: 'Poppins_400Regular',
+                fontSize: 12,
+                color: textSecondary,
+                lineHeight: 18,
                 marginBottom: 10,
               }}
             >
-              <Text
-                style={{
-                  fontFamily: 'Poppins_500Medium',
-                  fontSize: 12,
-                  color: '#F59E0B',
-                  lineHeight: 18,
-                }}
-              >
-                ⚠️ Your team needs at least {minSize} members before registration can be completed. Share your invite code with teammates.
-              </Text>
-            </View>
-          )}
-
-          {/* Leader Complete Registration Button / Payment Required Banner */}
-          {isLeader && hasEnoughMembers && (
-            isPaymentDue ? (
-              <View
-                style={{
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
-                  borderColor: 'rgba(245, 158, 11, 0.3)',
-                  borderWidth: 1,
-                  borderRadius: 12,
-                  padding: 12,
-                  marginBottom: 8,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                  <AlertTriangle size={15} color="#F59E0B" style={{ marginRight: 6 }} />
-                  <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: '#F59E0B' }}>
-                    Payment Required
-                  </Text>
-                </View>
-                <Text
-                  style={{
-                    fontFamily: 'Poppins_400Regular',
-                    fontSize: 12,
-                    color: textSecondary,
-                    lineHeight: 18,
-                    marginBottom: 10,
-                  }}
-                >
-                  Registration payment is pending. Please complete the entry payment to finalize your team registration.
-                </Text>
-                <TouchableOpacity
-                  onPress={onPay || onSubmitTeam}
-                  activeOpacity={0.8}
-                  style={{
-                    backgroundColor: '#F59E0B',
-                    borderRadius: 10,
-                    paddingVertical: 10,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'row',
-                  }}
-                >
-                  <CreditCard size={15} color="#000000" style={{ marginRight: 6 }} />
-                  <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 13, color: '#000000' }}>
-                    Pay & Finalize Registration
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
+              {isLeader
+                ? "Registration payment is pending for your team. Please complete payment for unpaid members."
+                : "Registration payment is pending. Waiting for the team leader to complete payment."}
+            </Text>
+            {isLeader && (
               <TouchableOpacity
-                onPress={onSubmitTeam}
-                disabled={submittingTeam}
+                onPress={onPay}
                 activeOpacity={0.8}
                 style={{
-                  backgroundColor: '#10B981',
-                  borderRadius: 12,
-                  paddingVertical: 12,
+                  backgroundColor: '#F59E0B',
+                  borderRadius: 10,
+                  paddingVertical: 10,
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexDirection: 'row',
-                  marginBottom: 8,
-                  width: '100%',
-                  opacity: submittingTeam ? 0.7 : 1,
                 }}
               >
-                {submittingTeam ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                ) : (
-                  <CheckCircle2 size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-                )}
-                <Text
-                  style={{
-                    fontFamily: 'Poppins_700Bold',
-                    fontSize: 13,
-                    color: '#FFFFFF',
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  {submittingTeam ? "Completing Registration..." : "Complete Registration"}
+                <CreditCard size={15} color="#000000" style={{ marginRight: 6 }} />
+                <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 13, color: '#000000' }}>
+                  Pay Registration Fee
                 </Text>
               </TouchableOpacity>
-            )
-          )}
+            )}
+          </View>
+        )}
 
-          {hasEnoughMembers && !isLeader && (
-            <View
-              style={{
-                backgroundColor: isPaymentDue
-                  ? (isDark ? 'rgba(245, 158, 11, 0.1)' : '#FFFBEB')
-                  : (isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.08)'),
-                borderColor: isPaymentDue ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.25)',
-                borderWidth: 1,
-                borderRadius: 10,
-                padding: 10,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: 'Poppins_500Medium',
-                  fontSize: 12,
-                  color: isPaymentDue ? '#F59E0B' : '#10B981',
-                }}
-              >
-                {isPaymentDue
-                  ? "⚠️ Minimum team size met. Waiting for the team leader to complete payment and finalize registration."
-                  : "✓ Minimum team size met. Waiting for the team leader to complete registration."}
+        {!isPaymentDue && hasEnoughMembers && (
+          <View
+            style={{
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.08)',
+              borderColor: 'rgba(16, 185, 129, 0.3)',
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <CheckCircle2 size={15} color="#10B981" style={{ marginRight: 6 }} />
+              <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: '#10B981' }}>
+                Team Registration Active
               </Text>
             </View>
-          )}
-        </View>
-      )}
-
-      {teamData.status && <TeamStatusMessage status={teamData.status as any} />}
+            <Text
+              style={{
+                fontFamily: 'Poppins_400Regular',
+                fontSize: 12,
+                color: isDark ? '#A7F3D0' : '#047857',
+                lineHeight: 18,
+              }}
+            >
+              {maxSize && memberCount < maxSize
+                ? `Your team is registered! You can invite ${maxSize - memberCount} more member${maxSize - memberCount > 1 ? 's' : ''} using the invite code above.`
+                : 'Your team is registered and ready for the event!'}
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 };

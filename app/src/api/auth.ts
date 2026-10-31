@@ -16,6 +16,7 @@ import {
 } from "@react-native-firebase/auth";
 import type { User as FirebaseUser } from "@react-native-firebase/auth";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as FileSystem from "expo-file-system/legacy";
 
 import { API_BASE_URL, GOOGLE_WEB_CLIENT_ID } from "../config/api";
 import { UserProfile } from "../types/models";
@@ -219,9 +220,131 @@ export const handleEmailSignIn = async (
 export const handleSignOut = async (): Promise<void> => {
   try {
     initializeGoogleSignIn();
-    await GoogleSignin.signOut();
-    await signOut(auth());
-  } catch (error) {
-    console.error("Sign out error:", error);
+    try {
+      await GoogleSignin.signOut();
+    } catch (_) {}
+
+    if (auth().currentUser) {
+      await signOut(auth());
+    }
+  } catch (error: any) {
+    if (error?.code !== "auth/no-current-user") {
+      console.error("Sign out error:", error);
+    }
   }
 };
+
+export const deleteAccount = async (): Promise<void> => {
+  const firebaseUser = auth().currentUser;
+  if (!firebaseUser) throw new Error("No authenticated user");
+
+  const response = await authedFetch("/deleteuser", firebaseUser, { method: "POST" });
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to delete account"));
+  }
+
+  try {
+    await firebaseUser.delete();
+  } catch (_) {
+    // Backend already deleted user from Firebase Auth or session is invalidated
+  }
+
+  await handleSignOut();
+};
+
+export const uploadProfilePhoto = async (fileUri: string): Promise<UserProfile> => {
+  const firebaseUser = auth().currentUser;
+  if (!firebaseUser) throw new Error("No authenticated user");
+
+  const idToken = await firebaseUser.getIdToken(false);
+
+  if (Platform.OS === "web") {
+    const resp = await fetch(fileUri);
+    const blob = await resp.blob();
+    const formData = new FormData();
+    formData.append("file", blob, "photo.jpg");
+
+    const res = await fetch(`${API_BASE_URL}/me/photo`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: formData,
+    });
+    if (!res.ok) {
+      throw new Error(await readError(res, "Failed to upload photo"));
+    }
+    const data = await res.json();
+    return data.user;
+  }
+
+  const result = await FileSystem.uploadAsync(`${API_BASE_URL}/me/photo`, fileUri, {
+    fieldName: "file",
+    httpMethod: "POST",
+    uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
+  });
+
+  if (result.status < 200 || result.status >= 300) {
+    let errMsg = "Failed to upload photo";
+    try {
+      const parsed = JSON.parse(result.body);
+      errMsg = parsed?.error?.message || parsed?.error || parsed?.message || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
+  }
+
+  const data = JSON.parse(result.body);
+  return data.user;
+};
+
+export const uploadCollegeId = async (fileUri: string): Promise<UserProfile> => {
+  const firebaseUser = auth().currentUser;
+  if (!firebaseUser) throw new Error("No authenticated user");
+
+  const idToken = await firebaseUser.getIdToken(false);
+
+  if (Platform.OS === "web") {
+    const resp = await fetch(fileUri);
+    const blob = await resp.blob();
+    const formData = new FormData();
+    formData.append("file", blob, "college-id.jpg");
+
+    const res = await fetch(`${API_BASE_URL}/me/college-id`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: formData,
+    });
+    if (!res.ok) {
+      throw new Error(await readError(res, "Failed to upload college ID"));
+    }
+    const data = await res.json();
+    return data.user;
+  }
+
+  const result = await FileSystem.uploadAsync(`${API_BASE_URL}/me/college-id`, fileUri, {
+    fieldName: "file",
+    httpMethod: "POST",
+    uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
+  });
+
+  if (result.status < 200 || result.status >= 300) {
+    let errMsg = "Failed to upload college ID";
+    try {
+      const parsed = JSON.parse(result.body);
+      errMsg = parsed?.error?.message || parsed?.error || parsed?.message || errMsg;
+    } catch (_) {}
+    throw new Error(errMsg);
+  }
+
+  const data = JSON.parse(result.body);
+  return data.user;
+};
+

@@ -601,7 +601,7 @@ export default function MealPassScreen() {
         </View>
 
         {/* Accommodation / Food purchase shortcut if not paid */}
-        {!hasPaidToday && (
+        {!hasPaidToday && !user?.isHostCollegeStudent && !user?.collegeName?.toLowerCase().includes("thapar") && !user?.email?.toLowerCase().endsWith("@thapar.edu") && (
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => router.push("/profile/Accommodation")}

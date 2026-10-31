@@ -51,6 +51,7 @@ export interface PaymentTransaction {
   teamId?: string;
   transactionFees: number;
   userId: string;
+  bill?: Record<string, any>;
 }
 
 export interface TransactionFilters {

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
 import { useMyEvents } from '@/hooks/useMyEvents';
+import { isEventPaymentDue } from '@/utils/paymentHelpers';
 
 const UserEventsScreen: React.FC = () => {
   const router = useRouter();
@@ -28,9 +29,18 @@ const UserEventsScreen: React.FC = () => {
     }, [refresh])
   );
 
+  const userId = userProfile?.userId;
   const events = rows.map((row: any) => {
     let displayStatus = row.registration?.status || 'confirmed';
-    if (row.registration?.paymentStatus === 'pending') {
+    if (
+      row.registration?.paymentStatus === 'pending' ||
+      isEventPaymentDue({
+        event: row.event,
+        team: row.team,
+        registration: row.registration,
+        userId,
+      })
+    ) {
       displayStatus = 'payment_pending';
     }
 

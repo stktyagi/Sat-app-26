@@ -24,10 +24,13 @@ import {
   Film,
   Check,
   ChevronDown,
+  Edit,
+  X,
 } from "lucide-react-native";
 import {
   adminListReels,
   adminCreateReel,
+  adminUpdateReel,
   adminDeleteReel,
   adminUploadMedia,
   adminListEvents,
@@ -59,6 +62,19 @@ export default function ReelsManagement() {
   const [duration, setDuration] = useState("30");
   const [order, setOrder] = useState("0");
   const [showEventPicker, setShowEventPicker] = useState(false);
+
+  // Edit Modal State
+  const [editingReel, setEditingReel] = useState<Reel | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDuration, setEditDuration] = useState("30");
+  const [editOrder, setEditOrder] = useState("0");
+  const [editSelectedEvent, setEditSelectedEvent] = useState<AdminEvent | null>(null);
+  const [editThumbnailUri, setEditThumbnailUri] = useState<string | null>(null);
+  const [editVideoUri, setEditVideoUri] = useState<string | null>(null);
+  const [showEditEventPicker, setShowEditEventPicker] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const bgColor = isDark ? "#131316" : "#E0E0E0";
   const cardBg = isDark ? "#1C1C20" : "#FFFFFF";
@@ -229,6 +245,128 @@ export default function ReelsManagement() {
         },
       ]
     );
+  };
+
+  const handleOpenEdit = (reel: Reel) => {
+    setEditingReel(reel);
+    setEditTitle(reel.title);
+    setEditDescription(reel.description || "");
+    setEditDuration(reel.duration?.toString() || "30");
+    setEditOrder(reel.order?.toString() || "0");
+    const matched =
+      events.find((e) => (e.eventId || e.id) === reel.eventId) ||
+      (reel.event
+        ? ({ eventId: reel.event.id, id: reel.event.id, title: reel.event.name, category: "" } as AdminEvent)
+        : null);
+    setEditSelectedEvent(matched);
+    setEditThumbnailUri(null);
+    setEditVideoUri(null);
+    setEditModalVisible(true);
+  };
+
+  const pickEditThumbnail = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const srcW = asset.width;
+        const srcH = asset.height;
+        const targetAspect = 9 / 16;
+        const srcAspect = srcW / srcH;
+        let cropW = srcW;
+        let cropH = srcH;
+        if (srcAspect > targetAspect) {
+          cropW = Math.round(srcH * targetAspect);
+        } else {
+          cropH = Math.round(srcW / targetAspect);
+        }
+        const originX = Math.round((srcW - cropW) / 2);
+        const originY = Math.round((srcH - cropH) / 2);
+        const cropped = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ crop: { originX, originY, width: cropW, height: cropH } }],
+          { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        setEditThumbnailUri(cropped.uri);
+      }
+    } catch (err: any) {
+      console.error("pickEditThumbnail error:", err);
+      showAlert("Error", "Failed to select thumbnail");
+    }
+  };
+
+  const pickEditVideo = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        videoMaxDuration: 60,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setEditVideoUri(result.assets[0].uri);
+        if (result.assets[0].duration) {
+          setEditDuration(Math.round(result.assets[0].duration / 1000).toString());
+        }
+      }
+    } catch (err: any) {
+      console.error("pickEditVideo error:", err);
+      showAlert("Error", "Failed to select video");
+    }
+  };
+
+  const handleUpdateReel = async () => {
+    if (!editingReel) return;
+    if (!editTitle.trim()) {
+      showAlert("Validation Error", "Please provide a reel title.");
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const payload: Partial<Reel> = {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        duration: parseInt(editDuration, 10) || 30,
+        order: parseInt(editOrder, 10) || 0,
+        eventId: editSelectedEvent ? (editSelectedEvent.eventId || editSelectedEvent.id) : "",
+      };
+
+      if (editThumbnailUri) {
+        const uploadedThumb = await adminUploadMedia(editThumbnailUri, {
+          folder: "reels",
+        });
+        payload.thumbnailUrl = uploadedThumb.url;
+        payload.thumbnailRef = uploadedThumb.ref;
+      }
+
+      if (editVideoUri) {
+        const uploadedVideo = await adminUploadMedia(editVideoUri, {
+          folder: "reels",
+        });
+        payload.videoUrl = uploadedVideo.url;
+        payload.videoRef = uploadedVideo.ref;
+      }
+
+      const updated = await adminUpdateReel(editingReel.id, payload);
+      useContentCacheStore.getState().invalidateReels();
+
+      setReels((prev) =>
+        prev.map((r) =>
+          r.id === editingReel.id ? { ...r, ...payload, ...(updated || {}) } : r
+        )
+      );
+
+      showAlert("Success", "Reel updated successfully!");
+      setEditModalVisible(false);
+      setEditingReel(null);
+    } catch (error: any) {
+      console.error("handleUpdateReel error:", error);
+      showAlert("Error", error.message || "Failed to update reel");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -677,27 +815,40 @@ export default function ReelsManagement() {
                 </View>
               </View>
 
-              <TouchableOpacity
-                onPress={() => handleDeleteReel(item)}
-                disabled={deletingId === item.id}
-                style={{
-                  padding: 10,
-                  borderRadius: 10,
-                  backgroundColor: "rgba(239, 68, 68, 0.1)",
-                }}
-              >
-                {deletingId === item.id ? (
-                  <ActivityIndicator size="small" color="#EF4444" />
-                ) : (
-                  <Trash2 size={18} color="#EF4444" />
-                )}
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => handleOpenEdit(item)}
+                  style={{
+                    padding: 10,
+                    borderRadius: 10,
+                    backgroundColor: "rgba(65, 184, 240, 0.12)",
+                  }}
+                >
+                  <Edit size={18} color="#41B8F0" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleDeleteReel(item)}
+                  disabled={deletingId === item.id}
+                  style={{
+                    padding: 10,
+                    borderRadius: 10,
+                    backgroundColor: "rgba(239, 68, 68, 0.1)",
+                  }}
+                >
+                  {deletingId === item.id ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <Trash2 size={18} color="#EF4444" />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           ))
         )}
       </ScrollView>
 
-      {/* Event Selection Modal */}
+      {/* Event Selection Modal for Creation */}
       <Modal
         visible={showEventPicker}
         transparent
@@ -792,6 +943,530 @@ export default function ReelsManagement() {
                     onPress={() => {
                       setSelectedEvent(item);
                       setShowEventPicker(false);
+                    }}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderRadius: 12,
+                      backgroundColor: isSelected
+                        ? "rgba(168, 85, 247, 0.15)"
+                        : "transparent",
+                      marginBottom: 4,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontFamily: "Poppins_500Medium",
+                          color: isSelected ? "#A855F7" : textPrimary,
+                          fontSize: 14,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {item.title}
+                      </Text>
+                      {item.category ? (
+                        <Text
+                          style={{
+                            fontFamily: "Poppins_400Regular",
+                            color: textSecondary,
+                            fontSize: 12,
+                          }}
+                        >
+                          {item.category}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {isSelected && <Check size={18} color="#A855F7" />}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Reel Modal */}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!updating) setEditModalVisible(false);
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: cardBg,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: "85%",
+              padding: 20,
+              paddingBottom: Math.max(insets.bottom, 20),
+            }}
+          >
+            {/* Modal Header */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Poppins_600SemiBold",
+                  color: textPrimary,
+                  fontSize: 18,
+                }}
+              >
+                Edit Reel Details
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!updating) setEditModalVisible(false);
+                }}
+                disabled={updating}
+                style={{
+                  padding: 4,
+                  borderRadius: 8,
+                  backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+                }}
+              >
+                <X size={20} color={textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Media Previews & Pickers Row */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  gap: 12,
+                  marginBottom: 16,
+                }}
+              >
+                {/* Thumbnail Preview & Picker */}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: textSecondary,
+                      fontSize: 12,
+                      marginBottom: 6,
+                    }}
+                  >
+                    Thumbnail (9:16)
+                  </Text>
+                  <View
+                    style={{
+                      height: 120,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      borderWidth: 1,
+                      borderColor: cardBorder,
+                      backgroundColor: isDark ? "#141416" : "#EAEAEA",
+                      marginBottom: 8,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {editThumbnailUri || editingReel?.thumbnailUrl ? (
+                      <Image
+                        source={{ uri: editThumbnailUri || editingReel?.thumbnailUrl }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Film size={28} color={textSecondary} />
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={pickEditThumbnail}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? "rgba(168, 85, 247, 0.12)" : "rgba(168, 85, 247, 0.08)",
+                      borderWidth: 1,
+                      borderColor: "#A855F7",
+                    }}
+                  >
+                    <ImagePlus size={14} color="#A855F7" style={{ marginRight: 4 }} />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_500Medium",
+                        color: "#A855F7",
+                        fontSize: 11,
+                      }}
+                    >
+                      {editThumbnailUri ? "Changed" : "Replace"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Video Indicator & Picker */}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: textSecondary,
+                      fontSize: 12,
+                      marginBottom: 6,
+                    }}
+                  >
+                    Video File
+                  </Text>
+                  <View
+                    style={{
+                      height: 120,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: cardBorder,
+                      backgroundColor: isDark ? "#141416" : "#EAEAEA",
+                      marginBottom: 8,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 8,
+                    }}
+                  >
+                    <Video size={28} color={editVideoUri ? "#41B8F0" : textSecondary} />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_500Medium",
+                        color: editVideoUri ? "#41B8F0" : textSecondary,
+                        fontSize: 11,
+                        textAlign: "center",
+                        marginTop: 6,
+                      }}
+                      numberOfLines={2}
+                    >
+                      {editVideoUri ? "New video selected" : "Current video preserved"}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={pickEditVideo}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? "rgba(65, 184, 240, 0.12)" : "rgba(65, 184, 240, 0.08)",
+                      borderWidth: 1,
+                      borderColor: "#41B8F0",
+                    }}
+                  >
+                    <Video size={14} color="#41B8F0" style={{ marginRight: 4 }} />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_500Medium",
+                        color: "#41B8F0",
+                        fontSize: 11,
+                      }}
+                    >
+                      {editVideoUri ? "Changed" : "Replace"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Title */}
+              <View style={{ marginBottom: 14 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textSecondary,
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
+                  Title *
+                </Text>
+                <Input
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="e.g., Hackathon Highlights"
+                />
+              </View>
+
+              {/* Description */}
+              <View style={{ marginBottom: 14 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textSecondary,
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
+                  Description
+                </Text>
+                <Input
+                  value={editDescription}
+                  onChangeText={setEditDescription}
+                  placeholder="Optional brief description"
+                  multiline
+                  numberOfLines={2}
+                />
+              </View>
+
+              {/* Attached Event Picker */}
+              <View style={{ marginBottom: 14 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textSecondary,
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
+                  Attached Event
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowEditEventPicker(true)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.04)",
+                    borderWidth: 1,
+                    borderColor: cardBorder,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginRight: 8 }}>
+                    <Calendar size={16} color="#A855F7" style={{ marginRight: 8 }} />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_500Medium",
+                        color: editSelectedEvent ? textPrimary : textSecondary,
+                        fontSize: 13,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {editSelectedEvent ? editSelectedEvent.title : "None (Tap to select event)"}
+                    </Text>
+                  </View>
+                  <ChevronDown size={16} color={textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Duration & Order Row */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  gap: 12,
+                  marginBottom: 20,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: textSecondary,
+                      fontSize: 13,
+                      marginBottom: 6,
+                    }}
+                  >
+                    Duration (seconds)
+                  </Text>
+                  <Input
+                    value={editDuration}
+                    onChangeText={setEditDuration}
+                    placeholder="30"
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: textSecondary,
+                      fontSize: 13,
+                      marginBottom: 6,
+                    }}
+                  >
+                    Display Order
+                  </Text>
+                  <Input
+                    value={editOrder}
+                    onChangeText={setEditOrder}
+                    placeholder="0"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              {/* Save & Cancel Buttons */}
+              <View style={{ flexDirection: "row", gap: 12, marginBottom: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setEditModalVisible(false)}
+                  disabled={updating}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: textSecondary,
+                      fontSize: 14,
+                    }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleUpdateReel}
+                  disabled={updating}
+                  style={{
+                    flex: 2,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#A855F7",
+                  }}
+                >
+                  {updating ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        color: "#FFFFFF",
+                        fontSize: 14,
+                      }}
+                    >
+                      Save Changes
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Event Selection Modal */}
+      <Modal
+        visible={showEditEventPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEditEventPicker(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: cardBg,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: "75%",
+              padding: 20,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Poppins_600SemiBold",
+                  color: textPrimary,
+                  fontSize: 18,
+                }}
+              >
+                Attach Event to Reel
+              </Text>
+              <TouchableOpacity onPress={() => setShowEditEventPicker(false)}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: "#A855F7",
+                    fontSize: 15,
+                  }}
+                >
+                  Done
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                setEditSelectedEvent(null);
+                setShowEditEventPicker(false);
+              }}
+              style={{
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                backgroundColor: !editSelectedEvent
+                  ? "rgba(168, 85, 247, 0.15)"
+                  : "transparent",
+                marginBottom: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Poppins_500Medium",
+                  color: !editSelectedEvent ? "#A855F7" : textPrimary,
+                  fontSize: 14,
+                }}
+              >
+                No Attached Event
+              </Text>
+              {!editSelectedEvent && <Check size={18} color="#A855F7" />}
+            </TouchableOpacity>
+
+            <FlatList
+              data={events}
+              keyExtractor={(item) => item.eventId || item.id}
+              renderItem={({ item }) => {
+                const isSelected =
+                  editSelectedEvent &&
+                  (editSelectedEvent.eventId || editSelectedEvent.id) === (item.eventId || item.id);
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEditSelectedEvent(item);
+                      setShowEditEventPicker(false);
                     }}
                     style={{
                       paddingVertical: 12,

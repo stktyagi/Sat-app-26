@@ -3,16 +3,16 @@ import { View, Text, ActivityIndicator, TouchableOpacity, ScrollView, Switch, Te
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
 import { useQueryClient } from '@tanstack/react-query';
 import { initiateEventPayment, getPaymentStatus, validateCoupon, CouponResponse } from '@/api/payments';
+import { startEasebuzzPayment } from '@/services/easebuzz';
 import { showAlert } from '@/components';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import { useUserStore } from '@/state/userStore';
 import { useThemeStore } from '@/state/themeStore';
-
-const ACCOMMODATION_PRICE = 300;
-const FOOD_PRICE = 200;
+import { getAppAccommodation } from '@/api/appConfig';
+import { getMyEvents } from '@/api/events';
+import { isPerIndividualPayment, resolveStayPrices } from '@/utils/paymentHelpers';
 
 const PaymentScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -22,6 +22,12 @@ const PaymentScreen: React.FC = () => {
   const { eventId, teamId } = useLocalSearchParams<{ eventId: string; teamId?: string }>();
   const { userData: user } = useUserStore();
   const { data: eventData, loading: eventLoading } = useEventDetail(eventId);
+
+  const isHost =
+    user?.isHostCollegeStudent ||
+    user?.collegeName?.toLowerCase().includes('thapar') ||
+    user?.email?.toLowerCase().endsWith('@thapar.edu') ||
+    false;
 
   const [phase, setPhase] = useState<'checkout' | 'initiating' | 'opening' | 'verifying' | 'done'>('checkout');
   const [errorMessage, setErrorMessage] = useState('');
@@ -33,9 +39,56 @@ const PaymentScreen: React.FC = () => {
     day0: false, day1: false, day2: false, day3: false, day4: false,
   });
 
+  const [accDayPrices, setAccDayPrices] = useState<Record<string, number>>({
+    day0: 650, day1: 650, day2: 650, day3: 650, day4: 650,
+  });
+  const [foodDayPrices, setFoodDayPrices] = useState<Record<string, number>>({
+    day0: 150, day1: 150, day2: 150, day3: 150, day4: 150,
+  });
+
   const [couponCode, setCouponCode] = useState('');
   const [validCoupon, setValidCoupon] = useState<CouponResponse | null>(null);
   const [couponError, setCouponError] = useState('');
+
+  // Fetch accommodation & food pricing based on event category and user registrations
+  useEffect(() => {
+    Promise.all([
+      getAppAccommodation().catch(() => null),
+      getMyEvents().catch(() => []),
+    ]).then(([accConfig, myEvents]) => {
+      let hasTech = false;
+      let hasCult = false;
+
+      // Current event category
+      const currentCat = eventData?.event?.category;
+      if (currentCat) {
+        if (currentCat.toLowerCase() === 'technical') {
+          hasTech = true;
+        } else {
+          // Any non-technical event is considered cultural
+          hasCult = true;
+        }
+      }
+
+      // User's other registered events
+      if (Array.isArray(myEvents)) {
+        for (const item of myEvents) {
+          const cat = item.event?.category;
+          if (cat) {
+            if (cat.toLowerCase() === 'technical') {
+              hasTech = true;
+            } else {
+              hasCult = true;
+            }
+          }
+        }
+      }
+
+      const { accDays, foodDays } = resolveStayPrices(accConfig, hasTech, hasCult);
+      setAccDayPrices(accDays);
+      setFoodDayPrices(foodDays);
+    });
+  }, [eventData]);
 
   // Lock already paid days from user profile
   useEffect(() => {
@@ -77,29 +130,37 @@ const PaymentScreen: React.FC = () => {
     setCouponError('');
   };
 
-  const calculateTotal = () => {
-    let baseEventFee = 0;
+  const getBaseEventFee = () => {
+    let fee = 0;
     if (eventData?.event?.paymentRequired) {
-      const isHost = user?.isHostCollegeStudent;
       if (
         eventData.event.eventType === 'team' &&
-        eventData.event.paymentType === 'per_individual' &&
+        isPerIndividualPayment(eventData.event.paymentType) &&
         eventData.myTeam?.members?.length
       ) {
-        baseEventFee = eventData.myTeam.members.reduce((acc: number, m: any) => {
+        const totalRosterFee = eventData.myTeam.members.reduce((acc: number, m: any) => {
           return acc + (m.isHostCollegeStudent ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0));
         }, 0);
+        fee = Math.max(0, totalRosterFee - (eventData.myTeam.paidTill || 0));
+      } else if (eventData.event.eventType === 'team') {
+        const flatFee = isHost ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0);
+        fee = Math.max(0, flatFee - (eventData.myTeam?.paidTill || 0));
       } else {
-        baseEventFee = isHost ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0);
+        fee = isHost ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0);
       }
     }
+    return fee;
+  };
 
+  const baseEventFee = getBaseEventFee();
+
+  const calculateTotal = () => {
     let accFoodFee = 0;
     Object.entries(accommodation).forEach(([day, selected]) => {
-      if (selected && !user?.accommodation?.[day]) accFoodFee += ACCOMMODATION_PRICE;
+      if (selected && !user?.accommodation?.[day]) accFoodFee += (accDayPrices[day] || 650);
     });
     Object.entries(food).forEach(([day, selected]) => {
-      if (selected && !user?.food?.[day]) accFoodFee += FOOD_PRICE;
+      if (selected && !user?.food?.[day]) accFoodFee += (foodDayPrices[day] || 150);
     });
 
     return baseEventFee + accFoodFee;
@@ -159,9 +220,19 @@ const PaymentScreen: React.FC = () => {
       let pType = 'event';
       const hasAcc = Object.keys(accToPay).length > 0;
       const hasFood = Object.keys(foodToPay).length > 0;
-      if (hasAcc && hasFood) pType = 'event_and_accommodation_and_food';
-      else if (hasAcc) pType = 'event_and_accommodation';
-      else if (hasFood) pType = 'event_and_accommodation_and_food';
+      const hasEventFee = baseEventFee > 0;
+
+      if (hasEventFee) {
+        if (hasAcc && hasFood) pType = 'event_and_accommodation_and_food';
+        else if (hasAcc) pType = 'event_and_accommodation';
+        else if (hasFood) pType = 'event_and_accommodation_and_food';
+        else pType = 'event';
+      } else {
+        if (hasAcc && hasFood) pType = 'accommodation_and_food';
+        else if (hasAcc) pType = 'accommodation';
+        else if (hasFood) pType = 'accommodation_and_food';
+        else pType = 'event';
+      }
 
       // Check coupon minCartValue
       let appliedCoupon: string | undefined = undefined;
@@ -186,28 +257,27 @@ const PaymentScreen: React.FC = () => {
         food: foodToPay,
       });
 
-      // Only the backend's record decides the outcome; the redirect URL is not trusted.
-      const orderId = res.merchantOrderId;
-      let browserResultType = 'success';
-
-      if (res.paymentUrl.includes('/payments/dummy')) {
-        setPhase('verifying');
-        try {
-          await fetch(res.paymentUrl, { headers: { Accept: 'application/json' } });
-        } catch (e) {
-          const redirectUrl = 'app://payment';
-          const result = await WebBrowser.openAuthSessionAsync(res.paymentUrl, redirectUrl);
-          browserResultType = result.type;
-        }
-      } else {
-        setPhase('opening');
-        const redirectUrl = 'app://payment';
-        const result = await WebBrowser.openAuthSessionAsync(res.paymentUrl, redirectUrl);
-        browserResultType = result.type;
+      // Never open the gateway for an amount other than the one on screen.
+      if (res.bill?.final != null && res.bill.final !== Math.round(finalAmount)) {
+        setPhase('checkout');
+        showAlert('Price Updated', `The server total is ₹${res.bill.final}, not ₹${finalAmount}. Please review your selection and try again.`);
+        await useUserStore.getState().refreshUserProfile();
+        return;
       }
 
+      // Only the backend's record decides the outcome; the client SDK/redirect is not solely trusted.
+      const orderId = res.merchantOrderId;
+      setPhase('opening');
+
+      const checkoutResult = await startEasebuzzPayment({
+        paymentUrl: res.paymentUrl,
+        merchantOrderId: res.merchantOrderId,
+        accessKey: res.accessKey,
+        payMode: res.payMode,
+      });
+
       setPhase('verifying');
-      await pollAndFinish(orderId, browserResultType);
+      await pollAndFinish(orderId, checkoutResult.status === 'cancelled');
     } catch (err: any) {
       setPhase('checkout');
       setErrorMessage(err?.message || 'Failed to start payment');
@@ -217,7 +287,7 @@ const PaymentScreen: React.FC = () => {
 
   const pollAndFinish = async (
     merchantOrderId: string,
-    browserResultType: string,
+    isCancelled: boolean,
   ) => {
     try {
       const payment = await pollPaymentStatusWithRetry(merchantOrderId);
@@ -246,7 +316,7 @@ const PaymentScreen: React.FC = () => {
           [{ text: 'Try Again', onPress: () => setPhase('checkout') }]
         );
       } else {
-        if (browserResultType === 'cancel' || browserResultType === 'dismiss') {
+        if (isCancelled) {
           setPhase('checkout');
           showAlert(
             'Payment Incomplete',
@@ -300,9 +370,27 @@ const PaymentScreen: React.FC = () => {
   }
 
   // 1. Check if user/team has ALREADY PAID for the event
-  const isAlreadyPaid =
-    eventData?.myRegistration?.paymentStatus === 'success' ||
-    (eventData?.event?.eventType === 'team' && !!eventData?.myTeam?.paid);
+  const isPerInd = isPerIndividualPayment(eventData?.event?.paymentType);
+  const isTeam = eventData?.event?.eventType === 'team';
+  const isLeader = eventData?.myTeam ? eventData.myTeam.leaderUserId === user?.userId : true;
+
+  let isAlreadyPaid = false;
+  if (!eventData?.event?.paymentRequired) {
+    isAlreadyPaid = true;
+  } else if (isTeam && eventData?.myTeam) {
+    if (isPerInd) {
+      if (isLeader) {
+        const hasUnpaid = eventData.myTeam.members?.some((m: any) => m.paymentStatus !== 'success');
+        isAlreadyPaid = !!eventData.myTeam.paid && !hasUnpaid;
+      } else {
+        isAlreadyPaid = eventData.myRegistration?.paymentStatus === 'success';
+      }
+    } else {
+      isAlreadyPaid = !!eventData.myTeam.paid;
+    }
+  } else {
+    isAlreadyPaid = eventData?.myRegistration?.paymentStatus === 'success';
+  }
 
   if (isAlreadyPaid) {
     return (
@@ -314,17 +402,20 @@ const PaymentScreen: React.FC = () => {
           REGISTRATION ALREADY PAID
         </Text>
         <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, textAlign: 'center', marginBottom: 32, lineHeight: 22, fontSize: 14 }}>
-          You have already completed payment for this event and your registration is confirmed.
-          If you need to book or update accommodation, you can manage it from the Accommodation page.
+          {isHost
+            ? 'Your registration for this event is confirmed.'
+            : 'You have already completed payment for this event and your registration is confirmed. If you need to book or update accommodation, you can manage it from the Accommodation page.'}
         </Text>
-        <TouchableOpacity
-          onPress={() => router.replace('/profile/Accommodation')}
-          style={{ backgroundColor: '#41B8F0', width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginBottom: 12 }}
-        >
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 15 }}>
-            Manage Accommodation & Food
-          </Text>
-        </TouchableOpacity>
+        {!isHost && (
+          <TouchableOpacity
+            onPress={() => router.replace('/profile/Accommodation')}
+            style={{ backgroundColor: '#41B8F0', width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginBottom: 12 }}
+          >
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 15 }}>
+              Manage Accommodation & Food
+            </Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={() => {
             router.dismissAll();
@@ -445,13 +536,7 @@ const PaymentScreen: React.FC = () => {
             {isTeamEvent ? 'Team Registration Fee' : 'Registration Fee'}
           </Text>
           <Text style={{ fontFamily: 'Talina', color: textColor, fontSize: 32 }}>
-            ₹{eventData?.event?.paymentRequired
-              ? isTeamEvent && eventData.event.paymentType === 'per_individual' && eventData.myTeam?.members?.length
-                ? eventData.myTeam.members.reduce((acc: number, m: any) => acc + (m.isHostCollegeStudent ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0)), 0)
-                : user?.isHostCollegeStudent
-                  ? eventData.event.registrationFee?.host || 0
-                  : eventData.event.registrationFee?.other || 0
-              : 0}
+            ₹{baseEventFee}
           </Text>
           {isTeamEvent && (
             <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12, marginTop: 4 }}>
@@ -460,14 +545,15 @@ const PaymentScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Accommodation Section */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 18, marginBottom: 2 }}>
-            Stay & Food (Optional)
-          </Text>
-          <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 13, marginBottom: 14 }}>
-            Add accommodation (₹{ACCOMMODATION_PRICE}/day) or food (₹{FOOD_PRICE}/day).
-          </Text>
+        {/* Accommodation Section (Only for non-host participants) */}
+        {!isHost && (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 18, marginBottom: 2 }}>
+              Stay & Food (Optional)
+            </Text>
+            <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 13, marginBottom: 14 }}>
+              Add accommodation or food pass.
+            </Text>
 
           {isTeamEvent && (
             <View
@@ -492,6 +578,8 @@ const PaymentScreen: React.FC = () => {
           {['day0', 'day1', 'day2', 'day3', 'day4'].map((day) => {
             const accLocked = user?.accommodation?.[day] || false;
             const foodLocked = user?.food?.[day] || false;
+            const dayAccPrice = accDayPrices[day] || 650;
+            const dayFoodPrice = foodDayPrices[day] || 150;
             return (
               <View
                 key={day}
@@ -511,7 +599,9 @@ const PaymentScreen: React.FC = () => {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>Hostel Accommodation</Text>
-                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>Campus Hostel (₹{ACCOMMODATION_PRICE}/day)</Text>
+                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
+                      Campus Hostel (₹{dayAccPrice}/day)
+                    </Text>
                   </View>
                   {accLocked ? (
                     <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}>
@@ -531,7 +621,9 @@ const PaymentScreen: React.FC = () => {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flex: 1, marginRight: 12 }}>
                     <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>Meals Pass</Text>
-                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>3 Meals Included (₹{FOOD_PRICE}/day)</Text>
+                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
+                      3 Meals Included (₹{dayFoodPrice}/day)
+                    </Text>
                   </View>
                   {foodLocked ? (
                     <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}>
@@ -551,6 +643,7 @@ const PaymentScreen: React.FC = () => {
             );
           })}
         </View>
+        )}
 
         {/* Coupon Code Card */}
         <View
@@ -670,23 +763,27 @@ const PaymentScreen: React.FC = () => {
             )}
           </View>
           <TouchableOpacity
-            onPress={startPayment}
-            disabled={finalAmount <= 0}
+            onPress={
+              total <= 0
+                ? () => router.replace({ pathname: '/events/MyEventDetails', params: { eventId } })
+                : startPayment
+            }
+            disabled={total > 0 && finalAmount <= 0}
             style={{
               paddingHorizontal: 32,
               paddingVertical: 15,
               borderRadius: 16,
-              backgroundColor: finalAmount <= 0 ? (isDark ? '#2A2A30' : '#E5E7EB') : '#41B8F0',
+              backgroundColor: total > 0 && finalAmount <= 0 ? (isDark ? '#2A2A30' : '#E5E7EB') : '#41B8F0',
             }}
           >
             <Text
               style={{
                 fontFamily: 'Poppins_600SemiBold',
                 fontSize: 16,
-                color: finalAmount <= 0 ? subTextColor : '#FFFFFF',
+                color: total > 0 && finalAmount <= 0 ? subTextColor : '#FFFFFF',
               }}
             >
-              Pay Now
+              {total <= 0 ? 'View Event' : 'Pay Now'}
             </Text>
           </TouchableOpacity>
         </View>

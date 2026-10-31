@@ -22,7 +22,13 @@
         "NSPhotoLibraryUsageDescription": "Saturnalia needs photo library access to upload stories, profile photos, and festival reels.",
         "NSPhotoLibraryAddUsageDescription": "Saturnalia needs permission to save ticket passes and media to your gallery.",
         "NSLocationWhenInUseUsageDescription": "Saturnalia needs your location to show campus navigation and guide you to event venues.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification"],
+        "LSApplicationQueriesSchemes": [
+          "tez",
+          "phonepe",
+          "paytmmp",
+          "bhim"
+        ]
       },
       "entitlements": {
         "aps-environment": "development"
@@ -34,7 +40,7 @@
         "foregroundImage": "./assets/icons/adaptive-icon.png",
         "monochromeImage": "./assets/icons/adaptive-icon.png"
       },
-      "versionCode": 2,
+      "versionCode": 13,
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": true,
       "package": "com.gauransh.saturnaliaapp2026",

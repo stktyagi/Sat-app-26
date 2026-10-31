@@ -47,6 +47,8 @@ export interface UserProfile {
   role: string;
   roles: string[]; // New roles array
   photoURL?: string;
+  photoUrl?: string;
+  collegeIdUrl?: string;
   referralCode?: string; // blame hari for the incorret spelling
   referredBy?: string;
   createdAt: string;
@@ -108,6 +110,7 @@ export interface TeamRegistrationData {
   leaderUserId: string;
   inviteCode?: string;
   status?: string;
+  paidTill?: number;
   members: Array<{
     userId: string;
     name?: string;
@@ -223,6 +226,7 @@ export interface Venue {
   lng: number;
   longitude?: number;
   latitude?: number;
+  keywords?: string[];
 }
 
 
