@@ -74,6 +74,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [referralCode, setReferralCode] = useState("");
   const [currentTeamSize, setCurrentTeamSize] = useState<number>(0);
   const [isCreateTeamFlow, setIsCreateTeamFlow] = useState(false);
+  const [detailName, setDetailName] = useState("");
   const [detailPhone, setDetailPhone] = useState("");
   const [detailAge, setDetailAge] = useState("");
   const [detailGender, setDetailGender] = useState<"" | "male" | "female" | "other">("");
@@ -91,6 +92,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setIsCreateTeamFlow(false);
 
       const profile = useUserStore.getState().userData;
+      setDetailName(profile?.displayName ?? "");
       setDetailPhone(profile?.phoneNumber ?? "");
       setDetailAge(profile?.age ?? "");
       setDetailGender(profile?.gender ?? "");
@@ -175,8 +177,21 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
+  // The backend won't accept a registration without a name and phone, but sign-in may not
+  // provide them, so ask here only for whichever is missing from the profile.
+  const needsName = !userData?.displayName?.trim();
+  const needsPhone = !userData?.phoneNumber?.trim();
+
   const buildDetailsPayload = () => {
     const payload: Record<string, string> = {};
+    if (needsName) {
+      const name = detailName.trim();
+      if (!name) throw new Error("Please add your full name so organisers know who's registering.");
+      payload.displayName = name;
+    }
+    if (needsPhone && !detailPhone.trim()) {
+      throw new Error("Please add your phone number so organisers can reach you about the event.");
+    }
     if (detailPhone.trim()) {
       const digits = detailPhone.replace(/\D/g, "");
       if (digits.length !== 10) throw new Error("Phone number must be 10 digits");
@@ -263,7 +278,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
         router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
       }
     } catch (error: any) {
-      showModalAlert("Error", error.message || "Failed to complete registration");
+      showModalAlert("Couldn't complete registration", error.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -533,11 +548,42 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 fontSize: 15,
               }}
             >
-              Your details (optional)
+              Your details
             </Text>
+            {(needsName || needsPhone) && (
+              <Text style={{ fontFamily: "Poppins_400Regular", color: modalTextSecondary, fontSize: 13, marginTop: -8 }}>
+                Organisers use these to confirm your spot. Fields marked * are needed to register.
+              </Text>
+            )}
+            {needsName && (
+              <View>
+                <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
+                  Full name *
+                </Text>
+                <TextInput
+                  value={detailName}
+                  onChangeText={setDetailName}
+                  placeholder="Your full name"
+                  placeholderTextColor={modalPlaceholder}
+                  autoCapitalize="words"
+                  textContentType="name"
+                  style={{
+                  fontFamily: "Poppins_500Medium",
+                  backgroundColor: modalCardBg,
+                  color: modalTextPrimary,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: modalBorderColor,
+                  fontSize: 15,
+                }}
+                />
+              </View>
+            )}
             <View>
               <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
-                Phone number
+                {needsPhone ? "Phone number *" : "Phone number"}
               </Text>
               <TextInput
                 value={detailPhone}
@@ -902,7 +948,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     <Modal
       visible={visible}
       animationType="slide"
-      transparent={false}
+      presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
       <View style={{ flex: 1, backgroundColor: modalBg }}>
@@ -914,7 +960,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           {/* Header Bar */}
           <View
             style={{
-              paddingTop: Math.max(insets.top + 8, 16),
+              // pageSheet already sits below the status bar on iOS
+              paddingTop: Platform.OS === "ios" ? 16 : Math.max(insets.top + 8, 16),
               paddingHorizontal: 20,
               paddingBottom: 16,
               flexDirection: "row",

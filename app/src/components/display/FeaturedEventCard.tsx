@@ -1,10 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FirebaseEvent } from '@/types/models';
 import { useThemeStore } from '@/state/themeStore';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
 interface FeaturedEventCardProps {
   event: FirebaseEvent;
@@ -13,6 +18,16 @@ interface FeaturedEventCardProps {
 
 export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onPress }) => {
   const router = useRouter();
+
+  // Press feedback: settle to 0.97 quickly on touch, release a touch slower.
+  const pressScale = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: pressScale.value }] }));
+  const pressIn = () => {
+    pressScale.value = withTiming(0.97, { duration: 120, easing: EASE_OUT });
+  };
+  const pressOut = () => {
+    pressScale.value = withTiming(1, { duration: 160, easing: EASE_OUT });
+  };
   const { isDark } = useThemeStore();
 
   const handlePress = () => {
@@ -54,10 +69,11 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
   const venueDisplay = event?.venueName || 'Campus';
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.92}
+    <AnimatedPressable
       onPress={handlePress}
-      style={{
+      onPressIn={pressIn}
+      onPressOut={pressOut}
+      style={[pressStyle, {
         width: '100%',
         backgroundColor: isDark ? '#141416' : '#FFFFFF',
         borderRadius: 24,
@@ -70,11 +86,11 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
         shadowOpacity: isDark ? 0.35 : 0.08,
         shadowRadius: 12,
         elevation: 5,
-      }}
+      }]}
     >
       {/* Top Image Section */}
       <View style={{ width: '100%', height: 185, position: 'relative', overflow: 'hidden' }}>
-        <Image
+        <Image transition={200}
           source={coverSource}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
@@ -233,7 +249,7 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 

@@ -12,6 +12,7 @@ import {
   RemoteMessage
 } from '@react-native-firebase/messaging';
 import { Platform, PermissionsAndroid } from 'react-native';
+import * as Device from 'expo-device';
 
 /**
  * Request notification permissions
@@ -53,6 +54,8 @@ export async function requestNotificationPermission(): Promise<boolean> {
  * Returns null if unable to get token
  */
 export async function getFCMToken(): Promise<string | null> {
+  // iOS simulators never receive an APNs token, so getToken always throws there.
+  if (Platform.OS === 'ios' && !Device.isDevice) return null;
   try {
     // Request permission first
     const hasPermissionGranted = await requestNotificationPermission();

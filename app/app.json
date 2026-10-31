@@ -21,7 +21,11 @@
         "NSCameraUsageDescription": "Saturnalia needs camera access to scan event tickets, merchandise QR codes, and entry passes.",
         "NSPhotoLibraryUsageDescription": "Saturnalia needs photo library access to upload stories, profile photos, and festival reels.",
         "NSPhotoLibraryAddUsageDescription": "Saturnalia needs permission to save ticket passes and media to your gallery.",
-        "NSLocationWhenInUseUsageDescription": "Saturnalia needs your location to show campus navigation and guide you to event venues."
+        "NSLocationWhenInUseUsageDescription": "Saturnalia needs your location to show campus navigation and guide you to event venues.",
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "entitlements": {
+        "aps-environment": "development"
       }
     },
     "android": {

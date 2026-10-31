@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useUserStore } from "@/state/userStore";
+import { useUserStore, hasCompletedProfile } from "@/state/userStore";
 import { showAlert } from "../../components";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useRouter } from "expo-router";
@@ -47,7 +47,7 @@ const LoginScreen = () => {
 
     if (
       result.isFirstTime ||
-      (result.profile && !result.profile.fullyRegistered)
+      (result.profile && !hasCompletedProfile(result.profile))
     ) {
       console.log(`User needs to complete profile (${provider})`);
       router.replace("/(auth)/UserProfileFormScreen");

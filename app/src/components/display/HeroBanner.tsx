@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   ScrollView,
   Dimensions,
@@ -11,6 +10,8 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
+import Animated, { Easing, LinearTransition } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +45,9 @@ export const DEMO_BANNERS: BannerItem[] = [
     link: 'https://saturnalia.in',
   },
 ];
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+const DOT_TRANSITION = LinearTransition.duration(250).easing(Easing.bezier(0.77, 0, 0.175, 1));
 
 export default function HeroBanner({
   userProfile,
@@ -119,7 +123,7 @@ export default function HeroBanner({
 
   // Determine user first name
   const rawName = userProfile?.displayName?.trim() || (userProfile as any)?.name?.trim() || 'User';
-  const firstName = rawName ? rawName.split(' ')[0] : 'Rohan';
+  const firstName = rawName.split(' ')[0];
 
   return (
     <View style={{ width: screenWidth, height: bannerHeight, position: 'relative' }}>
@@ -145,7 +149,7 @@ export default function HeroBanner({
                 overflow: 'hidden',
               }}
             >
-              <Image
+              <Image transition={200}
                 source={imageSource}
                 style={{
                   width: screenWidth,
@@ -181,7 +185,7 @@ export default function HeroBanner({
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingHorizontal: 22,
+          paddingHorizontal: 20,
           zIndex: 20,
         }}
       >
@@ -192,9 +196,9 @@ export default function HeroBanner({
               onPress={openDrawer}
               activeOpacity={0.75}
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: 21,
+                width: 44,
+                height: 44,
+                borderRadius: 22,
                 backgroundColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
                 borderWidth: 1,
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.1)',
@@ -244,7 +248,7 @@ export default function HeroBanner({
             }}
           >
             {userProfile?.photoURL ? (
-              <Image
+              <Image transition={200}
                 source={{ uri: userProfile.photoURL }}
                 style={{ width: '100%', height: '100%', borderRadius: 22 }}
                 resizeMode="cover"
@@ -368,10 +372,12 @@ export default function HeroBanner({
             {activeBanners.map((item, index) => {
               const isActive = index === currentIndex;
               return (
-                <TouchableOpacity
+                <AnimatedTouchable
                   key={`dot-${item.id}-${index}`}
                   onPress={() => handleDotPress(index)}
                   activeOpacity={0.7}
+                  // Active pill grows/shrinks instead of snapping between 6 and 22pt.
+                  layout={DOT_TRANSITION}
                   style={{
                     height: 6,
                     width: isActive ? 22 : 6,

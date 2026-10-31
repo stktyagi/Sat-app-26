@@ -6,11 +6,11 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
-  Image,
   ScrollView,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { ArrowLeft, Search, X, Calendar, Clock } from 'lucide-react-native';
 import { useEventsSearch, useEventsByCategory } from '@/hooks/useEvents';
 import { FirebaseEvent } from '@/types/models';
@@ -67,7 +67,7 @@ export default function SearchEventsScreen() {
       >
         {/* Event Image */}
         <View style={{ width: 100, height: 100, overflow: 'hidden', borderRadius: 14, marginRight: 12 }}>
-          <Image source={eventImage} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          <Image transition={200} source={eventImage} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
         </View>
 
         {/* Event Details */}

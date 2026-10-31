@@ -35,6 +35,10 @@ interface UserState {
 
 
 
+// The onboarding form only asks for roll number + college. fullyRegistered also needs
+// a phone number, which is collected later in RegistrationModal, so it can't gate routing.
+export const hasCompletedProfile = (p?: UserProfile | null) => !!(p?.rollNumber && p?.collegeName);
+
 export const useUserStore = create<UserState>((set, get) => ({
   appStatus: 'loading',
   authUser: null,
@@ -64,7 +68,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       const { authUser, userData } = get();
       if (authUser) {
         const profile = userData ?? get().userData; // pick up freshly stored profile
-        if (profile?.fullyRegistered) {
+        if (hasCompletedProfile(profile)) {
           set({ appStatus: 'authenticated', isRehydrating: false });
         } else {
           set({ appStatus: 'needs_profile', isRehydrating: false });
@@ -105,7 +109,7 @@ export const useUserStore = create<UserState>((set, get) => ({
 
     if (!user) {
       set({ appStatus: 'unauthenticated' });
-    } else if (userData?.fullyRegistered) {
+    } else if (hasCompletedProfile(userData)) {
       set({ appStatus: 'authenticated' });
     } else {
       set({ appStatus: 'needs_profile' });
@@ -119,9 +123,9 @@ export const useUserStore = create<UserState>((set, get) => ({
     const { authUser, isRehydrating } = get();
     if (isRehydrating) return;
 
-    if (authUser && profile?.fullyRegistered) {
+    if (authUser && hasCompletedProfile(profile)) {
       set({ appStatus: 'authenticated' });
-    } else if (authUser && !profile?.fullyRegistered) {
+    } else if (authUser && !hasCompletedProfile(profile)) {
       set({ appStatus: 'needs_profile' });
     }
   },

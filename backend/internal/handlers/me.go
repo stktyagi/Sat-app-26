@@ -36,7 +36,7 @@ type profilePatch struct {
 }
 
 // PatchMe completes or edits the profile. Registration endpoints stay blocked
-// until name, phone, roll number and college are all present, at which point
+// until phone, roll number and college are all present, at which point
 // fullyRegistered flips to true.
 //
 // Neither roles nor the host-college flag are settable here: the first is
@@ -103,8 +103,9 @@ func (a *API) PatchMe(c *gin.Context) {
 		}
 		return current
 	}
-	complete := merged("displayName", user.DisplayName) != "" &&
-		merged("phoneNumber", user.PhoneNumber) != "" &&
+	// displayName is optional: Apple/email sign-ins may not provide one and the
+	// app never asks for it (App Review). Phone is collected at event registration.
+	complete := merged("phoneNumber", user.PhoneNumber) != "" &&
 		merged("rollNumber", user.RollNumber) != "" &&
 		merged("collegeName", user.CollegeName) != ""
 	fields["fullyRegistered"] = complete

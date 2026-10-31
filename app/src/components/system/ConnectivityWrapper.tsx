@@ -4,15 +4,12 @@ import {
   AppState,
   AppStateStatus,
   View,
-  ActivityIndicator,
-  StatusBar,
 } from 'react-native';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import NoInternetScreen from '../../screens/System/NoInternetScreen';
 import UpdateRequiredScreen from '../../screens/System/UpdateRequiredScreen';
 import MaintenanceScreen from '../../screens/System/MaintenanceScreen';
 import { checkAppStatus, VersionInfo, MaintenanceInfo } from '@/utils/versionCheck';
-import { useThemeStore } from '@/state/themeStore';
 
 interface ConnectivityWrapperProps {
   children: React.ReactNode;
@@ -29,11 +26,9 @@ export default function ConnectivityWrapper({
 }: ConnectivityWrapperProps) {
   // 1. ALL HOOKS CALLED AT TOP LEVEL BEFORE ANY RETURN
   const networkStatus = useNetworkStatus();
-  const { isDark } = useThemeStore();
 
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [maintenanceInfo, setMaintenanceInfo] = useState<MaintenanceInfo | null>(null);
-  const [isInitialCheck, setIsInitialCheck] = useState(true);
   const [lastCheckTime, setLastCheckTime] = useState<number>(Date.now());
 
   const checkStatus = useCallback(async () => {
@@ -59,8 +54,6 @@ export default function ConnectivityWrapper({
       }
     } catch (error) {
       console.error('[ConnectivityWrapper] Status check failed:', error);
-    } finally {
-      setIsInitialCheck(false);
     }
   }, [currentVersion, enableVersionCheck, enableMaintenanceCheck]);
 
@@ -77,8 +70,6 @@ export default function ConnectivityWrapper({
       return () => {
         clearInterval(intervalId);
       };
-    } else {
-      setIsInitialCheck(false);
     }
   }, [checkStatus, enableVersionCheck, enableMaintenanceCheck]);
 
@@ -123,26 +114,8 @@ export default function ConnectivityWrapper({
     networkStatus.isConnected === false ||
     networkStatus.isInternetReachable === false;
 
-  const bgColor = isDark ? '#131316' : '#F8FAFC';
 
   // 2. CONDITIONAL RENDERING (NO HOOKS BELOW THIS POINT)
-
-  // Initial check on app load: show minimal themed loader so maintenance/update is verified before rendering app
-  if (isInitialCheck) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: bgColor,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-        <ActivityIndicator size="large" color="#41B8F0" />
-      </View>
-    );
-  }
 
   // Priority 1: Show maintenance screen (blocking)
   if (enableMaintenanceCheck && maintenanceInfo?.isUnderMaintenance) {

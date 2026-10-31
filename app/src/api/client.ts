@@ -67,12 +67,24 @@ export async function apiFetch(
   return response;
 }
 
+// Backend messages for these codes are written for developers (they name endpoints).
+const FRIENDLY_ERRORS: Record<string, string> = {
+  profile_incomplete:
+    "We just need your name and phone number to save your spot. Add them in the form and try again.",
+  photo_required:
+    "Participants from other colleges need a profile photo to register. Please reach out to the Saturnalia team for help.",
+  college_id_required:
+    "Participants from other colleges need to upload their college ID to register. Please reach out to the Saturnalia team for help.",
+};
+
 export async function readError(
   response: Response,
   fallback: string,
 ): Promise<string> {
   try {
     const errorData = await response.json();
+    const code = errorData?.error?.code;
+    if (code && FRIENDLY_ERRORS[code]) return FRIENDLY_ERRORS[code];
     if (typeof errorData?.error === "string") return errorData.error;
     if (typeof errorData?.error?.message === "string")
       return errorData.error.message;

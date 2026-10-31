@@ -2,13 +2,25 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  Image,
   TouchableOpacity,
   StatusBar,
   Linking,
+  Dimensions,
 } from 'react-native';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Easing,
+  FadeIn,
+  interpolate,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { Image } from 'expo-image';
+import { useLocalSearchParams, useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FirebaseEvent } from '@/types/models';
@@ -23,6 +35,54 @@ import EventTicketCard from '@/components/registration/EventTicketCard';
 
 const EventDetailsScreen: React.FC = () => {
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Drag-down-to-dismiss: pulls the page down (with a slight shrink) once the content is
+  // scrolled to the top; a long enough drag or a quick flick closes it.
+  const SCREEN_HEIGHT = Dimensions.get('window').height;
+  const scrollY = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const scrollGesture = Gesture.Native();
+
+  const closeAfterDrag = () => {
+    // We already animated the page off-screen, so pop without the native slide.
+    const nav: any = navigation.canGoBack() ? navigation : navigation.getParent();
+    nav?.setOptions({ animation: 'none' });
+    router.back();
+  };
+
+  const dragGesture = Gesture.Pan()
+    .activeOffsetY(12)
+    .failOffsetX([-20, 20])
+    .simultaneousWithExternalGesture(scrollGesture)
+    .onUpdate((e) => {
+      dragY.value = scrollY.value <= 0 ? Math.max(0, e.translationY) : 0;
+    })
+    .onEnd((e) => {
+      if (dragY.value > 140 || (dragY.value > 0 && e.velocityY > 900)) {
+        dragY.value = withTiming(
+          SCREEN_HEIGHT,
+          { duration: 250, easing: Easing.bezier(0.32, 0.72, 0, 1) },
+          (finished) => {
+            if (finished) runOnJS(closeAfterDrag)();
+          }
+        );
+      } else {
+        dragY.value = withSpring(0, { duration: 400, dampingRatio: 1 });
+      }
+    });
+
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+
+  const dragStyle = useAnimatedStyle(() => ({
+    borderRadius: interpolate(dragY.value, [0, 80], [0, 32], 'clamp'),
+    transform: [
+      { translateY: dragY.value },
+      { scale: interpolate(dragY.value, [0, SCREEN_HEIGHT], [1, 0.85], 'clamp') },
+    ],
+  }));
   const insets = useSafeAreaInsets();
   const { isDark, colors } = useThemeStore();
   const { eventData } = useLocalSearchParams();
@@ -249,7 +309,8 @@ const EventDetailsScreen: React.FC = () => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDark ? '#131316' : '#E0E0E0' }}>
+    <GestureDetector gesture={dragGesture}>
+    <Animated.View style={[{ flex: 1, overflow: 'hidden', backgroundColor: isDark ? '#131316' : '#E0E0E0' }, dragStyle]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Registration Modal */}
@@ -261,7 +322,11 @@ const EventDetailsScreen: React.FC = () => {
       />
 
       {/* Scrollable Container with Continuous Padding matching image */}
-      <ScrollView
+      <GestureDetector gesture={scrollGesture}>
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        bounces={false}
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: Math.max(insets.top + 10, 16),
@@ -292,7 +357,7 @@ const EventDetailsScreen: React.FC = () => {
             elevation: 5,
           }}
         >
-          <Image
+          <Image transition={200}
             source={event.coverImage ? { uri: event.coverImage } : require('@/assets/event.jpg')}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
@@ -688,6 +753,8 @@ const EventDetailsScreen: React.FC = () => {
         </View>
 
         {/* Tab Content */}
+        {/* Opacity-only crossfade between tabs (tapped often, so no movement). */}
+        <Animated.View key={activeTab} entering={FadeIn.duration(150).easing(Easing.bezier(0.23, 1, 0.32, 1))}>
         {activeTab === 'about' && (
           <View style={{ marginBottom: 16 }}>
             {event.description ? (
@@ -835,8 +902,10 @@ const EventDetailsScreen: React.FC = () => {
             )}
           </View>
         )}
+        </Animated.View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+      </GestureDetector>
 
       {/* Floating Bottom Action Button with NO background bar */}
       <View
@@ -868,7 +937,8 @@ const EventDetailsScreen: React.FC = () => {
           textStyle={{ fontFamily: 'Poppins_700Bold', letterSpacing: 0.3 }}
         />
       </View>
-    </View>
+    </Animated.View>
+    </GestureDetector>
   );
 };
 

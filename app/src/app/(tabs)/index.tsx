@@ -1,6 +1,7 @@
 // src/screens/App/Home/HomeScreen.tsx
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Text, ScrollView, View, Image, Linking, TouchableOpacity, TextInput, FlatList, ActivityIndicator, RefreshControl, BackHandler, ToastAndroid, Platform, StyleSheet, _ScrollView } from 'react-native';
+import { Text, ScrollView, View, Linking, TouchableOpacity, TextInput, FlatList, ActivityIndicator, RefreshControl, BackHandler, ToastAndroid, Platform, StyleSheet, _ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '@/state/userStore';
@@ -161,7 +162,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
           }}
         >
           {firstImage ? (
-            <Image
+            <Image transition={200}
               source={imageSource}
               style={[
                 { width: '100%', height: '100%' },
@@ -218,6 +219,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#000000' : '#E0E0E0' }}>
       <ScrollView
+        contentInsetAdjustmentBehavior="never"
         className="flex-1"
         style={{ backgroundColor: isDark ? '#000000' : '#E0E0E0' }}
         showsVerticalScrollIndicator={false}
@@ -279,7 +281,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
 
         {/* Peacock Theme Illustration - Under the stories */}
         <View style={{ width: '100%', alignItems: 'center', marginVertical: 12 }}>
-          <Image
+          <Image transition={200}
             source={isDark ? require('@/assets/peacock-dark.png') : require('@/assets/peacock-light.png')}
             style={{
               width: '100%',
@@ -316,7 +318,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
               elevation: 4,
             }}
           >
-            <Image
+            <Image transition={200}
               source={require('@/assets/map.png')}
               style={{
                 width: '100%',

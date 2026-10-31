@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Image,
   ActivityIndicator,
   RefreshControl,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -215,6 +215,7 @@ export default function EventsTabScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? '#131316' : '#E0E0E0' }}>
       <ScrollView
+        contentInsetAdjustmentBehavior="never"
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: Math.max(insets.top + 8, 16),
@@ -292,7 +293,7 @@ export default function EventsTabScreen() {
             }}
           >
             {userProfile?.photoURL ? (
-              <Image
+              <Image transition={200}
                 source={{ uri: userProfile.photoURL }}
                 style={{ width: '100%', height: '100%', borderRadius: 22 }}
                 resizeMode="cover"
@@ -744,7 +745,7 @@ export default function EventsTabScreen() {
                       }}
                     >
                       {/* Background Image */}
-                      <Image
+                      <Image transition={200}
                         source={coverSource}
                         style={{ width: '100%', height: '100%' }}
                         resizeMode="cover"
@@ -975,7 +976,7 @@ export default function EventsTabScreen() {
                                 }}
                               >
                                 {/* Event Image */}
-                                <Image
+                                <Image transition={200}
                                   source={coverSource}
                                   style={{ width: '100%', height: '100%' }}
                                   resizeMode="cover"

@@ -22,10 +22,12 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withSpring,
   withDecay,
   runOnJS,
   interpolate,
   useAnimatedReaction,
+  Easing,
 } from "react-native-reanimated";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { DeleteIcon, Trash, X } from "lucide-react-native";
@@ -644,13 +646,17 @@ const StoryCubeViewer: React.FC<StoryCubeViewerProps> = ({
       }
     })
     .onEnd((event) => {
-      if (event.translationY > 150) {
-        translateY.value = withTiming(SCREEN_HEIGHT, { duration: 300 }, () =>
-          runOnJS(onClose)()
+      // A quick flick closes too, not just a long drag.
+      if (event.translationY > 150 || (event.translationY > 0 && event.velocityY > 900)) {
+        translateY.value = withTiming(
+          SCREEN_HEIGHT,
+          { duration: 250, easing: Easing.bezier(0.32, 0.72, 0, 1) },
+          () => runOnJS(onClose)()
         );
       } else {
-        translateY.value = withTiming(0, { duration: 200 });
-        scale.value = withTiming(1, { duration: 200 });
+        // Spring back so a released drag keeps its momentum instead of restarting from rest.
+        translateY.value = withSpring(0, { duration: 400, dampingRatio: 1 });
+        scale.value = withSpring(1, { duration: 400, dampingRatio: 1 });
       }
     });
 

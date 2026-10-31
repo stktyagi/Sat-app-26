@@ -236,7 +236,7 @@ const ProfileScreen = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingTop: Math.max(insets.top + 8, 16),
-          paddingHorizontal: 16,
+          paddingHorizontal: 20,
           paddingBottom: 14,
         }}
       >
@@ -278,9 +278,10 @@ const ProfileScreen = () => {
       </View>
 
       <ScrollView
+        contentInsetAdjustmentBehavior="never"
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingHorizontal: 16,
+          paddingHorizontal: 20,
           paddingBottom: 110,
         }}
         showsVerticalScrollIndicator={false}
@@ -320,7 +321,7 @@ const ProfileScreen = () => {
                   }}
                   numberOfLines={2}
                 >
-                  {userProfile?.displayName || "Rohan Khurana"}
+                  {userProfile?.displayName || "User"}
                 </Text>
               </TouchableOpacity>
               <Text

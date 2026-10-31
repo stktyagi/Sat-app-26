@@ -20,7 +20,7 @@ import {
   Poppins_800ExtraBold,
 } from "@expo-google-fonts/poppins";
 import '../global.css';
-import { BackHandler, StatusBar, ToastAndroid, Platform } from 'react-native';
+import { Appearance, BackHandler, StatusBar, ToastAndroid, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore } from '@/state/userStore';
 import { useAuthListener } from '@/hooks/useAuthListener';
@@ -78,7 +78,7 @@ function RootLayout() {
     Poppins: Poppins_400Regular,
   });
 
-  const { rehydrateFromStorage } = useUserStore();
+  const { rehydrateFromStorage, isAuthReady, isRehydrating } = useUserStore();
   const { isDark, colors, loadTheme } = useThemeStore();
   useAuthListener();
   useNotifications();
@@ -88,11 +88,17 @@ function RootLayout() {
     loadTheme();
   }, []);
 
+  // Native chrome (tab bar, alerts, pickers) follows the in-app theme, not the system one.
   useEffect(() => {
-    if (fontsLoaded || error) {
+    Appearance.setColorScheme(isDark ? 'dark' : 'light');
+  }, [isDark]);
+
+  useEffect(() => {
+    // Keep the native splash up until we know where to route, so there's one launch screen, not splash → spinner.
+    if ((fontsLoaded || error) && isAuthReady && !isRehydrating) {
       ExpoSplashScreen.hideAsync();
     }
-  }, [fontsLoaded, error]);
+  }, [fontsLoaded, error, isAuthReady, isRehydrating]);
 
   if (!fontsLoaded && !error) {
     return <SplashScreen />;
@@ -104,7 +110,7 @@ function RootLayout() {
       <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: asyncStoragePersister }}>
         <AlertProvider>
           <ConnectivityWrapper currentVersion={Constants.expoConfig?.version ?? '1.0.0'}>
-            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
+            <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
               <StatusBar
                 backgroundColor={colors.background}
                 barStyle={isDark ? "light-content" : "dark-content"}
@@ -113,7 +119,7 @@ function RootLayout() {
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="admin" />
-                <Stack.Screen name="events" />
+                <Stack.Screen name="events" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
                 <Stack.Screen name="profile" />
                 <Stack.Screen name="map" />
               </Stack>

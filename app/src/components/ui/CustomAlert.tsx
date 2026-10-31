@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   Animated,
+  Easing,
   Dimensions,
   Pressable,
 } from 'react-native';
@@ -17,6 +18,9 @@ import {
   Info,
 } from 'lucide-react-native';
 import { useThemeStore } from '@/state/themeStore';
+
+// Strong ease-out: settles fast instead of the old slow spring wobble.
+const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -43,7 +47,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
 }) => {
   const { isDark } = useThemeStore();
   const [fadeAnim] = useState(new Animated.Value(0));
-  const [scaleAnim] = useState(new Animated.Value(0.92));
+  const [scaleAnim] = useState(new Animated.Value(0.95));
 
   useEffect(() => {
     if (visible) {
@@ -51,12 +55,13 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 200,
+          easing: EASE_OUT,
           useNativeDriver: true,
         }),
-        Animated.spring(scaleAnim, {
+        Animated.timing(scaleAnim, {
           toValue: 1,
-          friction: 8,
-          tension: 45,
+          duration: 200,
+          easing: EASE_OUT,
           useNativeDriver: true,
         }),
       ]).start();
@@ -68,7 +73,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
           useNativeDriver: true,
         }),
         Animated.timing(scaleAnim, {
-          toValue: 0.92,
+          toValue: 0.95,
           duration: 150,
           useNativeDriver: true,
         }),

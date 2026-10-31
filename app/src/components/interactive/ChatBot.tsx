@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
 import {
   View,
   Text,
@@ -194,8 +195,10 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
     const isUser = message.sender === 'user';
 
     return (
-      <View
+      <Animated.View
         key={index}
+        // New messages rise in instead of popping; system reduce-motion is respected by default.
+        entering={FadeInDown.duration(200).easing(Easing.bezier(0.23, 1, 0.32, 1))}
         style={{
           flexDirection: 'row',
           justifyContent: isUser ? 'flex-end' : 'flex-start',
@@ -300,7 +303,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
             </Text>
           )}
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
