@@ -73,6 +73,7 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
         shadowOpacity: isDark ? 0.45 : 0.16,
         shadowRadius: 14,
         elevation: 6,
+        overflow: 'hidden',
       }}
     >
       {/* Top Image Section with Inset Rounded Corners */}
@@ -230,22 +231,28 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
           justifyContent: 'center',
           marginTop: 4,
           marginBottom: 14,
+          paddingHorizontal: 8,
+          width: '100%',
+          maxWidth: '100%',
         }}
       >
         {/* Trophy and Prize */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, minWidth: 0 }}>
           <Ionicons
             name="trophy-outline"
             size={18}
             color="#E0E0E0"
-            style={{ marginRight: 6 }}
+            style={{ marginRight: 6, flexShrink: 0 }}
           />
           <Text
             style={{
               fontFamily: 'Poppins_600SemiBold',
               color: '#FFFFFF',
-              fontSize: 16,
+              fontSize: 15,
+              flexShrink: 1,
             }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {prizeDisplay}
           </Text>
@@ -257,24 +264,28 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
             width: 1.5,
             height: 18,
             backgroundColor: '#E11D48',
-            marginHorizontal: 14,
+            marginHorizontal: 12,
+            flexShrink: 0,
           }}
         />
 
         {/* Location and Venue */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, minWidth: 0 }}>
           <Ionicons
             name="location-outline"
             size={18}
             color="#E0E0E0"
-            style={{ marginRight: 5 }}
+            style={{ marginRight: 5, flexShrink: 0 }}
           />
           <Text
             style={{
               fontFamily: 'Poppins_600SemiBold',
               color: '#FFFFFF',
-              fontSize: 16,
+              fontSize: 15,
+              flexShrink: 1,
             }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {venueDisplay}
           </Text>
