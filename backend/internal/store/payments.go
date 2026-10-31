@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -12,6 +13,7 @@ import (
 	"backend/internal/isotime"
 	"backend/internal/models"
 )
+
 
 const ColPayments = "payments"
 const ColCheckouts = "checkouts"
@@ -75,9 +77,9 @@ func (s *Store) BeginCheckout(ctx context.Context, checkoutID string, p *models.
 		existing, co = nil, nil
 		now := time.Now()
 
-		// A team payment covers the roster it was priced for. Checking it here,
-		// in the same transaction that opens the checkout, closes the gap in
-		// which someone could join between the handler's read and this write.
+		// A team payment covers the members it was priced for. Checking it here,
+		// in the same transaction that opens the checkout, ensures all covered
+		// members are still on the team.
 		if p.TeamID != "" {
 			ts, err := tx.Get(s.FS.Collection(ColTeams).Doc(p.TeamID))
 			if err != nil {
@@ -87,15 +89,28 @@ func (s *Store) BeginCheckout(ctx context.Context, checkoutID string, p *models.
 			if err != nil {
 				return err
 			}
-			if team.Paid {
-				return ErrTeamLocked
-			}
 			var covered []string
+			isPerInd := false
 			if e := p.ProcessedIntentions.EventRegistration; e != nil {
 				covered = e.CoveredUserIDs
+				isPerInd = e.PerIndividual
 			}
-			if !sameMembers(team.MemberIDs, covered) {
-				return ErrRosterChanged
+			if len(covered) == 0 {
+				return ErrTeamLocked
+			}
+			if !isPerInd {
+				if team.Paid {
+					return ErrTeamLocked
+				}
+				if !sameMembers(team.MemberIDs, covered) {
+					return ErrRosterChanged
+				}
+			} else {
+				for _, uid := range covered {
+					if !team.HasMember(uid) {
+						return ErrRosterChanged
+					}
+				}
 			}
 		}
 
@@ -235,24 +250,37 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			}
 		}
 
-		regRefs := make([]*firestore.DocumentRef, len(covered))
-		for i, uid := range covered {
+		var teamRef *firestore.DocumentRef
+		var team *models.Team
+		if p.TeamID != "" {
+			teamRef = s.FS.Collection(ColTeams).Doc(p.TeamID)
+			teamSnap, err := tx.Get(teamRef)
+			if err != nil && !errors.Is(wrap(err), ErrNotFound) {
+				return err
+			}
+			if err == nil && teamSnap.Exists() {
+				team, _ = decodeTeam(teamSnap)
+			}
+		}
+
+		// Read registrations for covered users, plus any remaining team members
+		// so we can determine whether the whole team roster is now paid.
+		allUserIDs := slices.Clone(covered)
+		if team != nil {
+			for _, mid := range team.MemberIDs {
+				if !slices.Contains(allUserIDs, mid) {
+					allUserIDs = append(allUserIDs, mid)
+				}
+			}
+		}
+
+		regRefs := make([]*firestore.DocumentRef, len(allUserIDs))
+		for i, uid := range allUserIDs {
 			regRefs[i] = s.FS.Collection(ColRegistrations).Doc(models.RegistrationID(p.EventID, uid))
 		}
 		var regSnaps []*firestore.DocumentSnapshot
 		if len(regRefs) > 0 {
 			if regSnaps, err = tx.GetAll(regRefs); err != nil {
-				return err
-			}
-		}
-
-		var teamRef *firestore.DocumentRef
-		if p.TeamID != "" {
-			teamRef = s.FS.Collection(ColTeams).Doc(p.TeamID)
-		}
-		var teamSnap *firestore.DocumentSnapshot
-		if teamRef != nil {
-			if teamSnap, err = tx.Get(teamRef); err != nil && !errors.Is(wrap(err), ErrNotFound) {
 				return err
 			}
 		}
@@ -288,8 +316,9 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 		now := isotime.Now()
 		orphans := []string{}
 		alreadyPaid := 0
-		settleRegs := make([]bool, len(regSnaps))
-		for i, snap := range regSnaps {
+		settleRegs := make([]bool, len(covered))
+		for i := 0; i < len(covered); i++ {
+			snap := regSnaps[i]
 			if !snap.Exists() {
 				orphans = append(orphans, covered[i])
 				continue
@@ -307,24 +336,25 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			}
 		}
 
-		// Members who joined after the roster was fixed are not covered. Leave
-		// the team unpaid so the leader can pay again for the full roster.
+		// Check whether all team members are paid (either in this payment or previously)
 		uncovered := []string{}
-		markTeamPaid := teamSnap != nil && teamSnap.Exists()
+		markTeamPaid := team != nil
 		if markTeamPaid {
-			// A team that can't be read is never marked paid: the payment itself
-			// still settles, and the team is left for an organiser to fix.
-			team, err := decodeTeam(teamSnap)
-			if err != nil {
-				markTeamPaid = false
-			} else {
-				for _, m := range team.MemberIDs {
-					if !slices.Contains(covered, m) {
-						uncovered = append(uncovered, m)
+			for _, m := range team.MemberIDs {
+				if slices.Contains(covered, m) {
+					// Settled by this transaction
+					continue
+				}
+				idx := slices.Index(allUserIDs, m)
+				if idx >= 0 && idx < len(regSnaps) && regSnaps[idx].Exists() {
+					st, _ := regSnaps[idx].DataAt("paymentStatus")
+					if st == models.RegPaymentSuccess {
+						continue
 					}
 				}
-				markTeamPaid = len(uncovered) == 0
+				uncovered = append(uncovered, m)
 			}
+			markTeamPaid = len(uncovered) == 0
 		}
 		// ponytail: the duplicate flag is only a pointer for a manual refund;
 		// no refund is issued here.
@@ -354,7 +384,7 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			return err
 		}
 
-		for i := range regSnaps {
+		for i := 0; i < len(covered); i++ {
 			if !settleRegs[i] {
 				continue
 			}
@@ -366,8 +396,13 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			}
 		}
 
-		if markTeamPaid {
-			if err := tx.Update(teamRef, []firestore.Update{{Path: "paid", Value: true}}); err != nil {
+		if teamRef != nil && evt != nil {
+			teamUpd := []firestore.Update{
+				{Path: "paidTill", Value: firestore.Increment(evt.Amount)},
+				{Path: "paid", Value: markTeamPaid},
+				{Path: "updatedAt", Value: now},
+			}
+			if err := tx.Update(teamRef, teamUpd); err != nil {
 				return err
 			}
 		}
@@ -481,8 +516,37 @@ func (s *Store) MarkPaymentFailed(ctx context.Context, id, txnID, adminID string
 	}))
 }
 
-// ListAllPayments returns every payment, newest first.
+var (
+	paymentsMu        sync.RWMutex
+	paymentsCache     []*models.Payment
+	paymentsCacheTime time.Time
+	paymentsTTL       = 30 * time.Second
+)
+
+// InvalidatePaymentsCache clears the cached payments slice.
+func (s *Store) InvalidatePaymentsCache() {
+	paymentsMu.Lock()
+	paymentsCache = nil
+	paymentsMu.Unlock()
+}
+
+// ListAllPayments returns every payment, newest first, cached with a 30-second TTL.
 func (s *Store) ListAllPayments(ctx context.Context) ([]*models.Payment, error) {
+	paymentsMu.RLock()
+	if paymentsCache != nil && time.Since(paymentsCacheTime) < paymentsTTL {
+		cached := paymentsCache
+		paymentsMu.RUnlock()
+		return cached, nil
+	}
+	paymentsMu.RUnlock()
+
+	paymentsMu.Lock()
+	defer paymentsMu.Unlock()
+
+	if paymentsCache != nil && time.Since(paymentsCacheTime) < paymentsTTL {
+		return paymentsCache, nil
+	}
+
 	iter := s.FS.Collection(ColPayments).OrderBy("createdAt", firestore.Desc).Documents(ctx)
 	defer iter.Stop()
 
@@ -502,5 +566,26 @@ func (s *Store) ListAllPayments(ctx context.Context) ([]*models.Payment, error) 
 		p.ID = doc.Ref.ID
 		payments = append(payments, &p)
 	}
+
+	paymentsCache = payments
+	paymentsCacheTime = time.Now()
 	return payments, nil
 }
+
+// ListPayments returns paginated payments and the total count.
+func (s *Store) ListPayments(ctx context.Context, limit, offset int) ([]*models.Payment, int, error) {
+	all, err := s.ListAllPayments(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	total := len(all)
+	if offset >= total {
+		return []*models.Payment{}, total, nil
+	}
+	end := offset + limit
+	if limit <= 0 || end > total {
+		end = total
+	}
+	return all[offset:end], total, nil
+}
+

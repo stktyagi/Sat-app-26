@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha512"
 	"fmt"
 	"net/http"
@@ -12,9 +13,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"backend/internal/cache"
 	"backend/internal/config"
 	"backend/internal/isotime"
 	"backend/internal/models"
+	"backend/internal/store"
 )
 
 func sha(plain string) string { return fmt.Sprintf("%x", sha512.Sum512([]byte(plain))) }
@@ -159,11 +162,11 @@ func TestCouponDatesFailClosed(t *testing.T) {
 }
 
 func TestStayCharge(t *testing.T) {
-	days, fee, bad := stayCharge(map[string]bool{"day1": true, "day2": true, "day3": false}, map[string]bool{"day2": true}, 300)
+	days, fee, bad := stayCharge(map[string]bool{"day1": true, "day2": true, "day3": false}, map[string]bool{"day2": true}, map[string]int{"day1": 300, "day2": 300})
 	if bad != "" || fee != 300 || len(days) != 1 || days["day1"] != true {
 		t.Errorf("only unowned, selected days are charged: days=%v fee=%d bad=%q", days, fee, bad)
 	}
-	if _, _, bad := stayCharge(map[string]bool{"day99": true}, nil, 300); bad != "day99" {
+	if _, _, bad := stayCharge(map[string]bool{"day99": true}, nil, nil); bad != "day99" {
 		t.Errorf("an unknown day must be rejected, got %q", bad)
 	}
 }
@@ -199,5 +202,160 @@ func TestPickRetrieveEntry(t *testing.T) {
 		if e := pickRetrieveEntry([]byte(none)); e != nil {
 			t.Errorf("%s: want nil, got %v", none, e)
 		}
+	}
+}
+
+type stubEventSource struct {
+	events map[string]*models.Event
+}
+
+func (s *stubEventSource) AllEvents(ctx context.Context) ([]*models.Event, error) {
+	out := make([]*models.Event, 0, len(s.events))
+	for _, e := range s.events {
+		out = append(out, e)
+	}
+	return out, nil
+}
+
+func (s *stubEventSource) CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error) {
+	return map[string]int{}, nil
+}
+
+func (s *stubEventSource) GetEvent(ctx context.Context, id string) (*models.Event, error) {
+	if e, ok := s.events[id]; ok {
+		return e, nil
+	}
+	return nil, nil
+}
+
+func (s *stubEventSource) CountRegistrations(ctx context.Context, eventID string) (int, error) {
+	return 0, nil
+}
+
+func TestResolveStayPrices(t *testing.T) {
+	ctx := context.Background()
+
+	// 1. Without cache or store, fallback defaults must apply
+	apiNil := &API{}
+	acc, food := apiNil.resolveStayPrices(ctx, nil, "")
+	if acc["day1"] != AccommodationPricePerDay || food["day1"] != FoodPricePerDay || len(acc) != len(stayDays) {
+		t.Errorf("default fallback price mismatch: acc=%v, food=%v", acc, food)
+	}
+
+	// 2. With event cache
+	techEv := &models.Event{ID: "tech-1", EventID: "tech-1", Category: "Technical"}
+	cultEv := &models.Event{ID: "cult-1", EventID: "cult-1", Category: "Cultural"}
+	src := &stubEventSource{events: map[string]*models.Event{
+		"tech-1": techEv,
+		"cult-1": cultEv,
+	}}
+	mem := cache.NewMemory()
+	ec := store.NewEventCache(src, mem, mem, time.Minute)
+
+	apiWithCache := &API{Cache: ec}
+
+	// User registered for tech event
+	accTech, foodTech := apiWithCache.resolveStayPrices(ctx, nil, "tech-1")
+	if accTech["day2"] != AccommodationPricePerDay || foodTech["day2"] != FoodPricePerDay {
+		t.Errorf("tech event stay prices: acc=%v, food=%v", accTech, foodTech)
+	}
+
+	// User registered for cult event
+	accCult, foodCult := apiWithCache.resolveStayPrices(ctx, nil, "cult-1")
+	if accCult["day3"] != AccommodationPricePerDay || foodCult["day3"] != FoodPricePerDay {
+		t.Errorf("cultural event stay prices: acc=%v, food=%v", accCult, foodCult)
+	}
+}
+
+func TestStayChargeFullScenarios(t *testing.T) {
+	foodPrice := map[string]int{"day2": 150, "day3": 150}
+	accPrice := map[string]int{"day1": 650, "day2": 650}
+
+	// User owns day1 for accommodation and day2 for food
+	userAcc := map[string]bool{"day1": true}
+	userFood := map[string]bool{"day2": true}
+
+	// User wants day1, day2 accommodation and day2, day3 food
+	reqAcc := map[string]bool{"day1": true, "day2": true}
+	reqFood := map[string]bool{"day2": true, "day3": true}
+
+	accDays, accFee, badAcc := stayCharge(reqAcc, userAcc, accPrice)
+	if badAcc != "" {
+		t.Fatalf("unexpected bad acc day: %s", badAcc)
+	}
+	// day1 is already owned, only day2 charged
+	if accFee != 650 || len(accDays) != 1 || accDays["day2"] != true {
+		t.Errorf("accCharge mismatch: fee=%d, days=%v", accFee, accDays)
+	}
+
+	foodDays, foodFee, badFood := stayCharge(reqFood, userFood, foodPrice)
+	if badFood != "" {
+		t.Fatalf("unexpected bad food day: %s", badFood)
+	}
+	// day2 is already owned, only day3 charged
+	if foodFee != 150 || len(foodDays) != 1 || foodDays["day3"] != true {
+		t.Errorf("foodCharge mismatch: fee=%d, days=%v", foodFee, foodDays)
+	}
+
+	total := accFee + foodFee
+	if total != 800 {
+		t.Errorf("total stay fee mismatch: expected 800, got %d", total)
+	}
+}
+
+
+func TestStayPricesPerDay(t *testing.T) {
+	doc := &models.AppAccommodation{
+		Amount:            600,
+		TechnicalAmount:   650,
+		CulturalAmount:    700,
+		FoodAmount:        150,
+		TechnicalDays:     map[string]int{"day1": 900},
+		CulturalDays:      map[string]int{"day1": 800, "day2": 500},
+		TechnicalFoodDays: map[string]int{"day0": 100},
+	}
+
+	acc, food := stayPrices(doc, true, false)
+	if acc["day1"] != 900 || acc["day2"] != 650 || food["day0"] != 100 || food["day1"] != 150 {
+		t.Errorf("technical: acc=%v food=%v", acc, food)
+	}
+
+	acc, _ = stayPrices(doc, false, true)
+	if acc["day1"] != 800 || acc["day2"] != 500 || acc["day3"] != 700 {
+		t.Errorf("cultural: acc=%v", acc)
+	}
+
+	// Both categories: higher price per day.
+	acc, _ = stayPrices(doc, true, true)
+	if acc["day1"] != 900 || acc["day2"] != 650 || acc["day3"] != 700 {
+		t.Errorf("both: acc=%v", acc)
+	}
+
+	// No events: flat amount unless the day has its own price.
+	acc, _ = stayPrices(doc, false, false)
+	if acc["day3"] != 600 || acc["day1"] != 900 {
+		t.Errorf("no events: acc=%v", acc)
+	}
+
+	// Charging uses each day's price.
+	acc, _ = stayPrices(doc, true, false)
+	if _, fee, _ := stayCharge(map[string]bool{"day1": true, "day2": true}, nil, acc); fee != 1550 {
+		t.Errorf("per-day fee = %d, want 1550", fee)
+	}
+
+	// Zero or missing per-day prices fall back to category price
+	fallbackDoc := &models.AppAccommodation{
+		Amount:          650,
+		TechnicalAmount: 650,
+		CulturalAmount:  650,
+		TechnicalDays:   map[string]int{"day0": 0, "day4": 0},
+		CulturalDays:    map[string]int{"day0": 0, "day4": 0},
+	}
+	fbAcc, _ := stayPrices(fallbackDoc, true, false)
+	if fbAcc["day0"] != 650 || fbAcc["day4"] != 650 || fbAcc["day1"] != 650 {
+		t.Errorf("fallback pricing: acc=%v", fbAcc)
+	}
+	if _, fee, _ := stayCharge(map[string]bool{"day0": true, "day1": true, "day4": true}, nil, fbAcc); fee != 1950 {
+		t.Errorf("fee with fallback days: got %d, want 1950", fee)
 	}
 }

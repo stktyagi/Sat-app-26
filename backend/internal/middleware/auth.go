@@ -90,12 +90,22 @@ func RequireFullyRegistered() gin.HandlerFunc {
 			apierr.Respond(c, apierr.Forbidden("profile_incomplete", "complete your profile with PATCH /api/v1/me before registering"))
 			return
 		}
+		// Checked live rather than folded into fullyRegistered, so existing
+		// profiles need no migration and the host/admin exemption always
+		// follows the token presenting the request.
+		if u.NeedsIdentity() && u.PhotoURL == "" {
+			apierr.Respond(c, apierr.Forbidden("photo_required", "upload a profile photo with POST /api/v1/me/photo before registering"))
+			return
+		}
+		if u.NeedsIdentity() && u.CollegeIDURL == "" {
+			apierr.Respond(c, apierr.Forbidden("college_id_required", "upload your college ID with POST /api/v1/me/college-id before registering"))
+			return
+		}
 		c.Next()
 	}
 }
 
-// RequireAdmin guards event mutation. Roles are additive, so this is a
-// membership test against the roles array rather than an equality check.
+// RequireAdmin guards administrative functions requiring top-level access.
 func RequireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		u := CurrentUser(c)
@@ -104,6 +114,34 @@ func RequireAdmin() gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// RequireStaff ensures caller is an administrator or holds any elevated role.
+func RequireStaff() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		u := CurrentUser(c)
+		if u == nil || !u.IsStaffOrAdmin() {
+			apierr.Respond(c, apierr.Forbidden("staff_only", "administrative access required"))
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequireAnyRole ensures the user holds at least one of the specified roles or is a full admin.
+func RequireAnyRole(allowedRoles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		u := CurrentUser(c)
+		if u == nil {
+			apierr.Respond(c, apierr.Unauthorized("no_profile", "call POST /api/v1/auth/session first"))
+			return
+		}
+		if u.IsAdmin() || u.HasAnyRole(allowedRoles...) {
+			c.Next()
+			return
+		}
+		apierr.Respond(c, apierr.Forbidden("insufficient_permissions", "you do not have permission to access this resource"))
 	}
 }
 

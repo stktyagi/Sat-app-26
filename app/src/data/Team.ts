@@ -1,4 +1,5 @@
 export const Team = [
+/*
     {
         "name": "Snehil Jhawar",
         "position": "Overall Student Coordinator",
@@ -234,4 +235,5 @@ export const Team = [
         "position": "Deputy Marketing Coordinator",
         "imageUrl": "https://res.cloudinary.com/tn096flf/image/upload/v1785250666/SAMYAK_JAIN_tuvb11.jpg"
     }
+*/
 ];

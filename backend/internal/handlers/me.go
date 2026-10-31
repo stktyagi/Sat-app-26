@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -9,6 +11,7 @@ import (
 
 	"backend/internal/apierr"
 	"backend/internal/middleware"
+	"backend/internal/models"
 )
 
 var phonePattern = regexp.MustCompile(`^[0-9]{7,15}$`)
@@ -114,4 +117,69 @@ func (a *API) PatchMe(c *gin.Context) {
 	updated.IsHostCollegeStudent = user.IsHostCollegeStudent
 
 	c.JSON(http.StatusOK, gin.H{"user": updated})
+}
+
+// maxIdentityImage caps the face photo and ID card uploads. Phone photos are a
+// few MB; anything past this is not a picture of a card.
+const maxIdentityImage = 5 << 20
+
+// uploadMine stores an image the caller supplies about themselves (face photo,
+// college ID) and records it on their profile under refField/urlField. The
+// file it replaces is deleted once the profile points at the new one.
+func (a *API) uploadMine(refField, urlField, folder string, current func(*models.User) string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if a.Storage == nil {
+			apierr.Respond(c, apierr.BadRequest("storage_not_configured", "ImageKit storage is not configured"))
+			return
+		}
+
+		fh, err := c.FormFile("file")
+		if err != nil {
+			apierr.Respond(c, apierr.BadRequest("missing_file", "an image file is required"))
+			return
+		}
+		if fh.Size > maxIdentityImage {
+			apierr.Respond(c, apierr.BadRequest("file_too_large", "image must be 5 MB or smaller"))
+			return
+		}
+		f, err := fh.Open()
+		if err != nil {
+			apierr.Respond(c, apierr.BadRequest("file_read_error", err.Error()))
+			return
+		}
+		defer f.Close()
+
+		// Sniffed from the bytes, not taken from the client's Content-Type.
+		head := make([]byte, 512)
+		n, _ := io.ReadFull(f, head)
+		if !strings.HasPrefix(http.DetectContentType(head[:n]), "image/") {
+			apierr.Respond(c, apierr.BadRequest("not_an_image", "file must be an image"))
+			return
+		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			apierr.Respond(c, apierr.Internal("could not read the upload"))
+			return
+		}
+
+		user := middleware.CurrentUser(c)
+		ref, url, err := a.Storage.UploadFile(c.Request.Context(), folder, user.UserID, f)
+		if err != nil {
+			log.Printf("uploadMine(%s) for %s: %v", folder, user.UserID, err)
+			apierr.Respond(c, apierr.Internal("failed to upload image"))
+			return
+		}
+
+		saved := false
+		defer func() { a.settleMedia(saved, []string{current(user)}, []string{ref}) }()
+
+		updated, err := a.Store.UpdateUser(c.Request.Context(), user.UserID, map[string]any{refField: ref, urlField: url})
+		if err != nil {
+			apierr.Respond(c, apierr.Internal("could not update the profile"))
+			return
+		}
+		saved = true
+		updated.IsHostCollegeStudent = user.IsHostCollegeStudent
+
+		c.JSON(http.StatusOK, gin.H{"user": updated})
+	}
 }

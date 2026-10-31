@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha512"
 	"crypto/subtle"
@@ -110,11 +111,10 @@ type initiatePaymentBody struct {
 	Food          map[string]bool `json:"food"`
 }
 
-// Per-day prices in rupees. The app shows the same numbers (ACCOMMODATION_PRICE
-// and FOOD_PRICE in Payment.tsx), so change both together.
+// Default per-day prices in rupees, used when app/accommodation doesn't set one.
 const (
-	AccommodationPricePerDay = 300
-	FoodPricePerDay          = 200
+	AccommodationPricePerDay = 650
+	FoodPricePerDay          = 150
 )
 
 // stayDays are the day keys accommodation and food can be bought for; they match
@@ -131,7 +131,7 @@ var paymentTypes = map[string]bool{
 
 // stayCharge validates the requested days and returns the days actually being
 // bought. Days the user already holds are dropped rather than charged again.
-func stayCharge(requested map[string]bool, owned map[string]bool, unitPrice int) (days map[string]any, fee int, bad string) {
+func stayCharge(requested map[string]bool, owned map[string]bool, prices map[string]int) (days map[string]any, fee int, bad string) {
 	days = map[string]any{}
 	for day, selected := range requested {
 		if !stayDays[day] {
@@ -139,10 +139,102 @@ func stayCharge(requested map[string]bool, owned map[string]bool, unitPrice int)
 		}
 		if selected && !owned[day] {
 			days[day] = true
-			fee += unitPrice
+			fee += prices[day]
 		}
 	}
 	return days, fee, ""
+}
+
+// resolveStayPrices determines the per-day accommodation and food prices based on user's events.
+// Any event that is not Technical is treated as Cultural.
+func (a *API) resolveStayPrices(ctx context.Context, user *models.User, currentEventID string) (acc, food map[string]int) {
+	var accDoc *models.AppAccommodation
+	if a.Store != nil {
+		if doc, err := a.Store.GetAppAccommodation(ctx); err == nil {
+			accDoc = doc
+		}
+	}
+
+	hasTechnical := false
+	hasCultural := false
+
+	checkEvent := func(eid string) {
+		if eid == "" || a.Cache == nil {
+			return
+		}
+		ev, err := a.Cache.Get(ctx, eid)
+		if err != nil || ev == nil {
+			return
+		}
+		if strings.EqualFold(ev.Category, "Technical") {
+			hasTechnical = true
+		} else {
+			// Events that are not technical are treated as cultural
+			hasCultural = true
+		}
+	}
+
+	if currentEventID != "" {
+		checkEvent(currentEventID)
+	}
+
+	if user != nil && user.UserID != "" && a.Store != nil {
+		regs, err := a.Store.ListUserRegistrations(ctx, user.UserID)
+		if err == nil {
+			for _, r := range regs {
+				checkEvent(r.EventID)
+			}
+		}
+	}
+
+	return stayPrices(accDoc, hasTechnical, hasCultural)
+}
+
+// stayPrices prices every stay day from the pricing doc (nil = defaults). If the
+// user has both categories the higher price is charged. A day without its own
+// price uses the flat category price.
+func stayPrices(doc *models.AppAccommodation, hasTechnical, hasCultural bool) (acc, food map[string]int) {
+	if doc == nil {
+		doc = &models.AppAccommodation{}
+	}
+	techPrice := cmp.Or(doc.TechnicalAmount, doc.Amount, AccommodationPricePerDay)
+	cultPrice := cmp.Or(doc.CulturalAmount, doc.Amount, AccommodationPricePerDay)
+	techFoodPrice := cmp.Or(doc.TechnicalFoodAmount, doc.FoodAmount, FoodPricePerDay)
+	cultFoodPrice := cmp.Or(doc.CulturalFoodAmount, doc.FoodAmount, FoodPricePerDay)
+
+	// pick applies the category rule to one day. plain is only used when the
+	// user has no events and the day has no per-day price.
+	pick := func(day string, techDays, cultDays map[string]int, tech, cult, plain int) int {
+		t, c := tech, cult
+		hasT, hasC := false, false
+		if val, ok := techDays[day]; ok && val > 0 {
+			t = val
+			hasT = true
+		}
+		if val, ok := cultDays[day]; ok && val > 0 {
+			c = val
+			hasC = true
+		}
+		switch {
+		case hasTechnical && hasCultural:
+			return max(t, c)
+		case hasTechnical:
+			return t
+		case hasCultural:
+			return c
+		case plain > 0 && !hasT && !hasC:
+			return plain
+		default:
+			return max(t, c)
+		}
+	}
+
+	acc, food = map[string]int{}, map[string]int{}
+	for day := range stayDays {
+		acc[day] = pick(day, doc.TechnicalDays, doc.CulturalDays, techPrice, cultPrice, doc.Amount)
+		food[day] = pick(day, doc.TechnicalFoodDays, doc.CulturalFoodDays, techFoodPrice, cultFoodPrice, doc.FoodAmount)
+	}
+	return acc, food
 }
 
 // InitiatePayment creates a Payment document in Firestore and returns the
@@ -202,8 +294,35 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				apierr.Respond(c, apierr.Forbidden("leader_only", "only the team leader can initiate payment"))
 				return
 			}
-			if team.Paid {
-				apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
+
+			allMembers, err := a.Store.GetUsers(ctx, team.MemberIDs)
+			if err != nil {
+				apierr.Respond(c, apierr.Internal("could not price the team"))
+				return
+			}
+			totalRosterFee := 0
+			if event.IsPerIndividual() {
+				for _, mid := range team.MemberIDs {
+					m := allMembers[mid]
+					isHost := user.IsHostCollegeStudent
+					if m != nil {
+						m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+						isHost = m.IsHostCollegeStudent
+					}
+					totalRosterFee += event.FeeFor(isHost)
+				}
+			} else {
+				leaderUser := allMembers[team.LeaderUserID]
+				isHost := user.IsHostCollegeStudent
+				if leaderUser != nil {
+					isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+				}
+				totalRosterFee = event.FeeFor(isHost)
+			}
+
+			remainingDue := max(totalRosterFee-team.PaidTill, 0)
+			if remainingDue == 0 && (team.Paid || team.PaidTill > 0) {
+				apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed for all team members"))
 				return
 			}
 			covered = slices.Clone(team.MemberIDs)
@@ -211,60 +330,91 @@ func (a *API) InitiatePayment(c *gin.Context) {
 			covered = []string{user.UserID}
 		}
 
-		// The payer must be registered, and not already paid.
+		// The payer must be registered, and (for individual events) not already paid.
 		regID := models.RegistrationID(event.EventID, user.UserID)
 		reg, err := a.Store.GetRegistration(ctx, regID)
 		if err != nil {
 			apierr.Respond(c, apierr.NotFound("not_registered", "you are not registered for this event"))
 			return
 		}
-		if reg.PaymentStatus == models.PaymentStatusSuccess {
+		if event.EventType != models.EventTypeTeam && reg.PaymentStatus == models.PaymentStatusSuccess {
 			apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
 			return
 		}
 	}
 
-	// Event fee. A per-individual team event is priced per member, each by their
-	// own host status; the roster is frozen for the checkout (JoinTeam is locked).
+	// Event fee. A per-individual team event is priced by remaining credit due.
 	eventFee := 0
+	memberFees := map[string]int{}
 	if event != nil {
 		eventFee = event.FeeFor(user.IsHostCollegeStudent)
-		if team != nil && event.PaymentType == "per_individual" {
-			members, err := a.Store.GetUsers(ctx, team.MemberIDs)
-			if err != nil {
-				apierr.Respond(c, apierr.Internal("could not price the team"))
-				return
+		if team != nil {
+			allMembers, _ := a.Store.GetUsers(ctx, team.MemberIDs)
+			totalRosterFee := 0
+			if event.IsPerIndividual() {
+				for _, mid := range team.MemberIDs {
+					m := allMembers[mid]
+					isHost := user.IsHostCollegeStudent
+					if m != nil {
+						m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+						isHost = m.IsHostCollegeStudent
+					}
+					f := event.FeeFor(isHost)
+					totalRosterFee += f
+					memberFees[mid] = f
+				}
+			} else {
+				leaderUser := allMembers[team.LeaderUserID]
+				isHost := user.IsHostCollegeStudent
+				if leaderUser != nil {
+					isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+				}
+				totalRosterFee = event.FeeFor(isHost)
 			}
-			if len(members) != len(team.MemberIDs) {
-				apierr.Respond(c, apierr.Internal("a team member's profile is missing; contact the organisers"))
-				return
-			}
-			eventFee = 0
-			for _, m := range members {
-				m.ResolveHostStatus(a.Cfg.HostEmailDomain)
-				eventFee += event.FeeFor(m.IsHostCollegeStudent)
-			}
+			eventFee = max(totalRosterFee-team.PaidTill, 0)
 		}
 	}
 
-	accPrice := AccommodationPricePerDay
-	if accDoc, err := a.Store.GetAppAccommodation(c.Request.Context()); err == nil && accDoc != nil && accDoc.Amount > 0 {
-		accPrice = accDoc.Amount
-	}
+	accPrices, foodPrices := a.resolveStayPrices(c.Request.Context(), user, body.EventID)
 
-	accommodationMap, accFee, bad := stayCharge(body.Accommodation, user.Accommodation, accPrice)
+	accommodationMap, accFee, bad := stayCharge(body.Accommodation, user.Accommodation, accPrices)
 	if bad != "" {
 		apierr.Respond(c, apierr.BadRequest("invalid_day", "unknown accommodation day: "+bad))
 		return
 	}
-	foodMap, foodFee, bad := stayCharge(body.Food, user.Food, FoodPricePerDay)
+	foodMap, foodFee, bad := stayCharge(body.Food, user.Food, foodPrices)
 	if bad != "" {
 		apierr.Respond(c, apierr.BadRequest("invalid_day", "unknown food day: "+bad))
 		return
 	}
 
+	if accFee > 0 && body.EventID == "" && a.Store != nil {
+		regs, err := a.Store.ListUserRegistrations(ctx, user.UserID)
+		if err != nil || len(regs) == 0 {
+			apierr.Respond(c, apierr.Forbidden("event_registration_required", "you must be registered for at least one event to book accommodation"))
+			return
+		}
+	}
+
+	accDays := map[string]int{}
+	for day := range accommodationMap {
+		accDays[day] = accPrices[day]
+	}
+	foodDays := map[string]int{}
+	for day := range foodMap {
+		foodDays[day] = foodPrices[day]
+	}
+
 	a.initiate(c, user, event, team, eventPaymentType, paymentType, body.CouponCode,
-		covered, eventFee, accommodationMap, accFee, foodMap, foodFee)
+		covered, eventFee, memberFees, accommodationMap, accFee, accDays, foodMap, foodFee, foodDays)
+}
+
+// easebuzzPayMode returns "production" or "test" for the Easebuzz mobile SDK.
+func (a *API) easebuzzPayMode() string {
+	if a.Cfg.EasebuzzEnv == "prod" {
+		return "production"
+	}
+	return "test"
 }
 
 // initiate prices the cart, applies the coupon and opens the checkout.
@@ -276,8 +426,9 @@ func (a *API) initiate(
 	eventPaymentType, paymentType, couponCode string,
 	covered []string,
 	eventFee int,
-	accommodationMap map[string]any, accFee int,
-	foodMap map[string]any, foodFee int,
+	memberFees map[string]int,
+	accommodationMap map[string]any, accFee int, accDays map[string]int,
+	foodMap map[string]any, foodFee int, foodDays map[string]int,
 ) {
 	ctx := c.Request.Context()
 
@@ -315,6 +466,29 @@ func (a *API) initiate(
 		couponCode = coupon.Code
 	}
 
+	bill := map[string]any{
+		"event":         eventFee,
+		"accommodation": accFee,
+		"food":          foodFee,
+		"total":         originalAmount,
+	}
+	if len(accDays) > 0 {
+		bill["accommodation_days"] = accDays
+	}
+	if len(foodDays) > 0 {
+		bill["food_days"] = foodDays
+	}
+	if len(memberFees) > 0 {
+		bill["event_members"] = memberFees
+	}
+	if team != nil && event != nil && !event.IsPerIndividual() && team.PaidTill > 0 {
+		bill["already_paid"] = team.PaidTill
+	}
+	if discountAmount > 0 {
+		bill["discount"] = discountAmount
+	}
+	bill["final"] = max(originalAmount-discountAmount, 1)
+
 	var evtIntention *models.EventRegistrationIntention
 	eventID, teamID, checkoutID := "", "", user.UserID+"_stay"
 	if event != nil {
@@ -325,6 +499,7 @@ func (a *API) initiate(
 			EventType:      eventPaymentType,
 			Amount:         eventFee,
 			CoveredUserIDs: covered,
+			PerIndividual:  event.IsPerIndividual(),
 		}
 		if team != nil {
 			teamID = team.TeamID
@@ -343,6 +518,7 @@ func (a *API) initiate(
 			Accommodation:     accommodationMap,
 			Food:              foodMap,
 		},
+		bill,
 	)
 
 	payment, checkout, err := a.Store.BeginCheckout(ctx, checkoutID, payment)
@@ -360,7 +536,18 @@ func (a *API) initiate(
 		apierr.Respond(c, apierr.Internal("could not create payment record"))
 		return
 	case checkout.PaymentURL != "": // a retried initiate: same cart, same link
-		c.JSON(http.StatusOK, gin.H{"paymentUrl": checkout.PaymentURL, "merchantOrderId": payment.MerchantOrderID})
+		var accessKey string
+		prefix := a.easebuzzBaseURL() + "/pay/"
+		if strings.HasPrefix(checkout.PaymentURL, prefix) {
+			accessKey = strings.TrimPrefix(checkout.PaymentURL, prefix)
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"paymentUrl":      checkout.PaymentURL,
+			"merchantOrderId": payment.MerchantOrderID,
+			"accessKey":       accessKey,
+			"payMode":         a.easebuzzPayMode(),
+			"bill":            payment.Bill,
+		})
 		return
 	}
 
@@ -369,7 +556,7 @@ func (a *API) initiate(
 		productInfo = event.Title
 	}
 
-	link, err := a.getEasebuzzLink(ctx, payment.MerchantOrderID, payment.FinalAmount, productInfo, user)
+	link, accessKey, err := a.getEasebuzzLink(ctx, payment.MerchantOrderID, payment.FinalAmount, productInfo, user)
 	if err != nil {
 		log.Printf("[payment] gateway initiation failed for %s: %v", payment.MerchantOrderID, err)
 		if err := a.Store.MarkPaymentFailed(ctx, payment.MerchantOrderID, "", ""); err != nil {
@@ -382,19 +569,25 @@ func (a *API) initiate(
 		log.Printf("[payment] could not store checkout link for %s: %v", payment.MerchantOrderID, err)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"paymentUrl": link, "merchantOrderId": payment.MerchantOrderID})
+	c.JSON(http.StatusOK, gin.H{
+		"paymentUrl":      link,
+		"merchantOrderId": payment.MerchantOrderID,
+		"accessKey":       accessKey,
+		"payMode":         a.easebuzzPayMode(),
+		"bill":            payment.Bill,
+	})
 }
 
-// getEasebuzzLink calls the Easebuzz initiate API and returns the checkout URL.
+// getEasebuzzLink calls the Easebuzz initiate API and returns the checkout URL and access key.
 func (a *API) getEasebuzzLink(
 	_ context.Context,
 	merchantOrderID string,
 	amount int,
 	productInfo string,
 	user *models.User,
-) (string, error) {
+) (string, string, error) {
 	if !a.gatewayLive() {
-		return fmt.Sprintf("%s/api/v1/payments/dummy?txnid=%s", a.Cfg.AppBaseURL, url.QueryEscape(merchantOrderID)), nil
+		return fmt.Sprintf("%s/api/v1/payments/dummy?txnid=%s", a.Cfg.AppBaseURL, url.QueryEscape(merchantOrderID)), "", nil
 	}
 
 	amountStr := fmt.Sprintf("%.2f", float64(amount))
@@ -426,16 +619,16 @@ func (a *API) getEasebuzzLink(
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.PostForm(a.easebuzzInitiateURL(), form)
 	if err != nil {
-		return "", fmt.Errorf("easebuzz request failed: %w", err)
+		return "", "", fmt.Errorf("easebuzz request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	accessKey, err := parseEasebuzzInitiate(body)
 	if resp.StatusCode != http.StatusOK || err != nil {
-		return "", fmt.Errorf("easebuzz returned %d: %v", resp.StatusCode, err)
+		return "", "", fmt.Errorf("easebuzz returned %d: %v", resp.StatusCode, err)
 	}
-	return a.easebuzzBaseURL() + "/pay/" + accessKey, nil
+	return a.easebuzzBaseURL() + "/pay/" + accessKey, accessKey, nil
 }
 
 // parseEasebuzzInitiate reads the initiateLink reply, {"status":1,"data":"<access key>"};

@@ -134,13 +134,28 @@ func (a *API) JoinTeam(c *gin.Context) {
 	regID := models.RegistrationID(event.EventID, user.UserID)
 	reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, team.InviteCode, fee, body.Responses)
 
-	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize)
+	// Determine if the new roster is already covered by team's settled payments.
+	coveredByCredit := !event.PaymentRequired
+	if event.PaymentRequired {
+		if !event.IsPerIndividual() {
+			coveredByCredit = team.Paid || team.PaidTill > 0
+		} else {
+			users, _ := a.Store.GetUsers(ctx, team.MemberIDs)
+			totalRosterFee := fee
+			for _, m := range users {
+				m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+				totalRosterFee += event.FeeFor(m.IsHostCollegeStudent)
+			}
+			coveredByCredit = team.PaidTill >= totalRosterFee && totalRosterFee > 0
+		}
+	}
+	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize, coveredByCredit)
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrTeamFull):
 			apierr.Respond(c, apierr.Conflict("team_full", "this team is already at its maximum size"))
 		case errors.Is(err, store.ErrTeamLocked):
-			apierr.Respond(c, apierr.Conflict("team_payment_locked", "this team's payment is in progress or complete, so it is closed to new members"))
+			apierr.Respond(c, apierr.Conflict("team_checkout_in_progress", "a payment checkout for this team is currently in progress; please try again in a few moments"))
 		case errors.Is(err, store.ErrAlreadyMember):
 			apierr.Respond(c, apierr.Conflict("already_member", "you are already in this team"))
 		case errors.Is(err, store.ErrExists):
@@ -164,6 +179,39 @@ func (a *API) GetTeam(c *gin.Context) {
 		return
 	}
 	a.presentTeam(c, team)
+}
+
+// TeamAccommodation lists the stay and food days each member holds. Only the
+// team itself (and admins) can see it.
+func (a *API) TeamAccommodation(c *gin.Context) {
+	team, ok := a.loadTeam(c)
+	if !ok {
+		return
+	}
+	user := middleware.CurrentUser(c)
+	if !team.HasMember(user.UserID) && !user.IsAdmin() {
+		apierr.Respond(c, apierr.Forbidden("not_a_member", "you are not in this team"))
+		return
+	}
+	users, err := a.Store.GetUsers(c.Request.Context(), team.MemberIDs)
+	if err != nil {
+		apierr.Respond(c, apierr.Internal("could not load team members"))
+		return
+	}
+	members := make([]gin.H, 0, len(team.MemberIDs))
+	for _, id := range team.MemberIDs {
+		u, ok := users[id]
+		if !ok {
+			continue
+		}
+		members = append(members, gin.H{
+			"userId":        u.UserID,
+			"displayName":   u.DisplayName,
+			"accommodation": u.Accommodation,
+			"food":          u.Food,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"members": members})
 }
 
 type renameTeamBody struct {
@@ -300,7 +348,27 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 	}
 
 	// If event requires payment and team is not paid, do not allow confirmation.
-	if event != nil && (event.PaymentRequired || event.FeeFor(user.IsHostCollegeStudent) > 0) && !team.Paid {
+	teamFee := 0
+	if event != nil && event.PaymentRequired {
+		if event.IsPerIndividual() && len(team.MemberIDs) > 0 {
+			members, err := a.Store.GetUsers(c.Request.Context(), team.MemberIDs)
+			if err == nil && len(members) == len(team.MemberIDs) {
+				for _, m := range members {
+					m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+					teamFee += event.FeeFor(m.IsHostCollegeStudent)
+				}
+			} else {
+				teamFee = event.FeeFor(user.IsHostCollegeStudent)
+			}
+		} else {
+			teamFee = event.FeeFor(user.IsHostCollegeStudent)
+		}
+	}
+
+	// paidTill covering the fee counts as paid, e.g. a fee-free member joined
+	// after the leader paid and cleared the paid flag.
+	covered := teamFee <= team.PaidTill
+	if !covered && !team.Paid {
 		apierr.Respond(c, apierr.Conflict("payment_required", "payment is pending or due for this event. Please complete payment to finalize registration"))
 		return
 	}
@@ -310,7 +378,8 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 		return
 	}
 
-	if err := a.Store.ConfirmTeam(c.Request.Context(), team.TeamID, user.UserID); err != nil {
+	markPaid := covered
+	if err := a.Store.ConfirmTeam(c.Request.Context(), team.TeamID, user.UserID, markPaid); err != nil {
 		apierr.Respond(c, apierr.Internal("could not complete team registration"))
 		return
 	}
@@ -408,13 +477,62 @@ func (a *API) hydrateMembers(ctx context.Context, team *models.Team) {
 	if err != nil {
 		return
 	}
+	var event *models.Event
+	if team.EventID != "" {
+		event, _ = a.Cache.Get(ctx, team.EventID)
+	}
+
 	members := make([]models.PublicProfile, 0, len(team.MemberIDs))
+	hasUnpaid := false
+	totalRosterFee := 0
 	for _, id := range team.MemberIDs {
 		u, ok := users[id]
 		if !ok {
 			continue
 		}
-		members = append(members, u.ResolveHostStatus(a.Cfg.HostEmailDomain).Public())
+		pub := u.ResolveHostStatus(a.Cfg.HostEmailDomain).Public()
+		if event != nil && event.PaymentRequired && event.IsPerIndividual() {
+			totalRosterFee += event.FeeFor(pub.IsHostCollegeStudent)
+		}
+		if team.EventID != "" {
+			if reg, err := a.Store.GetRegistration(ctx, models.RegistrationID(team.EventID, id)); err == nil && reg != nil {
+				pub.PaymentStatus = reg.PaymentStatus
+			}
+		}
+		if pub.PaymentStatus != models.RegPaymentSuccess {
+			hasUnpaid = true
+		}
+		members = append(members, pub)
+	}
+	if event != nil && event.PaymentRequired && !event.IsPerIndividual() {
+		leaderUser := users[team.LeaderUserID]
+		isHost := true
+		if leaderUser != nil {
+			isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+		}
+		totalRosterFee = event.FeeFor(isHost)
+	}
+
+	// Credit-based check: If total payments settled for this team cover the entire roster,
+	// mark all members as paid and self-heal any unconfirmed registrations.
+	if event != nil && event.PaymentRequired {
+		isCovered := (team.PaidTill >= totalRosterFee && totalRosterFee > 0) || (!event.IsPerIndividual() && team.Paid)
+		if isCovered {
+			team.Paid = true
+			hasUnpaid = false
+			for i := range members {
+				if members[i].PaymentStatus != models.RegPaymentSuccess {
+					members[i].PaymentStatus = models.RegPaymentSuccess
+					regID := models.RegistrationID(team.EventID, members[i].UserID)
+					_ = a.Store.MarkRegistrationCovered(ctx, regID)
+				}
+			}
+			if !team.Paid {
+				_ = a.Store.MarkTeamPaid(ctx, team.TeamID)
+			}
+		} else if hasUnpaid {
+			team.Paid = false
+		}
 	}
 	team.Members = members
 }

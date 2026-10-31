@@ -70,6 +70,20 @@ func (s *Store) SaveVenue(ctx context.Context, v *models.Venue) error {
 	return wrap(err)
 }
 
+// SaveVenues writes multiple venues to Firestore in a single atomic batch.
+func (s *Store) SaveVenues(ctx context.Context, venues []*models.Venue) error {
+	if len(venues) == 0 {
+		return nil
+	}
+	batch := s.FS.Batch()
+	for _, v := range venues {
+		batch.Set(s.FS.Collection(ColVenues).Doc(v.VenueID), v)
+	}
+	_, err := batch.Commit(ctx)
+	return wrap(err)
+}
+
+
 func (s *Store) DeleteVenue(ctx context.Context, id string) error {
 	_, err := s.FS.Collection(ColVenues).Doc(id).Delete(ctx)
 	return wrap(err)

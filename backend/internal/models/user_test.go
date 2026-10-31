@@ -36,6 +36,24 @@ func TestIsAdminIsAMembershipTest(t *testing.T) {
 	if anonymous.HasRole(models.RoleUser) {
 		t.Error("a nil user holds no roles")
 	}
+
+	// Test new roles and normalization
+	staffUser := &models.User{Roles: []string{"user", "EB_Events", "EB_Oureach"}}
+	if !staffUser.HasRole(models.RoleEBEvents) {
+		t.Error("expected staffUser to have RoleEBEvents")
+	}
+	if !staffUser.HasRole(models.RoleEBOutreach) {
+		t.Error("expected staffUser to have RoleEBOutreach via alias")
+	}
+	if !staffUser.IsStaffOrAdmin() {
+		t.Error("expected staffUser to report IsStaffOrAdmin() == true")
+	}
+	if staffUser.IsAdmin() {
+		t.Error("staffUser without admin role must not report IsAdmin() == true")
+	}
+	if !staffUser.HasAnyRole(models.RoleEBMedia, models.RoleEBEvents) {
+		t.Error("expected HasAnyRole to return true")
+	}
 }
 
 func TestNewUserStartsAsAPlainUser(t *testing.T) {

@@ -21,9 +21,20 @@ type AppVersions struct {
 
 // AppAccommodation holds dynamic accommodation and food pass pricing.
 type AppAccommodation struct {
-	Amount     int `json:"amount" firestore:"amount"`
-	Price      int `json:"price,omitempty" firestore:"price,omitempty"`
-	FoodAmount int `json:"foodAmount,omitempty" firestore:"foodAmount,omitempty"`
+	Amount          int `json:"amount" firestore:"amount"`
+	Price           int `json:"price,omitempty" firestore:"price,omitempty"`
+	TechnicalAmount int `json:"technicalAmount,omitempty" firestore:"technicalAmount,omitempty"`
+	CulturalAmount      int `json:"culturalAmount,omitempty" firestore:"culturalAmount,omitempty"`
+	FoodAmount          int `json:"foodAmount,omitempty" firestore:"foodAmount,omitempty"`
+	TechnicalFoodAmount int `json:"technicalFoodAmount,omitempty" firestore:"technicalFoodAmount,omitempty"`
+	CulturalFoodAmount  int `json:"culturalFoodAmount,omitempty" firestore:"culturalFoodAmount,omitempty"`
+
+	// Per-day prices keyed by day ("day0".."day4"). A missing day falls back
+	// to the flat amount for its category.
+	TechnicalDays     map[string]int `json:"technicalDays,omitempty" firestore:"technicalDays,omitempty"`
+	CulturalDays      map[string]int `json:"culturalDays,omitempty" firestore:"culturalDays,omitempty"`
+	TechnicalFoodDays map[string]int `json:"technicalFoodDays,omitempty" firestore:"technicalFoodDays,omitempty"`
+	CulturalFoodDays  map[string]int `json:"culturalFoodDays,omitempty" firestore:"culturalFoodDays,omitempty"`
 }
 
 // AppConfig is the combined configuration object containing links, maintenance, versions, and accommodation pricing.

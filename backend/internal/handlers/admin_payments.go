@@ -12,9 +12,20 @@ import (
 	"backend/internal/store"
 )
 
-// AdminListPayments returns all payments.
+// AdminListPayments returns payments with optional pagination.
 func (a *API) AdminListPayments(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	limit, offset := page(c)
+	if limit > 0 {
+		payments, total, err := a.Store.ListPayments(ctx, limit, offset)
+		if err != nil {
+			apierr.Respond(c, apierr.Internal("could not load payments"))
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"items": payments, "total": total, "limit": limit, "offset": offset})
+		return
+	}
 
 	payments, err := a.Store.ListAllPayments(ctx)
 	if err != nil {
@@ -64,6 +75,7 @@ func (a *API) AdminUpdatePaymentStatus(c *gin.Context) {
 		if !already {
 			a.Cache.Invalidate()
 		}
+		a.Store.InvalidatePaymentsCache()
 		c.JSON(http.StatusOK, gin.H{"message": "payment updated successfully"})
 		return
 	}
@@ -73,5 +85,7 @@ func (a *API) AdminUpdatePaymentStatus(c *gin.Context) {
 		return
 	}
 	a.Cache.Invalidate()
+	a.Store.InvalidatePaymentsCache()
 	c.JSON(http.StatusOK, gin.H{"message": "payment updated successfully"})
 }
+

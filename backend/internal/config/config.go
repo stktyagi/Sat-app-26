@@ -68,7 +68,7 @@ func Load() (*Config, error) {
 		RedisNamespace:       env("REDIS_NAMESPACE", "sat26"),
 		ImageKitAccountsFile: os.Getenv("IMAGEKIT_ACCOUNTS_FILE"),
 		UseEmulator:          os.Getenv("FIRESTORE_EMULATOR_HOST") != "",
-		GroqAPIKey:           os.Getenv("GROQ_API_KEY"),
+		GroqAPIKey:           env("GROQ_API_KEY", os.Getenv("GROQ_API_Key")),
 		EasebuzzKey:          os.Getenv("EASEBUZZ_KEY"),
 		EasebuzzSalt:         os.Getenv("EASEBUZZ_SALT"),
 		EasebuzzEnv:          env("EASEBUZZ_ENV", "test"),

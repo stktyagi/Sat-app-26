@@ -15,10 +15,78 @@ import (
 )
 
 // venueBody has no venueId: it is a slug of the name, fixed at creation.
+// Accepts both lat/lng and latitude/longitude aliases.
 type venueBody struct {
-	VenueName *string  `json:"venueName"`
+	VenueName *string   `json:"venueName"`
+	Lat       *float64  `json:"lat"`
+	Lng       *float64  `json:"lng"`
+	Latitude  *float64  `json:"latitude"`
+	Longitude *float64  `json:"longitude"`
+	Keywords  *[]string `json:"keywords"`
+}
+
+func (b *venueBody) getLat() *float64 {
+	if b.Lat != nil {
+		return b.Lat
+	}
+	return b.Latitude
+}
+
+func (b *venueBody) getLng() *float64 {
+	if b.Lng != nil {
+		return b.Lng
+	}
+	return b.Longitude
+}
+
+// coordinatesBody is used for coordinate-only edits from the admin map.
+type coordinatesBody struct {
 	Lat       *float64 `json:"lat"`
 	Lng       *float64 `json:"lng"`
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+}
+
+func (b *coordinatesBody) getLat() *float64 {
+	if b.Lat != nil {
+		return b.Lat
+	}
+	return b.Latitude
+}
+
+func (b *coordinatesBody) getLng() *float64 {
+	if b.Lng != nil {
+		return b.Lng
+	}
+	return b.Longitude
+}
+
+type batchVenueItem struct {
+	VenueID   string    `json:"venueId"`
+	VenueName *string   `json:"venueName"`
+	Lat       *float64  `json:"lat"`
+	Lng       *float64  `json:"lng"`
+	Latitude  *float64  `json:"latitude"`
+	Longitude *float64  `json:"longitude"`
+	Keywords  *[]string `json:"keywords"`
+}
+
+func (b *batchVenueItem) getLat() *float64 {
+	if b.Lat != nil {
+		return b.Lat
+	}
+	return b.Latitude
+}
+
+func (b *batchVenueItem) getLng() *float64 {
+	if b.Lng != nil {
+		return b.Lng
+	}
+	return b.Longitude
+}
+
+type batchVenueBody struct {
+	Venues []batchVenueItem `json:"venues"`
 }
 
 func (a *API) ListVenues(c *gin.Context) {
@@ -31,6 +99,16 @@ func (a *API) ListVenues(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": venues})
 }
 
+// GetVenue returns a single venue by its venueId.
+func (a *API) GetVenue(c *gin.Context) {
+	venue, err := a.Store.GetVenue(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		respondVenueLookup(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"venue": venue})
+}
+
 // CreateVenue adds a venue keyed by a slug of its name, so "Activity Space 2"
 // becomes activity-space-2 — the same ID events store in venueId.
 func (a *API) CreateVenue(c *gin.Context) {
@@ -38,7 +116,9 @@ func (a *API) CreateVenue(c *gin.Context) {
 	if !bind(c, &body) {
 		return
 	}
-	if body.VenueName == nil || body.Lat == nil || body.Lng == nil {
+	lat := body.getLat()
+	lng := body.getLng()
+	if body.VenueName == nil || lat == nil || lng == nil {
 		apierr.Respond(c, apierr.BadRequest("missing_fields", "venueName, lat and lng are required"))
 		return
 	}
@@ -103,6 +183,105 @@ func (a *API) UpdateVenue(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"venue": venue})
 }
 
+// UpdateVenueCoordinates is dedicated for updating a venue's lat/lng coordinates directly.
+func (a *API) UpdateVenueCoordinates(c *gin.Context) {
+	ctx := c.Request.Context()
+	id := c.Param("id")
+
+	venue, err := a.Store.GetVenue(ctx, id)
+	if err != nil {
+		respondVenueLookup(c, err)
+		return
+	}
+
+	var body coordinatesBody
+	if !bind(c, &body) {
+		return
+	}
+
+	lat := body.getLat()
+	lng := body.getLng()
+	if lat == nil || lng == nil {
+		apierr.Respond(c, apierr.BadRequest("missing_fields", "lat and lng coordinates are required"))
+		return
+	}
+
+	venue.Lat = *lat
+	venue.Lng = *lng
+	if err := validateVenue(venue); err != nil {
+		apierr.Respond(c, err)
+		return
+	}
+
+	if err := a.Store.SaveVenue(ctx, venue); err != nil {
+		apierr.Respond(c, apierr.Internal("could not update venue coordinates"))
+		return
+	}
+	a.Venues.Invalidate()
+
+	c.JSON(http.StatusOK, gin.H{"venue": venue})
+}
+
+// BatchUpdateVenues allows an admin to update multiple venue coordinates / details in a single atomic request.
+func (a *API) BatchUpdateVenues(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var body batchVenueBody
+	if !bind(c, &body) {
+		return
+	}
+	if len(body.Venues) == 0 {
+		apierr.Respond(c, apierr.BadRequest("empty_batch", "venues array is empty"))
+		return
+	}
+
+	var toSave []*models.Venue
+	for _, item := range body.Venues {
+		venueID := strings.TrimSpace(item.VenueID)
+		if venueID == "" {
+			apierr.Respond(c, apierr.BadRequest("missing_fields", "venueId is required for each venue in batch"))
+			return
+		}
+
+		venue, err := a.Store.GetVenue(ctx, venueID)
+		if err != nil {
+			respondVenueLookup(c, err)
+			return
+		}
+
+		if item.VenueName != nil && strings.TrimSpace(*item.VenueName) != "" {
+			venue.VenueName = strings.TrimSpace(*item.VenueName)
+		}
+		if lat := item.getLat(); lat != nil {
+			venue.Lat = *lat
+		}
+		if lng := item.getLng(); lng != nil {
+			venue.Lng = *lng
+		}
+		if item.Keywords != nil {
+			venue.Keywords = *item.Keywords
+		}
+
+		if err := validateVenue(venue); err != nil {
+			apierr.Respond(c, err)
+			return
+		}
+
+		toSave = append(toSave, venue)
+	}
+
+	if err := a.Store.SaveVenues(ctx, toSave); err != nil {
+		apierr.Respond(c, apierr.Internal("could not batch save venues"))
+		return
+	}
+	a.Venues.Invalidate()
+
+	c.JSON(http.StatusOK, gin.H{
+		"updated": len(toSave),
+		"items":   toSave,
+	})
+}
+
 // DeleteVenue refuses while any event still references the venue.
 func (a *API) DeleteVenue(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -148,12 +327,16 @@ func applyVenueBody(v *models.Venue, b *venueBody) int {
 		v.VenueName = strings.TrimSpace(*b.VenueName)
 		n++
 	}
-	if b.Lat != nil {
-		v.Lat = *b.Lat
+	if lat := b.getLat(); lat != nil {
+		v.Lat = *lat
 		n++
 	}
-	if b.Lng != nil {
-		v.Lng = *b.Lng
+	if lng := b.getLng(); lng != nil {
+		v.Lng = *lng
+		n++
+	}
+	if b.Keywords != nil {
+		v.Keywords = *b.Keywords
 		n++
 	}
 	return n

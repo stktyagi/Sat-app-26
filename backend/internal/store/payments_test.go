@@ -45,7 +45,7 @@ func seed(t *testing.T, s *Store, coupon string) (*models.Payment, string) {
 		models.ProcessedIntentions{
 			EventRegistration: &models.EventRegistrationIntention{EventID: eid, EventType: "individual", CoveredUserIDs: []string{uid}},
 			Accommodation:     map[string]any{"day1": true},
-		})
+		}, nil)
 	got, _, err := s.BeginCheckout(ctx, uid+"_"+eid, p)
 	must(t, err)
 	return got, uid
@@ -190,27 +190,38 @@ func TestPaymentLocksTeamRoster(t *testing.T) {
 
 	join := func(uid string) error {
 		reg := models.NewRegistration(uid, eid, team.TeamID, code, 500, nil)
-		_, err := s.JoinTeam(ctx, team.TeamID, uid, models.RegistrationID(eid, uid), reg, 1, 0)
+		_, err := s.JoinTeam(ctx, team.TeamID, uid, models.RegistrationID(eid, uid), reg, 1, 0, true)
 		return err
 	}
 
 	// An open checkout freezes the roster.
 	p := models.NewPayment("pay-"+t.Name(), "leader", eid, team.TeamID, models.PaymentTypeEvent, 500, 0, "", nil,
-		models.ProcessedIntentions{EventRegistration: &models.EventRegistrationIntention{CoveredUserIDs: []string{"leader"}}})
+		models.ProcessedIntentions{EventRegistration: &models.EventRegistrationIntention{CoveredUserIDs: []string{"leader"}}}, nil)
 	_, _, err := s.BeginCheckout(ctx, team.TeamID, p)
 	must(t, err)
 	if err := join("late"); !errors.Is(err, ErrTeamLocked) {
 		t.Fatalf("join during checkout: want ErrTeamLocked, got %v", err)
 	}
 
-	// Once paid, the team stays closed even though the checkout is gone.
+	// Joining is allowed after checkout finishes, even if team is already confirmed or paid.
 	must(t, s.MarkPaymentFailed(ctx, p.MerchantOrderID, "", ""))
 	if err := join("early"); err != nil {
 		t.Fatalf("join after a failed checkout should work: %v", err)
 	}
-	mustWrite(t)(s.FS.Collection(ColTeams).Doc(team.TeamID).Update(ctx, []firestore.Update{{Path: "paid", Value: true}}))
-	if err := join("after-paid"); !errors.Is(err, ErrTeamLocked) {
-		t.Fatalf("join after payment: want ErrTeamLocked, got %v", err)
+
+	// A paid team still takes members, and joining clears paid so the leader
+	// can pay the difference.
+	mustWrite(t)(s.FS.Collection(ColTeams).Doc(team.TeamID).Update(ctx, []firestore.Update{
+		{Path: "paid", Value: true},
+		{Path: "status", Value: models.TeamStatusConfirmed},
+	}))
+	if err := join("after-paid"); err != nil {
+		t.Fatalf("join after payment should work: %v", err)
+	}
+	got, err := s.GetTeam(ctx, team.TeamID)
+	must(t, err)
+	if got.Paid {
+		t.Error("joining a paid team must clear paid")
 	}
 }
 
@@ -223,7 +234,7 @@ func TestPaymentRosterMustMatchAtCheckout(t *testing.T) {
 
 	// Priced for [leader, ghost] but the team is just [leader].
 	p := models.NewPayment("pay-"+t.Name(), "leader", eid, team.TeamID, models.PaymentTypeEvent, 500, 0, "", nil,
-		models.ProcessedIntentions{EventRegistration: &models.EventRegistrationIntention{CoveredUserIDs: []string{"leader", "ghost"}}})
+		models.ProcessedIntentions{EventRegistration: &models.EventRegistrationIntention{CoveredUserIDs: []string{"leader", "ghost"}}}, nil)
 	if _, _, err := s.BeginCheckout(ctx, team.TeamID, p); !errors.Is(err, ErrRosterChanged) {
 		t.Fatalf("want ErrRosterChanged, got %v", err)
 	}
@@ -242,7 +253,7 @@ func TestPaymentIgnoresRegistrationOfAnotherTeam(t *testing.T) {
 	mustWrite(t)(s.FS.Collection(ColTeams).Doc("teamA").Set(ctx, models.NewTeam(eid, "A", "A", "leader", 1, nil)))
 
 	p := models.NewPayment("pay-"+t.Name(), "leader", eid, "teamA", models.PaymentTypeEvent, 1000, 0, "", nil,
-		models.ProcessedIntentions{EventRegistration: &models.EventRegistrationIntention{CoveredUserIDs: []string{"leader", "mover"}}})
+		models.ProcessedIntentions{EventRegistration: &models.EventRegistrationIntention{CoveredUserIDs: []string{"leader", "mover"}}}, nil)
 	mustWrite(t)(s.FS.Collection(ColPayments).Doc(p.MerchantOrderID).Set(ctx, p))
 
 	_, err := s.SettlePayment(ctx, p.MerchantOrderID, SettleInfo{TxnID: "ez"})
@@ -274,7 +285,7 @@ func TestPaymentLeavesTeamUnpaidWhenSomeoneJoinedLate(t *testing.T) {
 
 	// Priced for the leader alone; "late" joined after the checkout expired.
 	p := models.NewPayment("pay-"+t.Name(), "leader", eid, team.TeamID, models.PaymentTypeEvent, 500, 0, "", nil,
-		models.ProcessedIntentions{EventRegistration: &models.EventRegistrationIntention{CoveredUserIDs: []string{"leader"}}})
+		models.ProcessedIntentions{EventRegistration: &models.EventRegistrationIntention{CoveredUserIDs: []string{"leader"}, Amount: 500}}, nil)
 	mustWrite(t)(s.FS.Collection(ColPayments).Doc(p.MerchantOrderID).Set(ctx, p))
 
 	_, err := s.SettlePayment(ctx, p.MerchantOrderID, SettleInfo{TxnID: "ez"})
@@ -284,6 +295,9 @@ func TestPaymentLeavesTeamUnpaidWhenSomeoneJoinedLate(t *testing.T) {
 	must(t, err)
 	if got.Paid {
 		t.Error("a team with an uncovered member must stay unpaid")
+	}
+	if got.PaidTill != 500 {
+		t.Errorf("paidTill should record the settled event fee: got %d", got.PaidTill)
 	}
 	after, err := s.GetPayment(ctx, p.MerchantOrderID)
 	must(t, err)
