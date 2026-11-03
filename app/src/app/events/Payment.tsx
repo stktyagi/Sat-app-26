@@ -29,6 +29,12 @@ const PaymentScreen: React.FC = () => {
     user?.email?.toLowerCase().endsWith('@thapar.edu') ||
     false;
 
+  // Members other than the leader can't pay the team fee; they only buy their own stay & food.
+  const isTeamMemberNotLeader =
+    eventData?.event?.eventType === 'team' &&
+    !!eventData?.myTeam &&
+    eventData.myTeam.leaderUserId !== user?.userId;
+
   const [phase, setPhase] = useState<'checkout' | 'initiating' | 'opening' | 'verifying' | 'done'>('checkout');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -132,7 +138,7 @@ const PaymentScreen: React.FC = () => {
 
   const getBaseEventFee = () => {
     let fee = 0;
-    if (eventData?.event?.paymentRequired) {
+    if (eventData?.event?.paymentRequired && !isTeamMemberNotLeader) {
       if (
         eventData.event.eventType === 'team' &&
         isPerIndividualPayment(eventData.event.paymentType) &&
@@ -299,7 +305,9 @@ const PaymentScreen: React.FC = () => {
         setPhase('done');
         showAlert(
           'Payment Successful',
-          'Your registration is now confirmed!',
+          isTeamMemberNotLeader
+            ? 'Your accommodation and food booking is confirmed!'
+            : 'Your registration is now confirmed!',
           [{
             text: 'View Registration',
             onPress: () => {
@@ -431,13 +439,8 @@ const PaymentScreen: React.FC = () => {
     );
   }
 
-  // 2. Check if user is a team member who is NOT the leader
-  const isTeamMemberNotLeader =
-    eventData?.event?.eventType === 'team' &&
-    !!eventData?.myTeam &&
-    eventData.myTeam.leaderUserId !== user?.userId;
-
-  if (isTeamMemberNotLeader) {
+  // 2. A host-college team member has nothing to buy here: only the leader pays the team fee
+  if (isTeamMemberNotLeader && isHost) {
     return (
       <View style={{ flex: 1, backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
         <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
@@ -448,16 +451,7 @@ const PaymentScreen: React.FC = () => {
         </Text>
         <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, textAlign: 'center', marginBottom: 32, lineHeight: 22, fontSize: 14 }}>
           Only your team leader can complete the registration fee payment for the team.
-          You can book your individual accommodation and food passes from the Accommodation page.
         </Text>
-        <TouchableOpacity
-          onPress={() => router.replace('/profile/Accommodation')}
-          style={{ backgroundColor: '#41B8F0', width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginBottom: 12 }}
-        >
-          <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 15 }}>
-            Book My Accommodation & Food
-          </Text>
-        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => {
             router.dismissAll();
@@ -535,10 +529,18 @@ const PaymentScreen: React.FC = () => {
           <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#41B8F0', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
             {isTeamEvent ? 'Team Registration Fee' : 'Registration Fee'}
           </Text>
-          <Text style={{ fontFamily: 'Talina', color: textColor, fontSize: 32 }}>
-            ₹{baseEventFee}
-          </Text>
-          {isTeamEvent && (
+          {isTeamMemberNotLeader ? (
+            <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 13, marginTop: 4 }}>
+              {eventData?.myTeam?.paid
+                ? 'Paid by your team leader.'
+                : 'Your team leader pays this fee. It is still pending.'}
+            </Text>
+          ) : (
+            <Text style={{ fontFamily: 'Talina', color: textColor, fontSize: 32 }}>
+              ₹{baseEventFee}
+            </Text>
+          )}
+          {isTeamEvent && !isTeamMemberNotLeader && (
             <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12, marginTop: 4 }}>
               Covers all registered members of your team.
             </Text>
@@ -570,7 +572,9 @@ const PaymentScreen: React.FC = () => {
             >
               <Ionicons name="information-circle" size={20} color="#41B8F0" />
               <Text style={{ fontFamily: 'Poppins_400Regular', color: textColor, fontSize: 12, marginLeft: 10, flex: 1 }}>
-                Accommodation selected here is for you (Team Leader) only. Other team members can book their stay individually from their profile.
+                {isTeamMemberNotLeader
+                  ? 'Accommodation and food selected here are for you only.'
+                  : 'Accommodation selected here is for you (Team Leader) only. Other team members can book their stay individually from their profile.'}
               </Text>
             </View>
           )}

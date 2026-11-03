@@ -145,6 +145,16 @@ func stayCharge(requested map[string]bool, owned map[string]bool, prices map[str
 	return days, fee, ""
 }
 
+// anySelected reports whether any day in the cart is selected.
+func anySelected(days map[string]bool) bool {
+	for _, selected := range days {
+		if selected {
+			return true
+		}
+	}
+	return false
+}
+
 // resolveStayPrices determines the per-day accommodation and food prices based on user's events.
 // Any event that is not Technical is treated as Cultural.
 func (a *API) resolveStayPrices(ctx context.Context, user *models.User, currentEventID string) (acc, food map[string]int) {
@@ -247,6 +257,24 @@ func (a *API) InitiatePayment(c *gin.Context) {
 	var body initiatePaymentBody
 	if !bind(c, &body) {
 		return
+	}
+
+	// A team member who isn't the leader can't pay the team fee, but can still
+	// buy their own stay and food; their cart becomes a stay-only checkout.
+	stayEventID := body.EventID
+	if body.EventID != "" && body.TeamID != "" {
+		if team, err := a.Store.GetTeam(ctx, body.TeamID); err == nil && team.EventID == body.EventID && !team.IsLeader(user.UserID) {
+			hasAcc, hasFood := anySelected(body.Accommodation), anySelected(body.Food)
+			if !hasAcc && !hasFood {
+				apierr.Respond(c, apierr.Forbidden("leader_only", "only the team leader can pay the team registration fee"))
+				return
+			}
+			body.EventID, body.TeamID = "", ""
+			body.PaymentType = models.PaymentTypeAccommodation
+			if hasFood {
+				body.PaymentType = models.PaymentTypeAccommodationAndFood
+			}
+		}
 	}
 
 	paymentType := body.PaymentType
@@ -375,7 +403,7 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		}
 	}
 
-	accPrices, foodPrices := a.resolveStayPrices(c.Request.Context(), user, body.EventID)
+	accPrices, foodPrices := a.resolveStayPrices(c.Request.Context(), user, stayEventID)
 
 	accommodationMap, accFee, bad := stayCharge(body.Accommodation, user.Accommodation, accPrices)
 	if bad != "" {
