@@ -70,7 +70,8 @@ func (s *stubSource) AllEvents(context.Context) ([]*models.Event, error) {
 	return out, nil
 }
 
-func (s *stubSource) CountAllRegistrations(_ context.Context, eventIDs []string) (map[string]int, error) {
+// Fix #2: updated stub signature accepts the paidMap the cache now passes in.
+func (s *stubSource) CountAllRegistrations(_ context.Context, eventIDs []string, _ map[string]bool) (map[string]int, error) {
 	s.countCalls.Add(1)
 	if s.err != nil {
 		return nil, s.err

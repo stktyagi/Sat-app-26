@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"strings"
+	"sync"
+	"time"
 
 	"cloud.google.com/go/firestore"
 
@@ -16,19 +18,62 @@ const (
 	DocAppAccommodation = "accommodation"
 )
 
+// App config in-memory caching to eliminate reads on /app/* routes.
+// Every mobile app launch calls all 4 endpoints; without cache that's 4 reads per launch.
+const appCacheTTL = 10 * time.Minute
+
+var (
+	appCacheMu          sync.RWMutex
+	appLinksCache       *models.AppLinks
+	appLinksTime        time.Time
+	appMaintenanceCache *models.AppMaintenance
+	appMaintenanceTime  time.Time
+	appVersionsCache    *models.AppVersions
+	appVersionsTime     time.Time
+	appAccomCache       *models.AppAccommodation
+	appAccomTime        time.Time
+)
+
+// InvalidateAppConfigCache clears the cached app configuration documents.
+func (s *Store) InvalidateAppConfigCache() {
+	appCacheMu.Lock()
+	appLinksCache = nil
+	appMaintenanceCache = nil
+	appVersionsCache = nil
+	appAccomCache = nil
+	appCacheMu.Unlock()
+}
+
 func (s *Store) appDoc(docID string) *firestore.DocumentRef {
 	return s.FS.Collection(ColApp).Doc(docID)
 }
 
 // GetAppLinks fetches the app store / play store links document (app/link).
 func (s *Store) GetAppLinks(ctx context.Context) (*models.AppLinks, error) {
+	appCacheMu.RLock()
+	if appLinksCache != nil && time.Since(appLinksTime) < appCacheTTL {
+		cached := appLinksCache
+		appCacheMu.RUnlock()
+		return cached, nil
+	}
+	appCacheMu.RUnlock()
+
+	appCacheMu.Lock()
+	defer appCacheMu.Unlock()
+	if appLinksCache != nil && time.Since(appLinksTime) < appCacheTTL {
+		return appLinksCache, nil
+	}
+
 	snap, err := s.appDoc(DocAppLink).Get(ctx)
 	if err != nil {
 		if wrap(err) == ErrNotFound {
-			return &models.AppLinks{
+			res := &models.AppLinks{
 				AppleStore: "https://apps.apple.com/app/saturnalia/id6738927814",
 				PlayStore:  "https://play.google.com/store/apps/details?id=com.gauransh.saturnaliaapp2026",
-			}, nil
+			}
+			appLinksCache = res
+			appLinksTime = time.Now()
+			return res, nil
 		}
 		return nil, wrap(err)
 	}
@@ -37,19 +82,38 @@ func (s *Store) GetAppLinks(ctx context.Context) (*models.AppLinks, error) {
 	if err := snap.DataTo(&l); err != nil {
 		return nil, err
 	}
+	appLinksCache = &l
+	appLinksTime = time.Now()
 	return &l, nil
 }
 
 // GetAppMaintenance fetches the platform maintenance document (app/maintenance).
 func (s *Store) GetAppMaintenance(ctx context.Context) (*models.AppMaintenance, error) {
+	appCacheMu.RLock()
+	if appMaintenanceCache != nil && time.Since(appMaintenanceTime) < appCacheTTL {
+		cached := appMaintenanceCache
+		appCacheMu.RUnlock()
+		return cached, nil
+	}
+	appCacheMu.RUnlock()
+
+	appCacheMu.Lock()
+	defer appCacheMu.Unlock()
+	if appMaintenanceCache != nil && time.Since(appMaintenanceTime) < appCacheTTL {
+		return appMaintenanceCache, nil
+	}
+
 	snap, err := s.appDoc(DocAppMaintenance).Get(ctx)
 	if err != nil {
 		if wrap(err) == ErrNotFound {
-			return &models.AppMaintenance{
+			res := &models.AppMaintenance{
 				Android: false,
 				IOS:     false,
 				Web:     false,
-			}, nil
+			}
+			appMaintenanceCache = res
+			appMaintenanceTime = time.Now()
+			return res, nil
 		}
 		return nil, wrap(err)
 	}
@@ -71,18 +135,38 @@ func (s *Store) GetAppMaintenance(ctx context.Context) (*models.AppMaintenance, 
 			}
 		}
 	}
+
+	appMaintenanceCache = &m
+	appMaintenanceTime = time.Now()
 	return &m, nil
 }
 
 // GetAppVersions fetches the platform minimum versions document (app/versions).
 func (s *Store) GetAppVersions(ctx context.Context) (*models.AppVersions, error) {
+	appCacheMu.RLock()
+	if appVersionsCache != nil && time.Since(appVersionsTime) < appCacheTTL {
+		cached := appVersionsCache
+		appCacheMu.RUnlock()
+		return cached, nil
+	}
+	appCacheMu.RUnlock()
+
+	appCacheMu.Lock()
+	defer appCacheMu.Unlock()
+	if appVersionsCache != nil && time.Since(appVersionsTime) < appCacheTTL {
+		return appVersionsCache, nil
+	}
+
 	snap, err := s.appDoc(DocAppVersions).Get(ctx)
 	if err != nil {
 		if wrap(err) == ErrNotFound {
-			return &models.AppVersions{
+			res := &models.AppVersions{
 				Android: "1.0.0",
 				IOS:     "1.0.0",
-			}, nil
+			}
+			appVersionsCache = res
+			appVersionsTime = time.Now()
+			return res, nil
 		}
 		return nil, wrap(err)
 	}
@@ -91,21 +175,41 @@ func (s *Store) GetAppVersions(ctx context.Context) (*models.AppVersions, error)
 	if err := snap.DataTo(&v); err != nil {
 		return nil, err
 	}
+
+	appVersionsCache = &v
+	appVersionsTime = time.Now()
 	return &v, nil
 }
 
 // GetAppAccommodation fetches the dynamic accommodation pricing document (app/accommodation).
 func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodation, error) {
+	appCacheMu.RLock()
+	if appAccomCache != nil && time.Since(appAccomTime) < appCacheTTL {
+		cached := appAccomCache
+		appCacheMu.RUnlock()
+		return cached, nil
+	}
+	appCacheMu.RUnlock()
+
+	appCacheMu.Lock()
+	defer appCacheMu.Unlock()
+	if appAccomCache != nil && time.Since(appAccomTime) < appCacheTTL {
+		return appAccomCache, nil
+	}
+
 	snap, err := s.appDoc(DocAppAccommodation).Get(ctx)
 	if err != nil {
 		if wrap(err) == ErrNotFound {
-			return &models.AppAccommodation{
+			res := &models.AppAccommodation{
 				Amount:          650,
 				Price:           650,
 				TechnicalAmount: 650,
 				CulturalAmount:  650,
 				FoodAmount:      150,
-			}, nil
+			}
+			appAccomCache = res
+			appAccomTime = time.Now()
+			return res, nil
 		}
 		return nil, wrap(err)
 	}
@@ -120,38 +224,69 @@ func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodati
 		cultAmt := 650
 		techFoodAmt := 150
 		cultFoodAmt := 150
-		if v, ok := data["amount"].(int64); ok {
+
+		if v, ok := data["amount"].(int64); ok && v > 0 {
 			amt = int(v)
-		} else if v, ok := data["price"].(int64); ok {
+		} else if v, ok := data["amount"].(float64); ok && v > 0 {
+			amt = int(v)
+		} else if v, ok := data["price"].(int64); ok && v > 0 {
+			amt = int(v)
+		} else if v, ok := data["price"].(float64); ok && v > 0 {
 			amt = int(v)
 		}
-		if v, ok := data["technicalAmount"].(int64); ok {
-			techAmt = int(v)
-		}
-		if v, ok := data["culturalAmount"].(int64); ok {
-			cultAmt = int(v)
-		}
-		if v, ok := data["foodAmount"].(int64); ok {
+
+		if v, ok := data["foodAmount"].(int64); ok && v > 0 {
+			foodAmt = int(v)
+		} else if v, ok := data["foodAmount"].(float64); ok && v > 0 {
 			foodAmt = int(v)
 		}
-		if v, ok := data["technicalFoodAmount"].(int64); ok {
+
+		if v, ok := data["technicalAmount"].(int64); ok && v > 0 {
+			techAmt = int(v)
+		} else if v, ok := data["technicalAmount"].(float64); ok && v > 0 {
+			techAmt = int(v)
+		} else {
+			techAmt = amt
+		}
+
+		if v, ok := data["culturalAmount"].(int64); ok && v > 0 {
+			cultAmt = int(v)
+		} else if v, ok := data["culturalAmount"].(float64); ok && v > 0 {
+			cultAmt = int(v)
+		} else {
+			cultAmt = amt
+		}
+
+		if v, ok := data["technicalFoodAmount"].(int64); ok && v > 0 {
 			techFoodAmt = int(v)
+		} else if v, ok := data["technicalFoodAmount"].(float64); ok && v > 0 {
+			techFoodAmt = int(v)
+		} else {
+			techFoodAmt = foodAmt
 		}
-		if v, ok := data["culturalFoodAmount"].(int64); ok {
+
+		if v, ok := data["culturalFoodAmount"].(int64); ok && v > 0 {
 			cultFoodAmt = int(v)
+		} else if v, ok := data["culturalFoodAmount"].(float64); ok && v > 0 {
+			cultFoodAmt = int(v)
+		} else {
+			cultFoodAmt = foodAmt
 		}
+
 		extractMap := func(key string) map[string]int {
-			m := map[string]int{}
+			m := make(map[string]int)
 			if raw, ok := data[key].(map[string]any); ok {
-				for k, val := range raw {
+				for day, val := range raw {
 					if n, ok := val.(int64); ok {
-						m[k] = int(n)
+						m[day] = int(n)
+					} else if n, ok := val.(float64); ok {
+						m[day] = int(n)
 					}
 				}
 			}
 			return m
 		}
-		return &models.AppAccommodation{
+		res := &models.AppAccommodation{
 			Amount:              amt,
 			Price:               amt,
 			TechnicalAmount:     techAmt,
@@ -163,7 +298,10 @@ func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodati
 			CulturalDays:        extractMap("culturalDays"),
 			TechnicalFoodDays:   extractMap("technicalFoodDays"),
 			CulturalFoodDays:    extractMap("culturalFoodDays"),
-		}, nil
+		}
+		appAccomCache = res
+		appAccomTime = time.Now()
+		return res, nil
 	}
 	if a.Amount == 0 && a.Price > 0 {
 		a.Amount = a.Price
@@ -190,6 +328,8 @@ func (s *Store) GetAppAccommodation(ctx context.Context) (*models.AppAccommodati
 	if a.CulturalFoodAmount <= 0 {
 		a.CulturalFoodAmount = a.FoodAmount
 	}
+	appAccomCache = &a
+	appAccomTime = time.Now()
 	return &a, nil
 }
 
@@ -222,24 +362,28 @@ func (s *Store) GetAppConfig(ctx context.Context) (*models.AppConfig, error) {
 
 // SetAppLinks updates or creates the app/link document.
 func (s *Store) SetAppLinks(ctx context.Context, links *models.AppLinks) error {
+	s.InvalidateAppConfigCache()
 	_, err := s.appDoc(DocAppLink).Set(ctx, links)
 	return wrap(err)
 }
 
 // SetAppMaintenance updates or creates the app/maintenance document.
 func (s *Store) SetAppMaintenance(ctx context.Context, m *models.AppMaintenance) error {
+	s.InvalidateAppConfigCache()
 	_, err := s.appDoc(DocAppMaintenance).Set(ctx, m)
 	return wrap(err)
 }
 
 // SetAppVersions updates or creates the app/versions document.
 func (s *Store) SetAppVersions(ctx context.Context, v *models.AppVersions) error {
+	s.InvalidateAppConfigCache()
 	_, err := s.appDoc(DocAppVersions).Set(ctx, v)
 	return wrap(err)
 }
 
 // SetAppAccommodation updates or creates the app/accommodation document.
 func (s *Store) SetAppAccommodation(ctx context.Context, a *models.AppAccommodation) error {
+	s.InvalidateAppConfigCache()
 	if a.Amount <= 0 && a.Price > 0 {
 		a.Amount = a.Price
 	}

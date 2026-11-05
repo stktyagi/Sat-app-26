@@ -217,7 +217,7 @@ func (s *stubEventSource) AllEvents(ctx context.Context) ([]*models.Event, error
 	return out, nil
 }
 
-func (s *stubEventSource) CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error) {
+func (s *stubEventSource) CountAllRegistrations(ctx context.Context, eventIDs []string, paidMap map[string]bool) (map[string]int, error) {
 	return map[string]int{}, nil
 }
 

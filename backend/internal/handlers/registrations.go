@@ -62,7 +62,7 @@ func (a *API) Register(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not register"))
 		return
 	}
-	a.Cache.Invalidate()
+	a.Cache.InvalidateCounts()
 
 	saved, err := a.Store.GetRegistration(ctx, id)
 	if err != nil {
@@ -127,7 +127,7 @@ func (a *API) Unregister(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not cancel the registration"))
 		return
 	}
-	a.Cache.Invalidate()
+	a.Cache.InvalidateCounts()
 
 	c.Status(http.StatusNoContent)
 }

@@ -770,7 +770,7 @@ func (a *API) applyGatewayStatus(ctx context.Context, p *models.Payment, status 
 			return "", err
 		}
 		if !already {
-			a.Cache.Invalidate()
+			a.Cache.InvalidateCounts()
 		}
 		return models.PaymentStatusSuccess, nil
 	case "failure", "failed", "usercancelled", "dropped", "bounced":
@@ -883,7 +883,7 @@ func (a *API) finishPayment(c *gin.Context, id string, success bool, info store.
 			return
 		}
 		if !already {
-			a.Cache.Invalidate()
+			a.Cache.InvalidateCounts()
 		}
 		a.redirectToApp(c, id, models.PaymentStatusSuccess)
 		return

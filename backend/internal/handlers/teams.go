@@ -84,7 +84,7 @@ func (a *API) CreateTeam(c *gin.Context) {
 		err := a.Store.CreateTeamWithLeader(ctx, team, regID, reg)
 		switch {
 		case err == nil:
-			a.Cache.Invalidate()
+			a.Cache.InvalidateCounts()
 			a.hydrateMembers(ctx, team)
 			team.Size = len(team.Members)
 			c.JSON(http.StatusCreated, gin.H{"team": team, "inviteCode": code})
@@ -195,7 +195,7 @@ func (a *API) JoinTeam(c *gin.Context) {
 		}
 		return
 	}
-	a.Cache.Invalidate()
+	a.Cache.InvalidateCounts()
 	a.hydrateMembers(ctx, updated)
 
 	c.JSON(http.StatusOK, gin.H{"team": updated})
@@ -346,7 +346,7 @@ func (a *API) DeleteTeam(c *gin.Context) {
 		}
 		return
 	}
-	a.Cache.Invalidate()
+	a.Cache.InvalidateCounts()
 
 	c.Status(http.StatusNoContent)
 }
@@ -411,7 +411,7 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not complete team registration"))
 		return
 	}
-	a.Cache.Invalidate()
+	a.Cache.InvalidateCounts()
 	a.reloadAndRespond(c, team.TeamID, "confirmed but the team could not be read back")
 }
 
@@ -468,7 +468,7 @@ func (a *API) applyMemberRemoval(c *gin.Context, team *models.Team, event *model
 		apierr.Respond(c, apierr.Internal("could not update the team"))
 		return
 	}
-	a.Cache.Invalidate()
+	a.Cache.InvalidateCounts()
 
 	a.reloadAndRespond(c, team.TeamID, "updated but the team could not be read back")
 }

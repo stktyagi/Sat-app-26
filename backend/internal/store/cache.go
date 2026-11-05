@@ -37,7 +37,9 @@ const (
 // without a live Firestore.
 type eventSource interface {
 	AllEvents(ctx context.Context) ([]*models.Event, error)
-	CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error)
+	// Fix #2: paidMap is passed in by the caller so CountAllRegistrations no
+	// longer fetches AllEvents a second time internally.
+	CountAllRegistrations(ctx context.Context, eventIDs []string, paidMap map[string]bool) (map[string]int, error)
 	GetEvent(ctx context.Context, id string) (*models.Event, error)
 	CountPaidRegistrations(ctx context.Context, eventID string) (int, error)
 }
@@ -96,14 +98,7 @@ func NewEventCache(s eventSource, l2 cache.Provider, bus cache.Bus, ttl time.Dur
 }
 
 // Invalidate drops this instance's copy, deletes the shared snapshot and tells
-// every other instance to do the same. Called after every admin write and
-// after any registration change, so counts stay accurate without waiting out
-// the TTL.
-//
-// It reports nothing on purpose. It runs after a Firestore write that has
-// already committed, so failing the request here would make a client retry a
-// create that already succeeded. Failures are logged instead, and staleness
-// stays bounded by the TTL on the shared keys.
+// every other instance to do the same. Called after every admin write (edit/create/delete event).
 func (c *EventCache) Invalidate() {
 	c.clearLocal()
 
@@ -112,6 +107,23 @@ func (c *EventCache) Invalidate() {
 
 	if err := c.l2.Delete(ctx, keyEvents, keyCounts); err != nil {
 		log.Printf("cache: deleting the shared snapshot: %v", err)
+	}
+	if err := c.bus.Publish(ctx, chanInvalidate, []byte(c.id)); err != nil {
+		log.Printf("cache: publishing the invalidation: %v", err)
+	}
+}
+
+// InvalidateCounts only invalidates the counts snapshot without dropping the
+// full events list. When registrations happen, events themselves do not change.
+// Rebuilding counts uses aggregation queries rather than re-reading all event documents.
+func (c *EventCache) InvalidateCounts() {
+	c.clearLocal()
+
+	ctx, cancel := context.WithTimeout(context.Background(), invalidateTimeout)
+	defer cancel()
+
+	if err := c.l2.Delete(ctx, keyCounts); err != nil {
+		log.Printf("cache: deleting counts snapshot: %v", err)
 	}
 	if err := c.bus.Publish(ctx, chanInvalidate, []byte(c.id)); err != nil {
 		log.Printf("cache: publishing the invalidation: %v", err)
@@ -199,7 +211,26 @@ func (c *EventCache) refresh(ctx context.Context) error {
 		if err != nil {
 			return nil, err
 		}
-		if events == nil {
+
+		// If events are cached in L2 but counts were deleted (e.g. after a registration),
+		// we only reload counts, avoiding a re-read of the ~100 event documents!
+		if events != nil && counts == nil {
+			eventIDs := make([]string, 0, len(events))
+			paidMap := make(map[string]bool, len(events))
+			for _, e := range events {
+				eventIDs = append(eventIDs, e.EventID)
+				paidMap[e.EventID] = e.PaymentRequired
+			}
+			counts, err = c.store.CountAllRegistrations(ctx, eventIDs, paidMap)
+			if err != nil {
+				return nil, err
+			}
+			// Write the regenerated counts back to L2
+			if rawCounts, marshalErr := json.Marshal(counts); marshalErr == nil {
+				_ = c.l2.Set(ctx, keyCounts, rawCounts, c.ttl)
+			}
+		} else if events == nil {
+			// Complete cache miss: load both events and counts
 			if events, counts, err = c.loadSource(ctx); err != nil {
 				return nil, err
 			}
@@ -227,23 +258,31 @@ func (c *EventCache) loadShared(ctx context.Context) ([]*models.Event, map[strin
 		return nil, nil, err
 	}
 
-	rawCounts, err := c.l2.Get(ctx, keyCounts)
-	if err != nil {
-		if errors.Is(err, cache.ErrMiss) {
-			return nil, nil, nil
-		}
-		return nil, nil, err
-	}
-
 	var events []*models.Event
 	if err := json.Unmarshal(rawEvents, &events); err != nil {
 		log.Printf("cache: discarding an unreadable event snapshot: %v", err)
 		return nil, nil, nil
 	}
+
+	rawCounts, err := c.l2.Get(ctx, keyCounts)
+	if err != nil {
+		if errors.Is(err, cache.ErrMiss) {
+			// Events are present, but counts are missing: return events with nil counts
+			for _, e := range events {
+				e.Normalise()
+			}
+			return events, nil, nil
+		}
+		return nil, nil, err
+	}
+
 	counts := map[string]int{}
 	if err := json.Unmarshal(rawCounts, &counts); err != nil {
 		log.Printf("cache: discarding unreadable counts: %v", err)
-		return nil, nil, nil
+		for _, e := range events {
+			e.Normalise()
+		}
+		return events, nil, nil
 	}
 
 	for _, e := range events {
@@ -257,11 +296,18 @@ func (c *EventCache) loadSource(ctx context.Context) ([]*models.Event, map[strin
 	if err != nil {
 		return nil, nil, err
 	}
-	var eventIDs []string
+
+	// Fix #2: build paidMap here from the events we already have in memory
+	// and pass it into CountAllRegistrations — eliminating the second
+	// AllEvents() call that used to happen inside that function.
+	eventIDs := make([]string, 0, len(events))
+	paidMap := make(map[string]bool, len(events))
 	for _, e := range events {
 		eventIDs = append(eventIDs, e.EventID)
+		paidMap[e.EventID] = e.PaymentRequired
 	}
-	counts, err := c.store.CountAllRegistrations(ctx, eventIDs)
+
+	counts, err := c.store.CountAllRegistrations(ctx, eventIDs, paidMap)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -326,7 +372,7 @@ func (c *EventCache) populate(events []*models.Event, counts map[string]int) {
 		}
 		words := strings.Fields(strings.ToLower(e.Title))
 		if len(words) > 0 {
-			cleanFirst := strings.Trim(words[0], "-:,_’' ")
+			cleanFirst := strings.Trim(words[0], "-:,_'' ")
 			if cleanFirst != "" {
 				byID[cleanFirst] = e
 			}

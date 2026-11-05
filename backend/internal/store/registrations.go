@@ -67,16 +67,11 @@ func (s *Store) countRegistrationsWithMode(ctx context.Context, eventID string, 
 // CountAllRegistrations returns per-event totals of paid registrations. It uses
 // concurrent aggregation queries rather than downloading the entire registrations
 // collection, drastically reducing Firestore reads.
-func (s *Store) CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error) {
-	paidMap := make(map[string]bool, len(eventIDs))
-	events, err := s.AllEvents(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range events {
-		paidMap[e.EventID] = e.PaymentRequired
-	}
-
+//
+// Fix #2: the caller (cache.loadSource) already has the full events slice, so
+// it passes a paidMap directly — eliminating the second AllEvents() Firestore
+// call that used to happen here on every cache warm-up.
+func (s *Store) CountAllRegistrations(ctx context.Context, eventIDs []string, paidMap map[string]bool) (map[string]int, error) {
 	counts := make(map[string]int, len(eventIDs))
 	var mu sync.Mutex
 	g, gctx := errgroup.WithContext(ctx)

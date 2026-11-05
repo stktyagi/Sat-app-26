@@ -110,7 +110,7 @@ func TestCountPaidRegistrationsEmulator(t *testing.T) {
 	}
 
 	// Test CountAllRegistrations
-	allCounts, err := s.CountAllRegistrations(ctx, []string{freeEventID, paidEventID, emptyEventID})
+	allCounts, err := s.CountAllRegistrations(ctx, []string{freeEventID, paidEventID, emptyEventID}, map[string]bool{freeEventID: false, paidEventID: true, emptyEventID: false})
 	if err != nil {
 		t.Fatalf("CountAllRegistrations: %v", err)
 	}
