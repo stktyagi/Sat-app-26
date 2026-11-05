@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/isotime"
 	"backend/internal/middleware"
 	"backend/internal/models"
 	"backend/internal/slug"
@@ -48,6 +49,10 @@ func (a *API) Register(c *gin.Context) {
 	fee := event.FeeFor(user.IsHostCollegeStudent)
 	id := models.RegistrationID(event.EventID, user.UserID)
 	reg := models.NewRegistration(user.UserID, event.EventID, "", "", fee, body.Responses)
+	if event.PaymentRequired && fee == 0 {
+		reg.PaymentStatus = models.RegPaymentSuccess
+		reg.PaidAt = isotime.Now()
+	}
 
 	if err := a.Store.CreateRegistration(ctx, id, reg); err != nil {
 		if errors.Is(err, store.ErrExists) {
@@ -169,7 +174,7 @@ func (a *API) checkRegistrable(ctx context.Context, e *models.Event, u *models.U
 	// registeredCount to the event document and incrementing it inside the
 	// transaction is the fix if that ever matters.
 	if !e.Unlimited() {
-		n, err := a.Store.CountRegistrations(ctx, e.EventID)
+		n, err := a.Store.CountPaidRegistrations(ctx, e.EventID)
 		if err != nil {
 			return apierr.Internal("could not check remaining capacity")
 		}

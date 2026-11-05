@@ -171,7 +171,7 @@ func (a *API) UpdateEvent(c *gin.Context) {
 	event.Normalise()
 
 	if event.EventType != originalType {
-		n, err := a.Store.CountRegistrations(ctx, event.EventID)
+		n, err := a.Store.CountPaidRegistrations(ctx, event.EventID)
 		if err != nil {
 			apierr.Respond(c, apierr.Internal("could not check existing registrations"))
 			return
@@ -216,7 +216,7 @@ func (a *API) DeleteEvent(c *gin.Context) {
 		return
 	}
 
-	n, err := a.Store.CountRegistrations(ctx, event.EventID)
+	n, err := a.Store.CountPaidRegistrations(ctx, event.EventID)
 	if err != nil {
 		apierr.Respond(c, apierr.Internal("could not check existing registrations"))
 		return
@@ -274,7 +274,7 @@ func (a *API) ListEventRegistrations(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not load registrations"))
 		return
 	}
-	total, err := a.Store.CountRegistrations(ctx, event.EventID)
+	total, err := a.Store.CountPaidRegistrations(ctx, event.EventID)
 	if err != nil {
 		apierr.Respond(c, apierr.Internal("could not count registrations"))
 		return
@@ -378,7 +378,6 @@ func (a *API) AdminUpdateRegistrationStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "updatedStatus": status})
 }
-
 
 // applyEventBody overlays the supplied fields onto an event and reports how
 // many were set, so a PATCH carrying nothing can be rejected.

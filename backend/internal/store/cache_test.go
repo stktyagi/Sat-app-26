@@ -98,7 +98,7 @@ func (s *stubSource) GetEvent(_ context.Context, id string) (*models.Event, erro
 	return nil, ErrNotFound
 }
 
-func (s *stubSource) CountRegistrations(_ context.Context, eventID string) (int, error) {
+func (s *stubSource) CountPaidRegistrations(_ context.Context, eventID string) (int, error) {
 	s.singleCalls.Add(1)
 	s.mu.Lock()
 	defer s.mu.Unlock()

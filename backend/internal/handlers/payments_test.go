@@ -228,7 +228,7 @@ func (s *stubEventSource) GetEvent(ctx context.Context, id string) (*models.Even
 	return nil, nil
 }
 
-func (s *stubEventSource) CountRegistrations(ctx context.Context, eventID string) (int, error) {
+func (s *stubEventSource) CountPaidRegistrations(ctx context.Context, eventID string) (int, error) {
 	return 0, nil
 }
 
@@ -302,7 +302,6 @@ func TestStayChargeFullScenarios(t *testing.T) {
 		t.Errorf("total stay fee mismatch: expected 800, got %d", total)
 	}
 }
-
 
 func TestStayPricesPerDay(t *testing.T) {
 	doc := &models.AppAccommodation{

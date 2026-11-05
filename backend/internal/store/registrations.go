@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"cloud.google.com/go/firestore"
@@ -34,11 +35,24 @@ func (s *Store) DeleteRegistration(ctx context.Context, id string) error {
 	return wrap(err)
 }
 
-// CountRegistrations uses a server-side aggregation, so capacity checks do not
-// stream documents back. This is what lets the schema stay free of a
-// registeredCount field that could drift.
-func (s *Store) CountRegistrations(ctx context.Context, eventID string) (int, error) {
+// CountPaidRegistrations uses a server-side aggregation. For paid events, it counts
+// only completed/paid registrations (paymentStatus == "success"). For free events,
+// it counts all confirmed registrations normally.
+func (s *Store) CountPaidRegistrations(ctx context.Context, eventID string) (int, error) {
+	paidEvent := false
+	if ev, err := s.GetEvent(ctx, eventID); err == nil && ev != nil {
+		paidEvent = ev.PaymentRequired
+	} else if err != nil && !errors.Is(err, ErrNotFound) {
+		return 0, err
+	}
+	return s.countRegistrationsWithMode(ctx, eventID, paidEvent)
+}
+
+func (s *Store) countRegistrationsWithMode(ctx context.Context, eventID string, paymentRequired bool) (int, error) {
 	q := s.FS.Collection(ColRegistrations).Where("eventId", "==", eventID)
+	if paymentRequired {
+		q = q.Where("paymentStatus", "==", models.RegPaymentSuccess)
+	}
 	res, err := q.NewAggregationQuery().WithCount("n").Get(ctx)
 	if err != nil {
 		return 0, wrap(err)
@@ -50,10 +64,19 @@ func (s *Store) CountRegistrations(ctx context.Context, eventID string) (int, er
 	return int(decodeAggValue(v)), nil
 }
 
-// CountAllRegistrations returns per-event totals. It uses concurrent
-// aggregation queries rather than downloading the entire registrations
+// CountAllRegistrations returns per-event totals of paid registrations. It uses
+// concurrent aggregation queries rather than downloading the entire registrations
 // collection, drastically reducing Firestore reads.
 func (s *Store) CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error) {
+	paidMap := make(map[string]bool, len(eventIDs))
+	events, err := s.AllEvents(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range events {
+		paidMap[e.EventID] = e.PaymentRequired
+	}
+
 	counts := make(map[string]int, len(eventIDs))
 	var mu sync.Mutex
 	g, gctx := errgroup.WithContext(ctx)
@@ -61,7 +84,7 @@ func (s *Store) CountAllRegistrations(ctx context.Context, eventIDs []string) (m
 	for _, id := range eventIDs {
 		id := id
 		g.Go(func() error {
-			n, err := s.CountRegistrations(gctx, id)
+			n, err := s.countRegistrationsWithMode(gctx, id, paidMap[id])
 			if err != nil {
 				return err
 			}
@@ -143,4 +166,3 @@ func (s *Store) MarkRegistrationCovered(ctx context.Context, id string) error {
 	})
 	return wrap(err)
 }
-

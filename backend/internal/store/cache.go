@@ -39,7 +39,7 @@ type eventSource interface {
 	AllEvents(ctx context.Context) ([]*models.Event, error)
 	CountAllRegistrations(ctx context.Context, eventIDs []string) (map[string]int, error)
 	GetEvent(ctx context.Context, id string) (*models.Event, error)
-	CountRegistrations(ctx context.Context, eventID string) (int, error)
+	CountPaidRegistrations(ctx context.Context, eventID string) (int, error)
 }
 
 // EventCache holds every event document plus a per-event registration count,
@@ -376,7 +376,7 @@ func (c *EventCache) Get(ctx context.Context, id string) (*models.Event, error) 
 	if err != nil {
 		return nil, err
 	}
-	n, err := c.store.CountRegistrations(ctx, fresh.EventID)
+	n, err := c.store.CountPaidRegistrations(ctx, fresh.EventID)
 	if err != nil {
 		return nil, err
 	}

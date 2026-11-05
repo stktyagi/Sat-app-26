@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/isotime"
 	"backend/internal/middleware"
 	"backend/internal/models"
 	"backend/internal/random"
@@ -60,6 +61,25 @@ func (a *API) CreateTeam(c *gin.Context) {
 		code := random.Code(6)
 		team := models.NewTeam(event.EventID, code, body.TeamName, user.UserID, event.MinTeamSize, body.Responses)
 		reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, code, fee, body.Responses)
+		if event.PaymentRequired {
+			if !event.IsPerIndividual() {
+				if fee == 0 {
+					team.Paid = true
+					reg.PaymentStatus = models.RegPaymentSuccess
+					reg.PaidAt = isotime.Now()
+				} else {
+					team.Paid = false
+					reg.PaymentStatus = models.RegPaymentPending
+				}
+			} else {
+				if fee == 0 {
+					reg.PaymentStatus = models.RegPaymentSuccess
+					reg.PaidAt = isotime.Now()
+				} else {
+					reg.PaymentStatus = models.RegPaymentPending
+				}
+			}
+		}
 
 		err := a.Store.CreateTeamWithLeader(ctx, team, regID, reg)
 		switch {
@@ -147,6 +167,14 @@ func (a *API) JoinTeam(c *gin.Context) {
 				totalRosterFee += event.FeeFor(m.IsHostCollegeStudent)
 			}
 			coveredByCredit = team.PaidTill >= totalRosterFee && totalRosterFee > 0
+		}
+	}
+	if event.PaymentRequired {
+		if coveredByCredit {
+			reg.PaymentStatus = models.RegPaymentSuccess
+			reg.PaidAt = isotime.Now()
+		} else {
+			reg.PaymentStatus = models.RegPaymentPending
 		}
 	}
 	updated, err := a.Store.JoinTeam(ctx, team.TeamID, user.UserID, regID, reg, event.MinTeamSize, event.MaxTeamSize, coveredByCredit)

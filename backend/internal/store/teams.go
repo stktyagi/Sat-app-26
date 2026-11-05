@@ -128,7 +128,8 @@ func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg 
 				teamUpdates = append(teamUpdates, firestore.Update{Path: "paid", Value: true})
 				team.Paid = true
 			}
-		} else if reg.PaymentStatus == models.RegPaymentPending {
+		} else {
+			reg.PaymentStatus = models.RegPaymentPending
 			if team.Paid {
 				teamUpdates = append(teamUpdates, firestore.Update{Path: "paid", Value: false})
 				team.Paid = false
@@ -275,4 +276,3 @@ func (s *Store) MarkTeamPaid(ctx context.Context, teamID string) error {
 	})
 	return wrap(err)
 }
-

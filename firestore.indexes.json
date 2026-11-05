@@ -7,6 +7,14 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "registeredAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "registrations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventId", "order": "ASCENDING" },
+        { "fieldPath": "paymentStatus", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
