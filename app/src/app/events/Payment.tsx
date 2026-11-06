@@ -14,6 +14,20 @@ import { getAppAccommodation } from '@/api/appConfig';
 import { getMyEvents } from '@/api/events';
 import { isPerIndividualPayment, resolveStayPrices } from '@/utils/paymentHelpers';
 
+interface DayInfo {
+  key: string;
+  title: string;
+  date: string;
+}
+
+const FESTIVAL_DAYS: DayInfo[] = [
+  { key: "day0", title: "19 Nov", date: "Wednesday (from 8:00 PM)" },
+  { key: "day1", title: "20 Nov", date: "Thursday" },
+  { key: "day2", title: "21 Nov", date: "Friday" },
+  { key: "day3", title: "22 Nov", date: "Saturday" },
+  { key: "day4", title: "23 Nov", date: "Sunday" },
+];
+
 const PaymentScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { isDark } = useThemeStore();
@@ -106,14 +120,26 @@ const PaymentScreen: React.FC = () => {
     }
   }, [user]);
 
-  const toggleAcc = (day: string) => {
+  const selectChoice = (day: string, choice: 'without_food' | 'with_food') => {
     if (user?.accommodation?.[day]) return;
-    setAccommodation(prev => ({ ...prev, [day]: !prev[day] }));
+
+    const currentChoice = accommodation[day] ? (food[day] ? 'with_food' : 'without_food') : 'none';
+    if (currentChoice === choice) {
+      setAccommodation(prev => ({ ...prev, [day]: false }));
+      setFood(prev => ({ ...prev, [day]: false }));
+    } else if (choice === 'with_food') {
+      setAccommodation(prev => ({ ...prev, [day]: true }));
+      setFood(prev => ({ ...prev, [day]: true }));
+    } else {
+      setAccommodation(prev => ({ ...prev, [day]: true }));
+      setFood(prev => ({ ...prev, [day]: false }));
+    }
   };
 
-  const toggleFood = (day: string) => {
-    if (user?.food?.[day]) return;
-    setFood(prev => ({ ...prev, [day]: !prev[day] }));
+  const clearChoice = (day: string) => {
+    if (user?.accommodation?.[day]) return;
+    setAccommodation(prev => ({ ...prev, [day]: false }));
+    setFood(prev => ({ ...prev, [day]: false }));
   };
 
   const handleApplyCoupon = async () => {
@@ -162,11 +188,19 @@ const PaymentScreen: React.FC = () => {
 
   const calculateTotal = () => {
     let accFoodFee = 0;
-    Object.entries(accommodation).forEach(([day, selected]) => {
-      if (selected && !user?.accommodation?.[day]) accFoodFee += (accDayPrices[day] || 650);
-    });
-    Object.entries(food).forEach(([day, selected]) => {
-      if (selected && !user?.food?.[day]) accFoodFee += (foodDayPrices[day] || 150);
+    const allDays = new Set([...Object.keys(accommodation), ...Object.keys(food)]);
+    allDays.forEach((day) => {
+      const isAcc = accommodation[day] && !user?.accommodation?.[day];
+      const isFood = food[day] && !user?.food?.[day];
+      if (isAcc && isFood) {
+        const accPrice = accDayPrices[day] || 650;
+        const foodPrice = foodDayPrices[day] || 150;
+        accFoodFee += accPrice + foodPrice;
+      } else if (isAcc) {
+        accFoodFee += (accDayPrices[day] || 650);
+      } else if (isFood) {
+        accFoodFee += (foodDayPrices[day] || 150);
+      }
     });
 
     return baseEventFee + accFoodFee;
@@ -579,70 +613,180 @@ const PaymentScreen: React.FC = () => {
             </View>
           )}
 
-          {['day0', 'day1', 'day2', 'day3', 'day4'].map((day) => {
-            const accLocked = user?.accommodation?.[day] || false;
-            const foodLocked = user?.food?.[day] || false;
-            const dayAccPrice = accDayPrices[day] || 650;
-            const dayFoodPrice = foodDayPrices[day] || 150;
+          {FESTIVAL_DAYS.map((day) => {
+            const accLocked = user?.accommodation?.[day.key] || false;
+            const foodLocked = user?.food?.[day.key] || false;
+            const dayAccPrice = accDayPrices[day.key] || 600;
+            const dayFoodPrice = foodDayPrices[day.key] || 200;
+            const withoutFoodPrice = dayAccPrice;
+            const withFoodPrice = dayAccPrice + dayFoodPrice;
+
+            const isWithoutSelected = accommodation[day.key] && !food[day.key];
+            const isWithSelected = accommodation[day.key] && food[day.key];
+            const hasSelection = accommodation[day.key];
+
             return (
               <View
-                key={day}
+                key={day.key}
                 style={{
                   backgroundColor: cardBg,
                   borderWidth: 1,
-                  borderColor: cardBorder,
+                  borderColor: hasSelection ? (isDark ? '#41B8F0' : '#3B82F6') : cardBorder,
                   borderRadius: 20,
                   padding: 18,
                   marginBottom: 14,
                 }}
               >
-                <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 16, marginBottom: 14, textTransform: 'capitalize' }}>
-                  {day}
-                </Text>
-
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>Hostel Accommodation</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <View>
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 16 }}>
+                      {day.title}
+                    </Text>
                     <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
-                      Campus Hostel (₹{dayAccPrice}/day)
+                      {day.date}
                     </Text>
                   </View>
+
                   {accLocked ? (
-                    <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, flexDirection: 'row', alignItems: 'center' }}>
                       <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
-                      <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#22c55e', fontSize: 12, marginLeft: 4 }}>Paid</Text>
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#22c55e', fontSize: 11, marginLeft: 4 }}>
+                        Paid {foodLocked ? "(With Food)" : "(Without Food)"}
+                      </Text>
                     </View>
-                  ) : (
-                    <Switch
-                      value={accommodation[day]}
-                      onValueChange={() => toggleAcc(day)}
-                      thumbColor="#FFFFFF"
-                      trackColor={{ true: '#41B8F0', false: isDark ? '#323238' : '#D1D5DB' }}
-                    />
-                  )}
+                  ) : hasSelection ? (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => clearChoice(day.key)}
+                      style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+                    >
+                      <Text style={{ fontFamily: 'Poppins_500Medium', color: isDark ? '#EF4444' : '#DC2626', fontSize: 12 }}>
+                        Clear
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
-                    <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>Meals Pass</Text>
-                    <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
-                      3 Meals Included (₹{dayFoodPrice}/day)
-                    </Text>
-                  </View>
-                  {foodLocked ? (
-                    <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
-                      <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#22c55e', fontSize: 12, marginLeft: 4 }}>Paid</Text>
+                {/* Radio 1: Without Food */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  disabled={accLocked}
+                  onPress={() => selectChoice(day.key, 'without_food')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: isWithoutSelected
+                      ? '#41B8F0'
+                      : (isDark ? '#2E2E35' : '#E5E7EB'),
+                    backgroundColor: isWithoutSelected
+                      ? (isDark ? 'rgba(65, 184, 240, 0.12)' : '#EFF6FF')
+                    : (isDark ? '#24242A' : '#F9FAFB'),
+                    marginBottom: 10,
+                    opacity: accLocked ? 0.6 : 1,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 }}>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: isWithoutSelected ? '#41B8F0' : (isDark ? '#52525B' : '#9CA3AF'),
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 12,
+                      }}
+                    >
+                      {isWithoutSelected && (
+                        <View
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 5,
+                            backgroundColor: '#41B8F0',
+                          }}
+                        />
+                      )}
                     </View>
-                  ) : (
-                    <Switch
-                      value={food[day]}
-                      onValueChange={() => toggleFood(day)}
-                      thumbColor="#FFFFFF"
-                      trackColor={{ true: '#41B8F0', false: isDark ? '#323238' : '#D1D5DB' }}
-                    />
-                  )}
-                </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>
+                        Without Food
+                      </Text>
+                      <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 11 }}>
+                        Hostel stay only
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: 'Poppins_600SemiBold', color: isWithoutSelected ? '#41B8F0' : textColor, fontSize: 15 }}>
+                    ₹{withoutFoodPrice}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Radio 2: With Food */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  disabled={accLocked}
+                  onPress={() => selectChoice(day.key, 'with_food')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: isWithSelected
+                      ? '#41B8F0'
+                      : (isDark ? '#2E2E35' : '#E5E7EB'),
+                    backgroundColor: isWithSelected
+                      ? (isDark ? 'rgba(65, 184, 240, 0.12)' : '#EFF6FF')
+                      : (isDark ? '#24242A' : '#F9FAFB'),
+                    opacity: accLocked ? 0.6 : 1,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 }}>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: isWithSelected ? '#41B8F0' : (isDark ? '#52525B' : '#9CA3AF'),
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 12,
+                      }}
+                    >
+                      {isWithSelected && (
+                        <View
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 5,
+                            backgroundColor: '#41B8F0',
+                          }}
+                        />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>
+                        With Food
+                      </Text>
+                      <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 11 }}>
+                        Hostel stay + 3 meals included
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontFamily: 'Poppins_600SemiBold', color: isWithSelected ? '#41B8F0' : textColor, fontSize: 15 }}>
+                    ₹{withFoodPrice}
+                  </Text>
+                </TouchableOpacity>
               </View>
             );
           })}

@@ -200,9 +200,11 @@ func (a *API) resolveStayPrices(ctx context.Context, user *models.User, currentE
 	return stayPrices(accDoc, hasTechnical, hasCultural)
 }
 
-// stayPrices prices every stay day from the pricing doc (nil = defaults). If the
-// user has both categories the higher price is charged. A day without its own
-// price uses the flat category price.
+// stayPrices prices every stay day from the pricing doc (nil = defaults).
+// acc[day] is the accommodation price (max of accommodation prices when user has both events).
+// food[day] is the food add-on price so that acc[day] + food[day] equals:
+//   - the total amount only, when accommodation+food is the same for both events.
+//   - max(accommodation+food), when accommodation+food is not the same.
 func stayPrices(doc *models.AppAccommodation, hasTechnical, hasCultural bool) (acc, food map[string]int) {
 	if doc == nil {
 		doc = &models.AppAccommodation{}
@@ -212,37 +214,64 @@ func stayPrices(doc *models.AppAccommodation, hasTechnical, hasCultural bool) (a
 	techFoodPrice := cmp.Or(doc.TechnicalFoodAmount, doc.FoodAmount, FoodPricePerDay)
 	cultFoodPrice := cmp.Or(doc.CulturalFoodAmount, doc.FoodAmount, FoodPricePerDay)
 
-	// pick applies the category rule to one day. plain is only used when the
-	// user has no events and the day has no per-day price.
-	pick := func(day string, techDays, cultDays map[string]int, tech, cult, plain int) int {
-		t, c := tech, cult
-		hasT, hasC := false, false
-		if val, ok := techDays[day]; ok && val > 0 {
-			t = val
-			hasT = true
-		}
-		if val, ok := cultDays[day]; ok && val > 0 {
-			c = val
-			hasC = true
-		}
-		switch {
-		case hasTechnical && hasCultural:
-			return max(t, c)
-		case hasTechnical:
-			return t
-		case hasCultural:
-			return c
-		case plain > 0 && !hasT && !hasC:
-			return plain
-		default:
-			return max(t, c)
-		}
-	}
-
 	acc, food = map[string]int{}, map[string]int{}
 	for day := range stayDays {
-		acc[day] = pick(day, doc.TechnicalDays, doc.CulturalDays, techPrice, cultPrice, doc.Amount)
-		food[day] = pick(day, doc.TechnicalFoodDays, doc.CulturalFoodDays, techFoodPrice, cultFoodPrice, doc.FoodAmount)
+		tAcc, cAcc := techPrice, cultPrice
+		hasTAcc, hasCAcc := false, false
+		if val, ok := doc.TechnicalDays[day]; ok && val > 0 {
+			tAcc = val
+			hasTAcc = true
+		}
+		if val, ok := doc.CulturalDays[day]; ok && val > 0 {
+			cAcc = val
+			hasCAcc = true
+		}
+
+		tFood, cFood := techFoodPrice, cultFoodPrice
+		hasTFood, hasCFood := false, false
+		if val, ok := doc.TechnicalFoodDays[day]; ok && val > 0 {
+			tFood = val
+			hasTFood = true
+		}
+		if val, ok := doc.CulturalFoodDays[day]; ok && val > 0 {
+			cFood = val
+			hasCFood = true
+		}
+
+		switch {
+		case hasTechnical && hasCultural:
+			acc[day] = max(tAcc, cAcc)
+			tTotal := tAcc + tFood
+			cTotal := cAcc + cFood
+			total := max(tTotal, cTotal)
+			food[day] = max(total-acc[day], 0)
+		case hasTechnical:
+			acc[day] = tAcc
+			food[day] = tFood
+		case hasCultural:
+			acc[day] = cAcc
+			food[day] = cFood
+		case !hasTechnical && !hasCultural:
+			if doc.Amount > 0 && !hasTAcc && !hasCAcc {
+				acc[day] = doc.Amount
+			} else {
+				acc[day] = max(tAcc, cAcc)
+			}
+			if doc.FoodAmount > 0 && !hasTFood && !hasCFood {
+				food[day] = doc.FoodAmount
+			} else {
+				tTotal := tAcc + tFood
+				cTotal := cAcc + cFood
+				total := max(tTotal, cTotal)
+				food[day] = max(total-acc[day], 0)
+			}
+		default:
+			acc[day] = max(tAcc, cAcc)
+			tTotal := tAcc + tFood
+			cTotal := cAcc + cFood
+			total := max(tTotal, cTotal)
+			food[day] = max(total-acc[day], 0)
+		}
 	}
 	return acc, food
 }

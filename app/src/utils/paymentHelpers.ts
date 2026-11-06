@@ -22,49 +22,71 @@ export function resolveStayPrices(
   const plainAcc = doc?.amount ?? defaultAcc;
   const plainFood = doc?.foodAmount ?? defaultFood;
 
-  const pick = (
-    day: string,
-    techDays?: Record<string, number>,
-    cultDays?: Record<string, number>,
-    tech: number = defaultAcc,
-    cult: number = defaultAcc,
-    plain: number = defaultAcc
-  ): number => {
-    let t = tech;
-    let c = cult;
-    let hasT = false;
-    let hasC = false;
-
-    if (techDays && typeof techDays[day] === 'number' && techDays[day] > 0) {
-      t = techDays[day];
-      hasT = true;
-    }
-    if (cultDays && typeof cultDays[day] === 'number' && cultDays[day] > 0) {
-      c = cultDays[day];
-      hasC = true;
-    }
-
-    if (hasTechnical && hasCultural) {
-      return Math.max(t, c);
-    }
-    if (hasTechnical) {
-      return t;
-    }
-    if (hasCultural) {
-      return c;
-    }
-    if (plain > 0 && !hasT && !hasC) {
-      return plain;
-    }
-    return Math.max(t, c);
-  };
-
   const accDays: Record<string, number> = {};
   const foodDays: Record<string, number> = {};
 
   for (const day of FESTIVAL_DAY_KEYS) {
-    accDays[day] = pick(day, doc?.technicalDays, doc?.culturalDays, techPrice, cultPrice, plainAcc);
-    foodDays[day] = pick(day, doc?.technicalFoodDays, doc?.culturalFoodDays, techFoodPrice, cultFoodPrice, plainFood);
+    let tAcc = techPrice;
+    let cAcc = cultPrice;
+    let hasTAcc = false;
+    let hasCAcc = false;
+
+    if (doc?.technicalDays && typeof doc.technicalDays[day] === 'number' && doc.technicalDays[day] > 0) {
+      tAcc = doc.technicalDays[day];
+      hasTAcc = true;
+    }
+    if (doc?.culturalDays && typeof doc.culturalDays[day] === 'number' && doc.culturalDays[day] > 0) {
+      cAcc = doc.culturalDays[day];
+      hasCAcc = true;
+    }
+
+    let tFood = techFoodPrice;
+    let cFood = cultFoodPrice;
+    let hasTFood = false;
+    let hasCFood = false;
+
+    if (doc?.technicalFoodDays && typeof doc.technicalFoodDays[day] === 'number' && doc.technicalFoodDays[day] > 0) {
+      tFood = doc.technicalFoodDays[day];
+      hasTFood = true;
+    }
+    if (doc?.culturalFoodDays && typeof doc.culturalFoodDays[day] === 'number' && doc.culturalFoodDays[day] > 0) {
+      cFood = doc.culturalFoodDays[day];
+      hasCFood = true;
+    }
+
+    if (hasTechnical && hasCultural) {
+      accDays[day] = Math.max(tAcc, cAcc);
+      const tTotal = tAcc + tFood;
+      const cTotal = cAcc + cFood;
+      const total = Math.max(tTotal, cTotal);
+      foodDays[day] = Math.max(total - accDays[day], 0);
+    } else if (hasTechnical) {
+      accDays[day] = tAcc;
+      foodDays[day] = tFood;
+    } else if (hasCultural) {
+      accDays[day] = cAcc;
+      foodDays[day] = cFood;
+    } else if (!hasTechnical && !hasCultural) {
+      if (plainAcc > 0 && !hasTAcc && !hasCAcc) {
+        accDays[day] = plainAcc;
+      } else {
+        accDays[day] = Math.max(tAcc, cAcc);
+      }
+      if (plainFood > 0 && !hasTFood && !hasCFood) {
+        foodDays[day] = plainFood;
+      } else {
+        const tTotal = tAcc + tFood;
+        const cTotal = cAcc + cFood;
+        const total = Math.max(tTotal, cTotal);
+        foodDays[day] = Math.max(total - accDays[day], 0);
+      }
+    } else {
+      accDays[day] = Math.max(tAcc, cAcc);
+      const tTotal = tAcc + tFood;
+      const cTotal = cAcc + cFood;
+      const total = Math.max(tTotal, cTotal);
+      foodDays[day] = Math.max(total - accDays[day], 0);
+    }
   }
 
   return { accDays, foodDays };

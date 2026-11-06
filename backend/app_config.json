@@ -1,0 +1,52 @@
+{
+  "links": {
+    "appleStore": "https://apps.apple.com/app/saturnalia/id6738927814",
+    "playStore": "https://play.google.com/store/apps/details?id=com.gauransh.saturnaliaapp2026"
+  },
+  "maintenance": {
+    "android": false,
+    "ios": false,
+    "web": false
+  },
+  "versions": {
+    "android": "1.0.1",
+    "ios": "1.0.0"
+  },
+  "accommodation": {
+    "amount": 600,
+    "price": 600,
+    "technicalAmount": 600,
+    "culturalAmount": 500,
+    "foodAmount": 300,
+    "technicalFoodAmount": 200,
+    "culturalFoodAmount": 300,
+    "technicalDays": {
+      "day0": 600,
+      "day1": 600,
+      "day2": 600,
+      "day3": 600,
+      "day4": 600
+    },
+    "culturalDays": {
+      "day0": 500,
+      "day1": 500,
+      "day2": 500,
+      "day3": 500,
+      "day4": 500
+    },
+    "technicalFoodDays": {
+      "day0": 200,
+      "day1": 200,
+      "day2": 200,
+      "day3": 200,
+      "day4": 200
+    },
+    "culturalFoodDays": {
+      "day0": 300,
+      "day1": 300,
+      "day2": 300,
+      "day3": 300,
+      "day4": 300
+    }
+  }
+}

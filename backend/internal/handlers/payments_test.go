@@ -358,3 +358,140 @@ func TestStayPricesPerDay(t *testing.T) {
 		t.Errorf("fee with fallback days: got %d, want 1950", fee)
 	}
 }
+
+func TestAccommodationPaymentCalculation_Cases(t *testing.T) {
+	// Case 1: Person is only selecting accommodation when user has both events.
+	// Price must be the max of the accommodation prices.
+	t.Run("Only accommodation with both events takes max accommodation price", func(t *testing.T) {
+		doc := &models.AppAccommodation{
+			TechnicalAmount: 650,
+			CulturalAmount:  700,
+			FoodAmount:      150,
+		}
+		acc, _ := stayPrices(doc, true, true)
+		if acc["day1"] != 700 {
+			t.Errorf("expected max accommodation price 700, got %d", acc["day1"])
+		}
+	})
+
+	// Case 2: Person selects both, accommodation+food is SAME for both events.
+	// Apply the total amount only.
+	t.Run("Both selected with same acc+food total applies total amount only", func(t *testing.T) {
+		// Tech: 700 acc + 100 food = 800
+		// Cult: 650 acc + 150 food = 800
+		doc := &models.AppAccommodation{
+			TechnicalAmount:     700,
+			TechnicalFoodAmount: 100,
+			CulturalAmount:      650,
+			CulturalFoodAmount:  150,
+		}
+		acc, food := stayPrices(doc, true, true)
+
+		// If user only selects accommodation: max(700, 650) = 700
+		if acc["day1"] != 700 {
+			t.Errorf("acc only: expected 700, got %d", acc["day1"])
+		}
+		// If user selects both: total amount is 800.
+		totalBoth := acc["day1"] + food["day1"]
+		if totalBoth != 800 {
+			t.Errorf("expected combined total 800, got %d (acc=%d, food=%d)", totalBoth, acc["day1"], food["day1"])
+		}
+		if food["day1"] != 100 {
+			t.Errorf("expected food add-on 100, got %d", food["day1"])
+		}
+	})
+
+	// Case 3: Person selects both, accommodation+food is NOT SAME for both events (Cult higher).
+	// Take max of accommodation+food, not only max of food.
+	t.Run("Both selected with different acc+food total (Cult higher) takes max(acc+food)", func(t *testing.T) {
+		// Tech: 650 acc + 150 food = 800
+		// Cult: 700 acc + 150 food = 850
+		doc := &models.AppAccommodation{
+			TechnicalAmount:     650,
+			TechnicalFoodAmount: 150,
+			CulturalAmount:      700,
+			CulturalFoodAmount:  150,
+		}
+		acc, food := stayPrices(doc, true, true)
+
+		totalBoth := acc["day1"] + food["day1"]
+		if totalBoth != 850 {
+			t.Errorf("expected max combined total 850, got %d (acc=%d, food=%d)", totalBoth, acc["day1"], food["day1"])
+		}
+		if food["day1"] != 150 {
+			t.Errorf("expected food add-on 150, got %d", food["day1"])
+		}
+	})
+
+	// Case 4: Person selects both, accommodation+food is NOT SAME for both events (Tech higher).
+	// Under current logic, max of acc (750) + max of food (150) would give 900.
+	// Under new logic, it takes max of (acc+food) which is max(850, 800) = 850!
+	t.Run("Both selected with different acc+food total (Tech higher) takes max(acc+food) not max(acc)+max(food)", func(t *testing.T) {
+		// Tech: 750 acc + 100 food = 850
+		// Cult: 650 acc + 150 food = 800
+		doc := &models.AppAccommodation{
+			TechnicalAmount:     750,
+			TechnicalFoodAmount: 100,
+			CulturalAmount:      650,
+			CulturalFoodAmount:  150,
+		}
+		acc, food := stayPrices(doc, true, true)
+
+		// Max accommodation price when selecting only accommodation:
+		if acc["day1"] != 750 {
+			t.Errorf("acc only: expected 750, got %d", acc["day1"])
+		}
+		// Both selected: must be 850, NOT 900!
+		totalBoth := acc["day1"] + food["day1"]
+		if totalBoth != 850 {
+			t.Errorf("expected max combined total 850 (not 900), got %d (acc=%d, food=%d)", totalBoth, acc["day1"], food["day1"])
+		}
+		if food["day1"] != 100 {
+			t.Errorf("expected food portion 100, got %d", food["day1"])
+		}
+	})
+
+	// Case 5: Per-day overrides with mixed selections across multiple days.
+	t.Run("Per-day overrides with mixed selections across days", func(t *testing.T) {
+		doc := &models.AppAccommodation{
+			TechnicalAmount:     650,
+			CulturalAmount:      650,
+			TechnicalFoodAmount: 150,
+			CulturalFoodAmount:  150,
+			// Day 1: overrides with same total (Tech 700+100=800, Cult 650+150=800)
+			TechnicalDays:     map[string]int{"day1": 700},
+			TechnicalFoodDays: map[string]int{"day1": 100},
+			// Day 2: overrides with Tech total higher (Tech 800+100=900, Cult 650+150=800)
+			CulturalDays: map[string]int{"day2": 600},
+		}
+		// On Day 2: Tech is 650+150=800, Cult is 600+150=750 -> max is 800
+		acc, food := stayPrices(doc, true, true)
+
+		// Day 1: Both selected -> same total (800)
+		if acc["day1"]+food["day1"] != 800 {
+			t.Errorf("day1 both: expected 800, got %d", acc["day1"]+food["day1"])
+		}
+		// Day 1: Acc only -> max(700, 650) = 700
+		if acc["day1"] != 700 {
+			t.Errorf("day1 acc only: expected 700, got %d", acc["day1"])
+		}
+
+		// Day 2: Acc only -> max(650, 600) = 650
+		if acc["day2"] != 650 {
+			t.Errorf("day2 acc only: expected 650, got %d", acc["day2"])
+		}
+		// Day 2: Both selected -> max(800, 750) = 800
+		if acc["day2"]+food["day2"] != 800 {
+			t.Errorf("day2 both: expected 800, got %d", acc["day2"]+food["day2"])
+		}
+
+		// Simulate cart:
+		// Day 1: user selects accommodation only ("Without Food") -> 700
+		// Day 2: user selects both accommodation and food ("With Food") -> 800
+		totalCart := acc["day1"] + (acc["day2"] + food["day2"])
+		expectedCart := 700 + 800
+		if totalCart != expectedCart {
+			t.Errorf("mixed cart total: expected %d, got %d", expectedCart, totalCart)
+		}
+	})
+}

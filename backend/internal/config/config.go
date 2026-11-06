@@ -49,6 +49,7 @@ type Config struct {
 	// internal/storage spreads uploads across. Optional: without it the API
 	// still boots, and the upload endpoints answer storage_not_configured.
 	ImageKitAccountsFile string
+	AppConfigFile        string
 
 	UseEmulator bool
 	GroqAPIKey  string
@@ -67,6 +68,7 @@ func Load() (*Config, error) {
 		RedisURL:             os.Getenv("REDIS_URL"),
 		RedisNamespace:       env("REDIS_NAMESPACE", "sat26"),
 		ImageKitAccountsFile: os.Getenv("IMAGEKIT_ACCOUNTS_FILE"),
+		AppConfigFile:        env("APP_CONFIG_FILE", "app_config.json"),
 		UseEmulator:          os.Getenv("FIRESTORE_EMULATOR_HOST") != "",
 		GroqAPIKey:           env("GROQ_API_KEY", os.Getenv("GROQ_API_Key")),
 		EasebuzzKey:          os.Getenv("EASEBUZZ_KEY"),
