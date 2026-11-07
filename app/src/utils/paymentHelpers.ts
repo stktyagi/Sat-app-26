@@ -93,6 +93,108 @@ export function resolveStayPrices(
 }
 
 /**
+ * Calculates the accommodation upgrade fee for existing accommodation days
+ * when a user with existing cultural accommodation registers for a technical event.
+ */
+export function calculateAccommodationUpgrade(
+  user: {
+    accommodation?: Record<string, boolean>;
+    food?: Record<string, boolean>;
+    accommodationTier?: string;
+  } | null | undefined,
+  currentEvent: { id?: string; eventId?: string; category?: string } | null | undefined,
+  myEvents: Array<{ event?: { id?: string; eventId?: string; category?: string; paymentRequired?: boolean }; registration?: { paymentStatus?: string; status?: string; eventId?: string } } | any> | null | undefined,
+  accDoc: AppAccommodation | null | undefined
+): { upgradeDays: Record<string, number>; upgradeFee: number } {
+  if (!user?.accommodation || Object.keys(user.accommodation).length === 0) {
+    return { upgradeDays: {}, upgradeFee: 0 };
+  }
+
+  if (user.accommodationTier?.toLowerCase() === 'technical') {
+    return { upgradeDays: {}, upgradeFee: 0 };
+  }
+
+  const currentCat = currentEvent?.category?.toLowerCase();
+  if (currentCat !== 'technical') {
+    return { upgradeDays: {}, upgradeFee: 0 };
+  }
+
+  const currentId = currentEvent?.id || currentEvent?.eventId;
+
+  if (Array.isArray(myEvents)) {
+    for (const item of myEvents) {
+      const ev = item.event;
+      const reg = item.registration;
+      const evId = ev?.id || ev?.eventId || reg?.eventId;
+
+      if (reg?.paymentStatus === 'pending' && evId === currentId) {
+        continue;
+      }
+
+      const isConfirmed =
+        reg?.paymentStatus === 'success' ||
+        reg?.status === 'confirmed' ||
+        (!ev?.paymentRequired && reg != null && reg?.paymentStatus !== 'pending');
+
+      if (isConfirmed && ev?.category?.toLowerCase() === 'technical') {
+        return { upgradeDays: {}, upgradeFee: 0 };
+      }
+    }
+  }
+
+  const defaultAcc = 650;
+  const defaultFood = 150;
+
+  const techPrice = accDoc?.technicalAmount ?? accDoc?.amount ?? defaultAcc;
+  const cultPrice = accDoc?.culturalAmount ?? accDoc?.amount ?? defaultAcc;
+  const techFoodPrice = accDoc?.technicalFoodAmount ?? accDoc?.foodAmount ?? defaultFood;
+  const cultFoodPrice = accDoc?.culturalFoodAmount ?? accDoc?.foodAmount ?? defaultFood;
+
+  const upgradeDays: Record<string, number> = {};
+  let upgradeFee = 0;
+
+  for (const day of FESTIVAL_DAY_KEYS) {
+    if (!user.accommodation[day]) {
+      continue;
+    }
+
+    let tAcc = techPrice;
+    let cAcc = cultPrice;
+    if (accDoc?.technicalDays && typeof accDoc.technicalDays[day] === 'number' && accDoc.technicalDays[day] > 0) {
+      tAcc = accDoc.technicalDays[day];
+    }
+    if (accDoc?.culturalDays && typeof accDoc.culturalDays[day] === 'number' && accDoc.culturalDays[day] > 0) {
+      cAcc = accDoc.culturalDays[day];
+    }
+
+    let tFood = techFoodPrice;
+    let cFood = cultFoodPrice;
+    if (accDoc?.technicalFoodDays && typeof accDoc.technicalFoodDays[day] === 'number' && accDoc.technicalFoodDays[day] > 0) {
+      tFood = accDoc.technicalFoodDays[day];
+    }
+    if (accDoc?.culturalFoodDays && typeof accDoc.culturalFoodDays[day] === 'number' && accDoc.culturalFoodDays[day] > 0) {
+      cFood = accDoc.culturalFoodDays[day];
+    }
+
+    let diff = 0;
+    if (user.food?.[day]) {
+      const tTotal = tAcc + tFood;
+      const cTotal = cAcc + cFood;
+      diff = Math.max(tTotal - cTotal, 0);
+    } else {
+      diff = Math.max(tAcc - cAcc, 0);
+    }
+
+    if (diff > 0) {
+      upgradeDays[day] = diff;
+      upgradeFee += diff;
+    }
+  }
+
+  return { upgradeDays, upgradeFee };
+}
+
+/**
  * Utilities for event payment calculations and status determinations.
  */
 
@@ -107,6 +209,9 @@ export interface EventPaymentStatusParams {
   team?: any;
   registration?: any;
   userId?: string;
+  user?: any;
+  myEvents?: any[];
+  accDoc?: AppAccommodation | null;
 }
 
 /**
@@ -117,7 +222,20 @@ export const isEventPaymentDue = ({
   team,
   registration,
   userId,
+  user,
+  myEvents,
+  accDoc,
 }: EventPaymentStatusParams): boolean => {
+  // If user owes an accommodation upgrade for this technical event, payment is due
+  if (user && event && accDoc) {
+    const { upgradeFee } = calculateAccommodationUpgrade(user, event, myEvents, accDoc);
+    if (upgradeFee > 0) {
+      if (registration?.paymentStatus !== 'success' && registration?.paymentStatus !== 'completed') {
+        return true;
+      }
+    }
+  }
+
   if (!event?.paymentRequired) return false;
 
   const isTeam = event?.eventType === 'team';

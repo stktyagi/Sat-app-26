@@ -58,6 +58,7 @@ export interface UserProfile {
   accommodationNeeded: boolean;
   accommodation?: Record<string, boolean>;
   food?: Record<string, boolean>;
+  accommodationTier?: 'cultural' | 'technical' | '';
   fullyRegistered: boolean; // to check if the person has not only done Oauth but also filled his details.
   isAmbassador: boolean;
   coins: number;

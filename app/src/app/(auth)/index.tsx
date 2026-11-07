@@ -242,6 +242,7 @@ const LoginScreen = () => {
             </TouchableOpacity>
 
             {/* Email sign-in (App Review only; accounts are created in the Firebase console) */}
+            {/*
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => setShowEmailForm((v) => !v)}
@@ -324,6 +325,7 @@ const LoginScreen = () => {
                 </TouchableOpacity>
               </View>
             )}
+            */}
           </View>
 
           {/* Thapar student note pill */}

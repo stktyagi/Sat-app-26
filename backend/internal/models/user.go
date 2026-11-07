@@ -20,6 +20,9 @@ const (
 	RoleEBHospitality = "eb_hospitality"
 	RoleECHospitality = "ec_hospitality"
 	RoleEventPOC      = "event_poc"
+
+	AccommodationTierCultural  = "cultural"
+	AccommodationTierTechnical = "technical"
 )
 
 // NormalizeRole maps legacy names, typos, and mixed casings to canonical role identifiers.
@@ -50,24 +53,25 @@ func NormalizeRole(r string) string {
 }
 
 type User struct {
-	UserID              string   `json:"userId"              firestore:"userId"`
-	Email               string   `json:"email"               firestore:"email"`
-	DisplayName         string   `json:"displayName"         firestore:"displayName"`
-	PhoneNumber         string   `json:"phoneNumber"         firestore:"phoneNumber"`
-	RollNumber          string   `json:"rollNumber"          firestore:"rollNumber"`
-	CollegeName         string   `json:"collegeName"         firestore:"collegeName"`
-	Roles               []string `json:"roles"               firestore:"roles"`
-	Gender              string   `json:"gender"              firestore:"gender"`
-	Age                 string   `json:"age"                 firestore:"age"`
-	GraduationYear      string   `json:"graduationYear"      firestore:"graduationYear"`
-	Interests           []string `json:"interests"           firestore:"interests"`
-	FullyRegistered     bool     `json:"fullyRegistered"     firestore:"fullyRegistered"`
-	IsVerified          bool     `json:"isVerified"          firestore:"isVerified"`
-	IsAmbassador        bool     `json:"isAmbassador"        firestore:"isAmbassador"`
+	UserID                      string          `json:"userId"                      firestore:"userId"`
+	Email                       string          `json:"email"                       firestore:"email"`
+	DisplayName                 string          `json:"displayName"                 firestore:"displayName"`
+	PhoneNumber                 string          `json:"phoneNumber"                 firestore:"phoneNumber"`
+	RollNumber                  string          `json:"rollNumber"                  firestore:"rollNumber"`
+	CollegeName                 string          `json:"collegeName"                 firestore:"collegeName"`
+	Roles                       []string        `json:"roles"                       firestore:"roles"`
+	Gender                      string          `json:"gender"                      firestore:"gender"`
+	Age                         string          `json:"age"                         firestore:"age"`
+	GraduationYear              string          `json:"graduationYear"              firestore:"graduationYear"`
+	Interests                   []string        `json:"interests"                   firestore:"interests"`
+	FullyRegistered             bool            `json:"fullyRegistered"             firestore:"fullyRegistered"`
+	IsVerified                  bool            `json:"isVerified"                  firestore:"isVerified"`
+	IsAmbassador                bool            `json:"isAmbassador"                firestore:"isAmbassador"`
 	AccommodationNeeded         bool            `json:"accommodationNeeded"         firestore:"accommodationNeeded"`
 	Accommodation               map[string]bool `json:"accommodation"               firestore:"accommodation"`
 	Food                        map[string]bool `json:"food"                        firestore:"food"`
 	AccommodationTransactionIds []string        `json:"accommodationTransactionIds" firestore:"accommodationTransactionIds"`
+	AccommodationTier           string          `json:"accommodationTier,omitempty" firestore:"accommodationTier,omitempty"`
 	CheckInStatus               CheckInStatus   `json:"checkInStatus"               firestore:"checkInStatus"`
 	ReferralCode                string          `json:"referralCode"                firestore:"referralCode"`
 	ReferredBy                  string          `json:"referredBy"                  firestore:"referredBy"`

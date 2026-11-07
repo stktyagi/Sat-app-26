@@ -200,6 +200,107 @@ func (a *API) resolveStayPrices(ctx context.Context, user *models.User, currentE
 	return stayPrices(accDoc, hasTechnical, hasCultural)
 }
 
+// calculateAccommodationUpgrade calculates the upgrade fee for existing accommodation days
+// when a user who previously only had cultural event registration(s) registers for a technical event.
+func (a *API) calculateAccommodationUpgrade(ctx context.Context, user *models.User, currentEvent *models.Event) (upgradeDays map[string]int, upgradeFee int) {
+	if user == nil || len(user.Accommodation) == 0 {
+		return nil, 0
+	}
+	if currentEvent == nil || !strings.EqualFold(currentEvent.Category, "Technical") {
+		return nil, 0
+	}
+
+	// If the user's accommodation tier is already technical, no upgrade is needed.
+	if strings.EqualFold(user.AccommodationTier, models.AccommodationTierTechnical) {
+		return nil, 0
+	}
+
+	// If the user already has a confirmed/active Technical event registration, no upgrade is needed.
+	if a.Store != nil {
+		regs, err := a.Store.ListUserRegistrations(ctx, user.UserID)
+		if err == nil {
+			for _, r := range regs {
+				if r.PaymentStatus == models.RegPaymentPending && r.EventID == currentEvent.EventID {
+					continue
+				}
+				isConfirmed := r.PaymentStatus == models.RegPaymentSuccess || r.Status == models.RegStatusConfirmed
+				if isConfirmed && r.EventID != "" && a.Cache != nil {
+					ev, err := a.Cache.Get(ctx, r.EventID)
+					if err == nil && ev != nil && strings.EqualFold(ev.Category, "Technical") {
+						return nil, 0
+					}
+				}
+			}
+		}
+	}
+
+	var accDoc *models.AppAccommodation
+	if a.Store != nil {
+		if doc, err := a.Store.GetAppAccommodation(ctx); err == nil {
+			accDoc = doc
+		}
+	}
+	return accommodationUpgradeForStay(accDoc, user)
+}
+
+// accommodationUpgradeForStay computes the per-day upgrade difference for a user's owned stay.
+func accommodationUpgradeForStay(accDoc *models.AppAccommodation, user *models.User) (upgradeDays map[string]int, upgradeFee int) {
+	if user == nil || len(user.Accommodation) == 0 {
+		return nil, 0
+	}
+	if strings.EqualFold(user.AccommodationTier, models.AccommodationTierTechnical) {
+		return nil, 0
+	}
+	if accDoc == nil {
+		accDoc = &models.AppAccommodation{}
+	}
+
+	techPrice := cmp.Or(accDoc.TechnicalAmount, accDoc.Amount, AccommodationPricePerDay)
+	cultPrice := cmp.Or(accDoc.CulturalAmount, accDoc.Amount, AccommodationPricePerDay)
+	techFoodPrice := cmp.Or(accDoc.TechnicalFoodAmount, accDoc.FoodAmount, FoodPricePerDay)
+	cultFoodPrice := cmp.Or(accDoc.CulturalFoodAmount, accDoc.FoodAmount, FoodPricePerDay)
+
+	upgradeDays = map[string]int{}
+	for day := range stayDays {
+		if !user.Accommodation[day] {
+			continue
+		}
+
+
+		tAcc, cAcc := techPrice, cultPrice
+		if val, ok := accDoc.TechnicalDays[day]; ok && val > 0 {
+			tAcc = val
+		}
+		if val, ok := accDoc.CulturalDays[day]; ok && val > 0 {
+			cAcc = val
+		}
+
+		tFood, cFood := techFoodPrice, cultFoodPrice
+		if val, ok := accDoc.TechnicalFoodDays[day]; ok && val > 0 {
+			tFood = val
+		}
+		if val, ok := accDoc.CulturalFoodDays[day]; ok && val > 0 {
+			cFood = val
+		}
+
+		diff := 0
+		if user.Food != nil && user.Food[day] {
+			tTotal := tAcc + tFood
+			cTotal := cAcc + cFood
+			diff = max(tTotal-cTotal, 0)
+		} else {
+			diff = max(tAcc-cAcc, 0)
+		}
+
+		if diff > 0 {
+			upgradeDays[day] = diff
+			upgradeFee += diff
+		}
+	}
+
+	return upgradeDays, upgradeFee
+}
+
 // stayPrices prices every stay day from the pricing doc (nil = defaults).
 // acc[day] is the accommodation price (max of accommodation prices when user has both events).
 // food[day] is the food add-on price so that acc[day] + food[day] equals:
@@ -453,6 +554,8 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		}
 	}
 
+	accUpgradeDays, accUpgradeFee := a.calculateAccommodationUpgrade(ctx, user, event)
+
 	accDays := map[string]int{}
 	for day := range accommodationMap {
 		accDays[day] = accPrices[day]
@@ -462,8 +565,29 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		foodDays[day] = foodPrices[day]
 	}
 
+	if accUpgradeFee > 0 && body.EventID != "" {
+		if paymentType == models.PaymentTypeEvent {
+			paymentType = models.PaymentTypeEventAndAccommodation
+		}
+	}
+
+	accTier := ""
+	hasAccInCart := len(accommodationMap) > 0 || accUpgradeFee > 0
+	hasExistingAcc := user != nil && len(user.Accommodation) > 0
+	if hasAccInCart || hasExistingAcc {
+		if (event != nil && strings.EqualFold(event.Category, "Technical")) ||
+			(user != nil && strings.EqualFold(user.AccommodationTier, models.AccommodationTierTechnical)) {
+			accTier = models.AccommodationTierTechnical
+		} else if user != nil && user.AccommodationTier != "" {
+			accTier = user.AccommodationTier
+		} else {
+			accTier = models.AccommodationTierCultural
+		}
+	}
+
 	a.initiate(c, user, event, team, eventPaymentType, paymentType, body.CouponCode,
-		covered, eventFee, memberFees, accommodationMap, accFee, accDays, foodMap, foodFee, foodDays)
+		covered, eventFee, memberFees, accommodationMap, accFee, accDays, foodMap, foodFee, foodDays,
+		accUpgradeFee, accUpgradeDays, accTier)
 }
 
 // easebuzzPayMode returns "production" or "test" for the Easebuzz mobile SDK.
@@ -486,10 +610,12 @@ func (a *API) initiate(
 	memberFees map[string]int,
 	accommodationMap map[string]any, accFee int, accDays map[string]int,
 	foodMap map[string]any, foodFee int, foodDays map[string]int,
+	accUpgradeFee int, accUpgradeDays map[string]int,
+	accTier string,
 ) {
 	ctx := c.Request.Context()
 
-	originalAmount := eventFee + accFee + foodFee
+	originalAmount := eventFee + accFee + foodFee + accUpgradeFee
 	if originalAmount <= 0 {
 		apierr.Respond(c, apierr.BadRequest("no_fee", "total fee is zero"))
 		return
@@ -528,6 +654,10 @@ func (a *API) initiate(
 		"accommodation": accFee,
 		"food":          foodFee,
 		"total":         originalAmount,
+	}
+	if accUpgradeFee > 0 {
+		bill["accommodation_upgrade"] = accUpgradeFee
+		bill["accommodation_upgrade_days"] = accUpgradeDays
 	}
 	if len(accDays) > 0 {
 		bill["accommodation_days"] = accDays
@@ -571,9 +701,10 @@ func (a *API) initiate(
 		paymentType, originalAmount, discountAmount,
 		couponCode, couponDetails,
 		models.ProcessedIntentions{
-			EventRegistration: evtIntention,
-			Accommodation:     accommodationMap,
-			Food:              foodMap,
+			EventRegistration:     evtIntention,
+			Accommodation:         accommodationMap,
+			Food:                  foodMap,
+			AccommodationTier:     accTier,
 		},
 		bill,
 	)

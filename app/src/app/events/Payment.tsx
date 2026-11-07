@@ -10,9 +10,9 @@ import { showAlert } from '@/components';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import { useUserStore } from '@/state/userStore';
 import { useThemeStore } from '@/state/themeStore';
-import { getAppAccommodation } from '@/api/appConfig';
+import { getAppAccommodation, type AppAccommodation } from '@/api/appConfig';
 import { getMyEvents } from '@/api/events';
-import { isPerIndividualPayment, resolveStayPrices } from '@/utils/paymentHelpers';
+import { isPerIndividualPayment, resolveStayPrices, calculateAccommodationUpgrade } from '@/utils/paymentHelpers';
 
 interface DayInfo {
   key: string;
@@ -59,6 +59,9 @@ const PaymentScreen: React.FC = () => {
     day0: false, day1: false, day2: false, day3: false, day4: false,
   });
 
+  const [accConfig, setAccConfig] = useState<AppAccommodation | null>(null);
+  const [userEvents, setUserEvents] = useState<any[]>([]);
+
   const [accDayPrices, setAccDayPrices] = useState<Record<string, number>>({
     day0: 650, day1: 650, day2: 650, day3: 650, day4: 650,
   });
@@ -75,7 +78,10 @@ const PaymentScreen: React.FC = () => {
     Promise.all([
       getAppAccommodation().catch(() => null),
       getMyEvents().catch(() => []),
-    ]).then(([accConfig, myEvents]) => {
+    ]).then(([fetchedAccConfig, myEvents]) => {
+      setAccConfig(fetchedAccConfig);
+      setUserEvents(Array.isArray(myEvents) ? myEvents : []);
+
       let hasTech = false;
       let hasCult = false;
 
@@ -104,7 +110,7 @@ const PaymentScreen: React.FC = () => {
         }
       }
 
-      const { accDays, foodDays } = resolveStayPrices(accConfig, hasTech, hasCult);
+      const { accDays, foodDays } = resolveStayPrices(fetchedAccConfig, hasTech, hasCult);
       setAccDayPrices(accDays);
       setFoodDayPrices(foodDays);
     });
@@ -119,6 +125,14 @@ const PaymentScreen: React.FC = () => {
       setFood(prev => ({ ...prev, ...user.food }));
     }
   }, [user]);
+
+  // Accommodation upgrade calculation
+  const { upgradeDays, upgradeFee: totalUpgradeFee } = calculateAccommodationUpgrade(
+    user,
+    eventData?.event,
+    userEvents,
+    accConfig
+  );
 
   const selectChoice = (day: string, choice: 'without_food' | 'with_food') => {
     if (user?.accommodation?.[day]) return;
@@ -203,7 +217,7 @@ const PaymentScreen: React.FC = () => {
       }
     });
 
-    return baseEventFee + accFoodFee;
+    return baseEventFee + accFoodFee + totalUpgradeFee;
   };
 
   const total = calculateTotal();
@@ -261,15 +275,16 @@ const PaymentScreen: React.FC = () => {
       const hasAcc = Object.keys(accToPay).length > 0;
       const hasFood = Object.keys(foodToPay).length > 0;
       const hasEventFee = baseEventFee > 0;
+      const hasUpgrade = totalUpgradeFee > 0;
 
       if (hasEventFee) {
         if (hasAcc && hasFood) pType = 'event_and_accommodation_and_food';
-        else if (hasAcc) pType = 'event_and_accommodation';
+        else if (hasAcc || hasUpgrade) pType = 'event_and_accommodation';
         else if (hasFood) pType = 'event_and_accommodation_and_food';
         else pType = 'event';
       } else {
         if (hasAcc && hasFood) pType = 'accommodation_and_food';
-        else if (hasAcc) pType = 'accommodation';
+        else if (hasAcc || hasUpgrade) pType = 'accommodation';
         else if (hasFood) pType = 'accommodation_and_food';
         else pType = 'event';
       }
@@ -418,7 +433,8 @@ const PaymentScreen: React.FC = () => {
 
   let isAlreadyPaid = false;
   if (!eventData?.event?.paymentRequired) {
-    isAlreadyPaid = true;
+    // If an accommodation upgrade is owed on registering for this free technical event, payment is not complete
+    isAlreadyPaid = totalUpgradeFee > 0 ? eventData?.myRegistration?.paymentStatus === 'success' : true;
   } else if (isTeam && eventData?.myTeam) {
     if (isPerInd) {
       if (isLeader) {
@@ -581,6 +597,38 @@ const PaymentScreen: React.FC = () => {
           )}
         </View>
 
+        {/* Accommodation Upgrade Card */}
+        {totalUpgradeFee > 0 && (
+          <View
+            style={{
+              backgroundColor: cardBg,
+              borderWidth: 1,
+              borderColor: '#41B8F0',
+              borderRadius: 20,
+              padding: 20,
+              marginBottom: 20,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Ionicons name="trending-up" size={18} color="#41B8F0" style={{ marginRight: 8 }} />
+              <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#41B8F0', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Accommodation Upgrade
+              </Text>
+            </View>
+            <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 13, marginBottom: 12 }}>
+              Cultural to Technical rate adjustment ({Object.keys(upgradeDays).length} existing stay day{Object.keys(upgradeDays).length > 1 ? 's' : ''}).
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 14 }}>
+                Difference Due
+              </Text>
+              <Text style={{ fontFamily: 'Talina', color: textColor, fontSize: 24 }}>
+                ₹{totalUpgradeFee}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Accommodation Section (Only for non-host participants) */}
         {!isHost && (
           <View style={{ marginBottom: 20 }}>
@@ -598,69 +646,61 @@ const PaymentScreen: React.FC = () => {
                 borderColor: '#41B8F0',
                 borderWidth: 1,
                 padding: 14,
-                borderRadius: 16,
+                borderRadius: 14,
                 marginBottom: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
               }}
             >
-              <Ionicons name="information-circle" size={20} color="#41B8F0" />
-              <Text style={{ fontFamily: 'Poppins_400Regular', color: textColor, fontSize: 12, marginLeft: 10, flex: 1 }}>
-                {isTeamMemberNotLeader
-                  ? 'Accommodation and food selected here are for you only.'
-                  : 'Accommodation selected here is for you (Team Leader) only. Other team members can book their stay individually from their profile.'}
+              <Text style={{ fontFamily: 'Poppins_500Medium', color: textColor, fontSize: 13 }}>
+                Accommodation & Food is booked per person.
+              </Text>
+              <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12, marginTop: 2 }}>
+                Team members can add stay for themselves individually here.
               </Text>
             </View>
           )}
 
           {FESTIVAL_DAYS.map((day) => {
-            const accLocked = user?.accommodation?.[day.key] || false;
-            const foodLocked = user?.food?.[day.key] || false;
-            const dayAccPrice = accDayPrices[day.key] || 600;
-            const dayFoodPrice = foodDayPrices[day.key] || 200;
-            const withoutFoodPrice = dayAccPrice;
-            const withFoodPrice = dayAccPrice + dayFoodPrice;
+            const accLocked = !!user?.accommodation?.[day.key];
+            const foodLocked = !!user?.food?.[day.key];
+            const withoutFoodPrice = accDayPrices[day.key] || 650;
+            const foodPrice = foodDayPrices[day.key] || 150;
+            const withFoodPrice = withoutFoodPrice + foodPrice;
 
             const isWithoutSelected = accommodation[day.key] && !food[day.key];
             const isWithSelected = accommodation[day.key] && food[day.key];
-            const hasSelection = accommodation[day.key];
 
             return (
               <View
                 key={day.key}
                 style={{
                   backgroundColor: cardBg,
+                  borderRadius: 18,
+                  padding: 16,
+                  marginBottom: 12,
                   borderWidth: 1,
-                  borderColor: hasSelection ? (isDark ? '#41B8F0' : '#3B82F6') : cardBorder,
-                  borderRadius: 20,
-                  padding: 18,
-                  marginBottom: 14,
+                  borderColor: cardBorder,
                 }}
               >
+                {/* Day Header */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <View>
-                    <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 16 }}>
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 15 }}>
                       {day.title}
                     </Text>
                     <Text style={{ fontFamily: 'Poppins_400Regular', color: subTextColor, fontSize: 12 }}>
                       {day.date}
                     </Text>
                   </View>
-
                   {accLocked ? (
-                    <View style={{ backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
                       <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#22c55e', fontSize: 11, marginLeft: 4 }}>
-                        Paid {foodLocked ? "(With Food)" : "(Without Food)"}
+                        {foodLocked ? 'STAY + FOOD PAID' : 'STAY PAID'}
                       </Text>
                     </View>
-                  ) : hasSelection ? (
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() => clearChoice(day.key)}
-                      style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-                    >
-                      <Text style={{ fontFamily: 'Poppins_500Medium', color: isDark ? '#EF4444' : '#DC2626', fontSize: 12 }}>
+                  ) : (isWithoutSelected || isWithSelected) ? (
+                    <TouchableOpacity onPress={() => clearChoice(day.key)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={{ fontFamily: 'Poppins_500Medium', color: '#ef4444', fontSize: 12 }}>
                         Clear
                       </Text>
                     </TouchableOpacity>
@@ -685,7 +725,7 @@ const PaymentScreen: React.FC = () => {
                       : (isDark ? '#2E2E35' : '#E5E7EB'),
                     backgroundColor: isWithoutSelected
                       ? (isDark ? 'rgba(65, 184, 240, 0.12)' : '#EFF6FF')
-                    : (isDark ? '#24242A' : '#F9FAFB'),
+                      : (isDark ? '#24242A' : '#F9FAFB'),
                     marginBottom: 10,
                     opacity: accLocked ? 0.6 : 1,
                   }}

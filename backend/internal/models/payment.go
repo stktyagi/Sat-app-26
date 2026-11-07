@@ -44,9 +44,10 @@ type EventRegistrationIntention struct {
 
 // ProcessedIntentions holds what the payment covers.
 type ProcessedIntentions struct {
-	EventRegistration *EventRegistrationIntention `json:"eventRegistration" firestore:"eventRegistration"`
-	Accommodation     map[string]any              `json:"accommodation"     firestore:"accommodation"`
-	Food              map[string]any              `json:"food"              firestore:"food"`
+	EventRegistration     *EventRegistrationIntention `json:"eventRegistration" firestore:"eventRegistration"`
+	Accommodation         map[string]any              `json:"accommodation"               firestore:"accommodation"`
+	Food                  map[string]any              `json:"food"                        firestore:"food"`
+	AccommodationTier     string                      `json:"accommodationTier,omitempty" firestore:"accommodationTier,omitempty"`
 }
 
 type CouponDetails struct {

@@ -495,3 +495,90 @@ func TestAccommodationPaymentCalculation_Cases(t *testing.T) {
 		}
 	})
 }
+
+func TestAccommodationUpgradeCalculation(t *testing.T) {
+	doc := &models.AppAccommodation{
+		TechnicalAmount:     600,
+		CulturalAmount:      500,
+		TechnicalFoodAmount: 200,
+		CulturalFoodAmount:  300,
+	}
+
+	t.Run("User only has accommodation without food (upgrade due)", func(t *testing.T) {
+		user := &models.User{
+			Accommodation: map[string]bool{"day1": true, "day2": true},
+			Food:          map[string]bool{"day1": false, "day2": false},
+		}
+		days, fee := accommodationUpgradeForStay(doc, user)
+		if fee != 200 {
+			t.Errorf("expected upgrade fee 200 (100x2), got %d", fee)
+		}
+		if days["day1"] != 100 || days["day2"] != 100 {
+			t.Errorf("expected days day1=100 and day2=100, got %v", days)
+		}
+	})
+
+	t.Run("User has accommodation with food (no upgrade due)", func(t *testing.T) {
+		// Cultural: 500+300=800, Technical: 600+200=800 -> Diff is 0
+		user := &models.User{
+			Accommodation: map[string]bool{"day1": true},
+			Food:          map[string]bool{"day1": true},
+		}
+		days, fee := accommodationUpgradeForStay(doc, user)
+		if fee != 0 || len(days) != 0 {
+			t.Errorf("expected 0 upgrade fee for stay with food, got fee=%d, days=%v", fee, days)
+		}
+	})
+
+	t.Run("Mixed days: one without food, one with food", func(t *testing.T) {
+		user := &models.User{
+			Accommodation: map[string]bool{"day1": true, "day2": true},
+			Food:          map[string]bool{"day1": false, "day2": true},
+		}
+		days, fee := accommodationUpgradeForStay(doc, user)
+		if fee != 100 {
+			t.Errorf("expected 100 upgrade fee for mixed days, got %d", fee)
+		}
+		if days["day1"] != 100 || days["day2"] != 0 {
+			t.Errorf("expected day1=100, day2=0, got %v", days)
+		}
+	})
+
+	t.Run("User with technical accommodation tier has 0 upgrade", func(t *testing.T) {
+		user := &models.User{
+			Accommodation:     map[string]bool{"day1": true, "day2": true},
+			AccommodationTier: models.AccommodationTierTechnical,
+		}
+		days, fee := accommodationUpgradeForStay(doc, user)
+		if fee != 0 || len(days) != 0 {
+			t.Errorf("expected 0 fee for user already at technical tier, got %d", fee)
+		}
+	})
+
+	t.Run("Per-day price overrides in dynamic pricing doc", func(t *testing.T) {
+		docWithOverrides := &models.AppAccommodation{
+			TechnicalAmount:     600,
+			CulturalAmount:      500,
+			TechnicalDays:       map[string]int{"day1": 700}, // Tech acc is 700 on day1
+			CulturalDays:        map[string]int{"day1": 500},
+		}
+		user := &models.User{
+			Accommodation: map[string]bool{"day1": true},
+		}
+		days, fee := accommodationUpgradeForStay(docWithOverrides, user)
+		// 700 - 500 = 200
+		if fee != 200 || days["day1"] != 200 {
+			t.Errorf("expected override diff of 200, got fee=%d, days=%v", fee, days)
+		}
+	})
+
+	t.Run("User with no accommodation has 0 upgrade", func(t *testing.T) {
+		user := &models.User{
+			Accommodation: map[string]bool{},
+		}
+		days, fee := accommodationUpgradeForStay(doc, user)
+		if fee != 0 || len(days) != 0 {
+			t.Errorf("expected 0 upgrade for empty stay, got %d", fee)
+		}
+	})
+}

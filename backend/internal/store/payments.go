@@ -14,7 +14,6 @@ import (
 	"backend/internal/models"
 )
 
-
 const ColPayments = "payments"
 const ColCheckouts = "checkouts"
 
@@ -285,7 +284,7 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			}
 		}
 
-		wantsStay := len(p.ProcessedIntentions.Accommodation) > 0 || len(p.ProcessedIntentions.Food) > 0
+		wantsStay := len(p.ProcessedIntentions.Accommodation) > 0 || len(p.ProcessedIntentions.Food) > 0 || p.ProcessedIntentions.AccommodationTier != ""
 		userRef := s.FS.Collection(ColUsers).Doc(p.UserID)
 		var user *models.User
 		if wantsStay {
@@ -426,15 +425,25 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 					food[day] = true
 				}
 			}
-			if err := tx.Update(userRef, []firestore.Update{
+			tier := user.AccommodationTier
+			if p.ProcessedIntentions.AccommodationTier != "" {
+				tier = p.ProcessedIntentions.AccommodationTier
+			}
+			userUpd := []firestore.Update{
 				{Path: "accommodationNeeded", Value: needed},
 				{Path: "accommodation", Value: acc},
 				{Path: "food", Value: food},
 				{Path: "accommodationTransactionIds", Value: append(slices.Clone(user.AccommodationTransactionIds), id)},
 				{Path: "updatedAt", Value: now},
-			}); err != nil {
+			}
+			if tier != "" {
+				userUpd = append(userUpd, firestore.Update{Path: "accommodationTier", Value: tier})
+			}
+
+			if err := tx.Update(userRef, userUpd); err != nil {
 				return err
 			}
+			evictUserFromCache(user.UserID)
 		}
 
 		if p.CouponCode != "" {
@@ -588,4 +597,3 @@ func (s *Store) ListPayments(ctx context.Context, limit, offset int) ([]*models.
 	}
 	return all[offset:end], total, nil
 }
-
