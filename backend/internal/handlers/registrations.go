@@ -63,6 +63,7 @@ func (a *API) Register(c *gin.Context) {
 		return
 	}
 	a.Cache.InvalidateCounts()
+	a.updateAccommodationTierOnEventRegistration(ctx, user, event.Category)
 
 	saved, err := a.Store.GetRegistration(ctx, id)
 	if err != nil {
@@ -128,6 +129,7 @@ func (a *API) Unregister(c *gin.Context) {
 		return
 	}
 	a.Cache.InvalidateCounts()
+	// a.updateAccommodationTierOnEventRemoval(ctx, user.UserID, event.Category)
 
 	c.Status(http.StatusNoContent)
 }
@@ -205,4 +207,64 @@ func validateResponses(e *models.Event, given []models.Response) *apierr.Error {
 		}
 	}
 	return nil
+}
+
+// updateAccommodationTierOnEventRegistration updates user's accommodationTier on event registration.
+// If the event is Technical, upgrades to "technical".
+// Else if tier is unset, sets default "cultural".
+func (a *API) updateAccommodationTierOnEventRegistration(ctx context.Context, user *models.User, eventCategory string) {
+	if a.Store == nil || user == nil {
+		return
+	}
+	if strings.EqualFold(eventCategory, "Technical") {
+		if !strings.EqualFold(user.AccommodationTier, models.AccommodationTierTechnical) {
+			_, _ = a.Store.UpdateUser(ctx, user.UserID, map[string]any{
+				"accommodationTier": models.AccommodationTierTechnical,
+			})
+			user.AccommodationTier = models.AccommodationTierTechnical
+		}
+	} else if user.AccommodationTier == "" {
+		_, _ = a.Store.UpdateUser(ctx, user.UserID, map[string]any{
+			"accommodationTier": models.AccommodationTierCultural,
+			})
+		user.AccommodationTier = models.AccommodationTierCultural
+	}
+}
+
+// updateAccommodationTierOnEventRemoval is called when a user unregisters or is removed from an event.
+// Only if the removed event was Technical does it check remaining registrations.
+func (a *API) updateAccommodationTierOnEventRemoval(ctx context.Context, userID, eventCategory string) {
+	if a.Store == nil || userID == "" || !strings.EqualFold(eventCategory, "Technical") {
+		return
+	}
+	regs, err := a.Store.ListUserRegistrations(ctx, userID)
+	if err != nil {
+		return
+	}
+	hasTechnical := false
+	for _, r := range regs {
+		if r.EventID == "" {
+			continue
+		}
+		var category string
+		if a.Cache != nil {
+			if ev, err := a.Cache.Get(ctx, r.EventID); err == nil && ev != nil {
+				category = ev.Category
+			}
+		}
+		if category == "" {
+			if ev, err := a.Store.GetEvent(ctx, r.EventID); err == nil && ev != nil {
+				category = ev.Category
+			}
+		}
+		if strings.EqualFold(category, "Technical") {
+			hasTechnical = true
+			break
+		}
+	}
+	if !hasTechnical {
+		_, _ = a.Store.UpdateUser(ctx, userID, map[string]any{
+			"accommodationTier": models.AccommodationTierCultural,
+		})
+	}
 }

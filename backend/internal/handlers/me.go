@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"io"
 	"log"
 	"net/http"
@@ -17,7 +18,50 @@ import (
 var phonePattern = regexp.MustCompile(`^[0-9]{7,15}$`)
 
 func (a *API) GetMe(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"user": middleware.CurrentUser(c)})
+	user := middleware.CurrentUser(c)
+	if user != nil && user.AccommodationTier == "" {
+		tier := a.resolveUserAccommodationTier(c.Request.Context(), user.UserID)
+		if updated, err := a.Store.UpdateUser(c.Request.Context(), user.UserID, map[string]any{
+			"accommodationTier": tier,
+		}); err == nil && updated != nil {
+			user = updated.ResolveHostStatus(a.Cfg.HostEmailDomain)
+		} else {
+			user.AccommodationTier = tier
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"user": user})
+}
+
+// resolveUserAccommodationTier checks existing event registrations for a user.
+// If any registration is for a Technical event, it returns "technical".
+// Otherwise, it returns the default "cultural".
+func (a *API) resolveUserAccommodationTier(ctx context.Context, userID string) string {
+	if a.Store == nil || userID == "" {
+		return models.AccommodationTierCultural
+	}
+	regs, err := a.Store.ListUserRegistrations(ctx, userID)
+	if err == nil {
+		for _, r := range regs {
+			if r.EventID == "" {
+				continue
+			}
+			var category string
+			if a.Cache != nil {
+				if ev, err := a.Cache.Get(ctx, r.EventID); err == nil && ev != nil {
+					category = ev.Category
+				}
+			}
+			if category == "" {
+				if ev, err := a.Store.GetEvent(ctx, r.EventID); err == nil && ev != nil {
+					category = ev.Category
+				}
+			}
+			if strings.EqualFold(category, "Technical") {
+				return models.AccommodationTierTechnical
+			}
+		}
+	}
+	return models.AccommodationTierCultural
 }
 
 // profilePatch uses pointers so an omitted field is distinguishable from one

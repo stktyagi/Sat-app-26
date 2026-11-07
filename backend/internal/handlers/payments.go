@@ -210,9 +210,15 @@ func (a *API) calculateAccommodationUpgrade(ctx context.Context, user *models.Us
 		return nil, 0
 	}
 
-	// If the user's accommodation tier is already technical, no upgrade is needed.
-	if strings.EqualFold(user.AccommodationTier, models.AccommodationTierTechnical) {
-		return nil, 0
+	// If any accommodation transaction was already charged at technical tier, no upgrade is needed.
+	if a.Store != nil {
+		for _, txID := range user.AccommodationTransactionIds {
+			if p, err := a.Store.GetPayment(ctx, txID); err == nil && p != nil {
+				if strings.EqualFold(p.ProcessedIntentions.AccommodationTier, models.AccommodationTierTechnical) {
+					return nil, 0
+				}
+			}
+		}
 	}
 
 	// If the user already has a confirmed/active Technical event registration, no upgrade is needed.

@@ -85,6 +85,7 @@ func (a *API) CreateTeam(c *gin.Context) {
 		switch {
 		case err == nil:
 			a.Cache.InvalidateCounts()
+			a.updateAccommodationTierOnEventRegistration(ctx, user, event.Category)
 			a.hydrateMembers(ctx, team)
 			team.Size = len(team.Members)
 			c.JSON(http.StatusCreated, gin.H{"team": team, "inviteCode": code})
@@ -196,6 +197,7 @@ func (a *API) JoinTeam(c *gin.Context) {
 		return
 	}
 	a.Cache.InvalidateCounts()
+	a.updateAccommodationTierOnEventRegistration(ctx, user, event.Category)
 	a.hydrateMembers(ctx, updated)
 
 	c.JSON(http.StatusOK, gin.H{"team": updated})
@@ -326,7 +328,7 @@ func (a *API) LeaveTeam(c *gin.Context) {
 
 // DeleteTeam removes the team and all registrations when requested by the leader.
 func (a *API) DeleteTeam(c *gin.Context) {
-	team, _, ok := a.loadTeamForMutation(c)
+	team, event, ok := a.loadTeamForMutation(c)
 	if !ok {
 		return
 	}
@@ -337,6 +339,7 @@ func (a *API) DeleteTeam(c *gin.Context) {
 		return
 	}
 
+	memberIDs := append([]string{}, team.MemberIDs...)
 	if err := a.Store.DeleteTeam(c.Request.Context(), team.TeamID, user.UserID); err != nil {
 		switch {
 		case errors.Is(err, store.ErrNotLeader):
@@ -347,6 +350,13 @@ func (a *API) DeleteTeam(c *gin.Context) {
 		return
 	}
 	a.Cache.InvalidateCounts()
+	eventCat := ""
+	if event != nil {
+		eventCat = event.Category
+	}
+	for _, mid := range memberIDs {
+		a.updateAccommodationTierOnEventRemoval(c.Request.Context(), mid, eventCat)
+	}
 
 	c.Status(http.StatusNoContent)
 }
@@ -469,6 +479,11 @@ func (a *API) applyMemberRemoval(c *gin.Context, team *models.Team, event *model
 		return
 	}
 	a.Cache.InvalidateCounts()
+	eventCat := ""
+	if event != nil {
+		eventCat = event.Category
+	}
+	a.updateAccommodationTierOnEventRemoval(c.Request.Context(), target, eventCat)
 
 	a.reloadAndRespond(c, team.TeamID, "updated but the team could not be read back")
 }

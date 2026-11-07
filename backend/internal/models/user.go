@@ -107,14 +107,15 @@ type CheckInStatus struct {
 func NewUser(uid, address, displayName, referralCode string) *User {
 	now := isotime.Now()
 	return &User{
-		UserID:       uid,
-		Email:        address,
-		DisplayName:  displayName,
-		Roles:        []string{RoleUser},
-		Interests:    []string{},
-		ReferralCode: referralCode,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		UserID:            uid,
+		Email:             address,
+		DisplayName:       displayName,
+		Roles:             []string{RoleUser},
+		Interests:         []string{},
+		AccommodationTier: AccommodationTierCultural,
+		ReferralCode:      referralCode,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 }
 

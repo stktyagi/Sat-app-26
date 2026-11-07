@@ -110,9 +110,6 @@ export function calculateAccommodationUpgrade(
     return { upgradeDays: {}, upgradeFee: 0 };
   }
 
-  if (user.accommodationTier?.toLowerCase() === 'technical') {
-    return { upgradeDays: {}, upgradeFee: 0 };
-  }
 
   const currentCat = currentEvent?.category?.toLowerCase();
   if (currentCat !== 'technical') {
