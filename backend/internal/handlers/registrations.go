@@ -129,7 +129,6 @@ func (a *API) Unregister(c *gin.Context) {
 		return
 	}
 	a.Cache.InvalidateCounts()
-	// a.updateAccommodationTierOnEventRemoval(ctx, user.UserID, event.Category)
 
 	c.Status(http.StatusNoContent)
 }
@@ -231,40 +230,3 @@ func (a *API) updateAccommodationTierOnEventRegistration(ctx context.Context, us
 	}
 }
 
-// updateAccommodationTierOnEventRemoval is called when a user unregisters or is removed from an event.
-// Only if the removed event was Technical does it check remaining registrations.
-func (a *API) updateAccommodationTierOnEventRemoval(ctx context.Context, userID, eventCategory string) {
-	if a.Store == nil || userID == "" || !strings.EqualFold(eventCategory, "Technical") {
-		return
-	}
-	regs, err := a.Store.ListUserRegistrations(ctx, userID)
-	if err != nil {
-		return
-	}
-	hasTechnical := false
-	for _, r := range regs {
-		if r.EventID == "" {
-			continue
-		}
-		var category string
-		if a.Cache != nil {
-			if ev, err := a.Cache.Get(ctx, r.EventID); err == nil && ev != nil {
-				category = ev.Category
-			}
-		}
-		if category == "" {
-			if ev, err := a.Store.GetEvent(ctx, r.EventID); err == nil && ev != nil {
-				category = ev.Category
-			}
-		}
-		if strings.EqualFold(category, "Technical") {
-			hasTechnical = true
-			break
-		}
-	}
-	if !hasTechnical {
-		_, _ = a.Store.UpdateUser(ctx, userID, map[string]any{
-			"accommodationTier": models.AccommodationTierCultural,
-		})
-	}
-}

@@ -30,5 +30,4 @@ func TestUpdateAccommodationTierOnEventRegistration(t *testing.T) {
 	// Since api.Store is nil, user.AccommodationTier is still updated in-memory
 	// Let's verify with nil store does not panic
 	api.updateAccommodationTierOnEventRegistration(context.Background(), nil, "Technical")
-	api.updateAccommodationTierOnEventRemoval(context.Background(), "u1", "Cultural")
 }
