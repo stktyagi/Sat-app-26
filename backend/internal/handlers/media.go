@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -19,7 +18,7 @@ type deleteMediaBody struct {
 }
 
 // UploadMedia handles uploading media files. When folder starts with "reels",
-// it transparently routes to Cloudinary. For all other folders, it uses ImageKit.
+// it transparently routes to AWS S3. For all other folders, it uses ImageKit.
 // Accepts multipart/form-data with file field ("file", "media", "image", or "video")
 // and optional "folder" form field (defaults to "general").
 func (a *API) UploadMedia(c *gin.Context) {
@@ -50,40 +49,22 @@ func (a *API) UploadMedia(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Transparently route reels to Cloudinary
-	if strings.HasPrefix(folder, "reels") && a.Cloudinary != nil && a.Cloudinary.IsConfigured() {
-		ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-		isImage := strings.HasPrefix(fileHeader.Header.Get("Content-Type"), "image/") ||
-			ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" ||
-			strings.Contains(folder, "thumbnail")
-
-		targetFolder := "sat26/" + folder
-		if isImage {
-			res, err := a.Cloudinary.UploadImage(c.Request.Context(), targetFolder, fileHeader.Filename, file)
-			if err != nil {
-				log.Printf("UploadMedia (Cloudinary image): %v", err)
-				apierr.Respond(c, apierr.Internal("failed to upload image to Cloudinary: "+err.Error()))
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{
-				"url":    res.SecureURL,
-				"ref":    res.PublicID,
-				"name":   fileHeader.Filename,
-				"size":   fileHeader.Size,
-				"folder": folder,
-			})
+	// Transparently route reels to AWS S3
+	if strings.HasPrefix(folder, "reels") {
+		if a.S3 == nil || !a.S3.IsConfigured() {
+			apierr.Respond(c, apierr.BadRequest("storage_not_configured", "AWS S3 storage is not configured"))
 			return
 		}
 
-		res, err := a.Cloudinary.UploadVideo(c.Request.Context(), targetFolder, fileHeader.Filename, file)
+		res, err := a.S3.Upload(c.Request.Context(), folder, fileHeader.Filename, file)
 		if err != nil {
-			log.Printf("UploadMedia (Cloudinary video): %v", err)
-			apierr.Respond(c, apierr.Internal("failed to upload video to Cloudinary: "+err.Error()))
+			log.Printf("UploadMedia (S3 upload error): %v", err)
+			apierr.Respond(c, apierr.Internal("failed to upload media to AWS S3: "+err.Error()))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"url":    res.SecureURL,
-			"ref":    res.PublicID,
+			"url":    res.URL,
+			"ref":    res.Key,
 			"name":   fileHeader.Filename,
 			"size":   fileHeader.Size,
 			"folder": folder,
@@ -113,7 +94,7 @@ func (a *API) UploadMedia(c *gin.Context) {
 	})
 }
 
-// DeleteMedia deletes a file given its reference string (supporting both Cloudinary and ImageKit).
+// DeleteMedia deletes a file given its reference string (supporting both AWS S3 and ImageKit).
 func (a *API) DeleteMedia(c *gin.Context) {
 	ref := strings.TrimSpace(c.Query("ref"))
 	if ref == "" {
@@ -127,13 +108,11 @@ func (a *API) DeleteMedia(c *gin.Context) {
 		return
 	}
 
-	if (strings.HasPrefix(ref, "sat26/reels") || strings.HasPrefix(ref, "reels")) && a.Cloudinary != nil && a.Cloudinary.IsConfigured() {
-		resType := "video"
-		if strings.Contains(ref, "thumbnail") {
-			resType = "image"
-		}
-		if err := a.Cloudinary.DeleteAsset(c.Request.Context(), ref, resType); err != nil {
-			log.Printf("DeleteMedia (Cloudinary error): %v", err)
+	if strings.HasPrefix(ref, "reels/") || strings.HasPrefix(ref, "reels") {
+		if a.S3 != nil && a.S3.IsConfigured() {
+			if err := a.S3.Delete(c.Request.Context(), ref); err != nil {
+				log.Printf("DeleteMedia (S3 error): %v", err)
+			}
 		}
 		c.Status(http.StatusNoContent)
 		return
@@ -153,7 +132,7 @@ func (a *API) DeleteMedia(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// settleMedia deletes the files a write left unreferenced (both Cloudinary and ImageKit).
+// settleMedia deletes the files a write left unreferenced (both AWS S3 and ImageKit).
 func (a *API) settleMedia(saved bool, before, after []string) {
 	drop := missingRefs(after, before)
 	if saved {
@@ -164,12 +143,8 @@ func (a *API) settleMedia(saved bool, before, after []string) {
 	}
 	go func() {
 		for _, ref := range drop {
-			if (strings.HasPrefix(ref, "sat26/reels") || strings.HasPrefix(ref, "reels")) && a.Cloudinary != nil && a.Cloudinary.IsConfigured() {
-				resType := "video"
-				if strings.Contains(ref, "thumbnail") {
-					resType = "image"
-				}
-				_ = a.Cloudinary.DeleteAsset(context.Background(), ref, resType)
+			if strings.HasPrefix(ref, "reels") && a.S3 != nil && a.S3.IsConfigured() {
+				_ = a.S3.Delete(context.Background(), ref)
 			} else if a.Storage != nil {
 				if err := a.Storage.Delete(context.Background(), ref); err != nil {
 					log.Printf("storage: deleting unreferenced media %q: %v", ref, err)

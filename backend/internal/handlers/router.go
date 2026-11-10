@@ -151,13 +151,12 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	media.DELETE("/admin/media", api.DeleteMedia)
 
 	// Reels & Stories: Admin, EB_Media
-	// Compatible with existing deployed app endpoints while powered by Cloudinary
 	mediaContent := staff.Group("", middleware.RequireAnyRole(models.RoleEBMedia))
 	mediaContent.GET("/admin/reels", api.AdminListReels)
 	mediaContent.GET("/admin/reels/:id", api.AdminGetReel)
-	mediaContent.POST("/admin/reels", api.CreateReelCloudinary)
-	mediaContent.PATCH("/admin/reels/:id", api.UpdateReelCloudinary)
-	mediaContent.DELETE("/admin/reels/:id", api.DeleteReelCloudinary)
+	mediaContent.POST("/admin/reels", api.CreateReel)
+	mediaContent.PATCH("/admin/reels/:id", api.UpdateReel)
+	mediaContent.DELETE("/admin/reels/:id", api.DeleteReel)
 
 	mediaContent.GET("/admin/stories", api.AdminListStories)
 	mediaContent.GET("/admin/stories/:id", api.AdminGetStory)

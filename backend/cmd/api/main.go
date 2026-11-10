@@ -12,11 +12,11 @@ import (
 
 	"backend/internal/cache"
 	"backend/internal/chatbot"
-	"backend/internal/cloudinary"
 	"backend/internal/config"
 	"backend/internal/fb"
 	"backend/internal/handlers"
 	"backend/internal/qr"
+	"backend/internal/s3storage"
 	"backend/internal/storage"
 	"backend/internal/store"
 )
@@ -53,7 +53,10 @@ func main() {
 		mediaStore = ms
 	}
 
-	cld := cloudinary.NewClient(cfg.CloudinaryCloudName, cfg.CloudinaryAPIKey, cfg.CloudinaryAPISecret)
+	s3Client := s3storage.NewClient(cfg.AWSRegion, cfg.AWSS3Bucket, cfg.AWSAccessKeyID, cfg.AWSSecretAccessKey)
+	if s3Client.IsConfigured() {
+		log.Printf("aws s3 storage configured for bucket: %s (%s)", cfg.AWSS3Bucket, cfg.AWSRegion)
+	}
 
 	st := store.New(clients.FS, cfg)
 	events := store.NewEventCache(st, provider, provider, cfg.EventCacheTTL)
@@ -65,7 +68,7 @@ func main() {
 	reels := store.NewListCache(provider, store.KeyReels, cfg.EventCacheTTL, st.AllReels)
 	stories := store.NewListCache(provider, store.KeyStories, cfg.EventCacheTTL, st.AllStories)
 	storeItems := store.NewListCache(provider, store.KeyStore, cfg.EventCacheTTL, st.AllStoreItems)
-	api := handlers.New(st, events, faqs, venues, banners, reels, stories, storeItems, qr.New(cfg.QRSecret), cfg, cb, clients, mediaStore, cld)
+	api := handlers.New(st, events, faqs, venues, banners, reels, stories, storeItems, qr.New(cfg.QRSecret), cfg, cb, clients, mediaStore, s3Client)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

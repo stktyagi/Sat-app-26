@@ -7,11 +7,11 @@ import (
 
 	"backend/internal/apierr"
 	"backend/internal/chatbot"
-	"backend/internal/cloudinary"
 	"backend/internal/config"
 	"backend/internal/fb"
 	"backend/internal/models"
 	"backend/internal/qr"
+	"backend/internal/s3storage"
 	"backend/internal/storage"
 	"backend/internal/store"
 )
@@ -31,7 +31,7 @@ type API struct {
 	Chatbot    *chatbot.Service
 	Clients    *fb.Clients
 	Storage    *storage.Store
-	Cloudinary *cloudinary.Client
+	S3         *s3storage.Client
 }
 
 func New(
@@ -48,7 +48,7 @@ func New(
 	cb *chatbot.Service,
 	clients *fb.Clients,
 	stg *storage.Store,
-	cld *cloudinary.Client,
+	s3c *s3storage.Client,
 ) *API {
 	return &API{
 		Store:      s,
@@ -64,7 +64,7 @@ func New(
 		Chatbot:    cb,
 		Clients:    clients,
 		Storage:    stg,
-		Cloudinary: cld,
+		S3:         s3c,
 	}
 }
 

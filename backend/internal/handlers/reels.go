@@ -3,8 +3,11 @@ package handlers
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -102,7 +105,7 @@ func (a *API) AdminGetReel(c *gin.Context) {
 }
 
 // CreateReel handles creating a reel. Supports multipart video/thumbnail upload
-// or JSON body with videoUrl/videoLink and attached event details.
+// to AWS S3 or JSON body with videoUrl/videoLink and attached event details.
 func (a *API) CreateReel(c *gin.Context) {
 	var body reelBody
 
@@ -123,7 +126,7 @@ func (a *API) CreateReel(c *gin.Context) {
 	saved := false
 	defer func() { a.settleMedia(saved, nil, reelRefs(reel)) }()
 
-	// If a video or thumbnail file was uploaded in multipart form, upload to ImageKit
+	// If a video or thumbnail file was uploaded in multipart form, upload to AWS S3
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		if err := a.handleReelFileUploads(c, reel); err != nil {
 			apierr.Respond(c, err)
@@ -216,7 +219,7 @@ func (a *API) UpdateReel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"reel": reel})
 }
 
-// DeleteReel removes a reel.
+// DeleteReel removes a reel and cleans up its media in S3.
 func (a *API) DeleteReel(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
@@ -245,9 +248,11 @@ func (a *API) handleReelFileUploads(c *gin.Context, reel *models.Reel) *apierr.E
 	if errors.Is(err, http.ErrMissingFile) {
 		videoHeader, err = c.FormFile("file")
 	}
+
+	var tmpVideoPath string
 	if err == nil && videoHeader != nil {
-		if a.Storage == nil {
-			return apierr.BadRequest("storage_not_configured", "ImageKit storage is not configured")
+		if a.S3 == nil || !a.S3.IsConfigured() {
+			return apierr.BadRequest("storage_not_configured", "AWS S3 storage is not configured")
 		}
 		file, err := videoHeader.Open()
 		if err != nil {
@@ -255,20 +260,35 @@ func (a *API) handleReelFileUploads(c *gin.Context, reel *models.Reel) *apierr.E
 		}
 		defer file.Close()
 
-		ref, url, err := a.Storage.UploadFile(c.Request.Context(), "reels", videoHeader.Filename, file)
+		// Save uploaded video to temp file for streaming upload and thumbnail extraction
+		tmpFile, err := os.CreateTemp("", "reel_upload_*.mp4")
 		if err != nil {
-			log.Printf("ImageKit video upload error: %v", err)
-			return apierr.Internal("failed to upload video to ImageKit")
+			return apierr.Internal("failed to create temporary file for upload")
 		}
-		reel.VideoURL = url
-		reel.VideoRef = ref
+		tmpVideoPath = tmpFile.Name()
+		defer os.Remove(tmpVideoPath)
+
+		if _, err := io.Copy(tmpFile, file); err != nil {
+			tmpFile.Close()
+			return apierr.Internal("failed to save video to temporary storage")
+		}
+		_, _ = tmpFile.Seek(0, io.SeekStart)
+
+		res, err := a.S3.Upload(c.Request.Context(), "reels", videoHeader.Filename, tmpFile)
+		tmpFile.Close()
+		if err != nil {
+			log.Printf("AWS S3 video upload error: %v", err)
+			return apierr.Internal("failed to upload video to AWS S3: " + err.Error())
+		}
+		reel.VideoURL = res.URL
+		reel.VideoRef = res.Key
 	}
 
 	// Thumbnail file (optional)
 	thumbHeader, err := c.FormFile("thumbnail")
 	if err == nil && thumbHeader != nil {
-		if a.Storage == nil {
-			return apierr.BadRequest("storage_not_configured", "ImageKit storage is not configured")
+		if a.S3 == nil || !a.S3.IsConfigured() {
+			return apierr.BadRequest("storage_not_configured", "AWS S3 storage is not configured")
 		}
 		file, err := thumbHeader.Open()
 		if err != nil {
@@ -276,13 +296,22 @@ func (a *API) handleReelFileUploads(c *gin.Context, reel *models.Reel) *apierr.E
 		}
 		defer file.Close()
 
-		ref, url, err := a.Storage.UploadFile(c.Request.Context(), "reels/thumbnails", thumbHeader.Filename, file)
+		res, err := a.S3.Upload(c.Request.Context(), "reels/thumbnails", thumbHeader.Filename, file)
 		if err != nil {
-			log.Printf("ImageKit thumbnail upload error: %v", err)
-			return apierr.Internal("failed to upload thumbnail to ImageKit")
+			log.Printf("AWS S3 thumbnail upload error: %v", err)
+			return apierr.Internal("failed to upload thumbnail to AWS S3: " + err.Error())
 		}
-		reel.ThumbnailURL = url
-		reel.ThumbnailRef = ref
+		reel.ThumbnailURL = res.URL
+		reel.ThumbnailRef = res.Key
+	} else if tmpVideoPath != "" && reel.ThumbnailURL == "" {
+		// Auto-extract thumbnail using ffmpeg if no thumbnail was provided
+		baseName := strings.TrimSuffix(videoHeader.Filename, filepath.Ext(videoHeader.Filename))
+		if thumbRes, err := a.S3.ExtractThumbnailFromVideo(c.Request.Context(), tmpVideoPath, "reels/thumbnails", baseName); err == nil {
+			reel.ThumbnailURL = thumbRes.URL
+			reel.ThumbnailRef = thumbRes.Key
+		} else {
+			log.Printf("auto thumbnail extraction notice: %v", err)
+		}
 	}
 
 	return nil
@@ -307,7 +336,7 @@ func (a *API) resolveReelEvent(ctx context.Context, reel *models.Reel) {
 	}
 }
 
-// reelRefs lists the ImageKit files a reel owns.
+// reelRefs lists the S3 / storage files a reel owns.
 func reelRefs(r *models.Reel) []string {
 	return []string{r.VideoRef, r.ThumbnailRef}
 }

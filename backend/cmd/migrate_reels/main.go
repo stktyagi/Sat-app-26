@@ -12,9 +12,9 @@ import (
 	"cloud.google.com/go/firestore"
 
 	"backend/internal/cache"
-	"backend/internal/cloudinary"
 	"backend/internal/config"
 	"backend/internal/fb"
+	"backend/internal/s3storage"
 	"backend/internal/store"
 )
 
@@ -47,9 +47,9 @@ func main() {
 	}
 	defer clients.Close()
 
-	cld := cloudinary.NewClient(cfg.CloudinaryCloudName, cfg.CloudinaryAPIKey, cfg.CloudinaryAPISecret)
-	if !cld.IsConfigured() {
-		log.Fatalf("Cloudinary is not configured in .env")
+	s3c := s3storage.NewClient(cfg.AWSRegion, cfg.AWSS3Bucket, cfg.AWSAccessKeyID, cfg.AWSSecretAccessKey)
+	if !s3c.IsConfigured() {
+		log.Fatalf("AWS S3 is not configured in .env (bucket=%s, region=%s)", cfg.AWSS3Bucket, cfg.AWSRegion)
 	}
 
 	reelsDir := "reels"
@@ -65,22 +65,12 @@ func main() {
 		filterStem = strings.TrimSpace(os.Args[1])
 	}
 
-	fmt.Printf("Starting Cloudinary Reel Upload & Firebase Migration (Original Quality)...\n")
-	fmt.Printf("Target Folder in Cloudinary: sat26/reels\n\n")
+	fmt.Printf("Starting AWS S3 Reel Upload & Firebase Migration (Original Full Quality)...\n")
+	fmt.Printf("AWS S3 Bucket: %s (%s)\n\n", s3c.Bucket, s3c.Region)
 
 	for _, item := range targets {
 		if filterStem != "" && item.Stem != filterStem {
 			continue
-		}
-
-		// Check if already migrated
-		docSnap, err := clients.FS.Collection("reels").Doc(item.DocID).Get(ctx)
-		if err == nil {
-			vURL, _ := docSnap.Data()["videoUrl"].(string)
-			if strings.Contains(vURL, "cloudinary.com") && filterStem == "" {
-				fmt.Printf("[-] [%s.mp4] Already migrated to Cloudinary (%s), skipping.\n", item.Stem, vURL)
-				continue
-			}
 		}
 
 		filename := item.Stem + ".mp4"
@@ -92,38 +82,43 @@ func main() {
 		}
 
 		sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
-		fmt.Printf(">>> Uploading [%s] (%.2f MB)...\n", filename, sizeMB)
-		fmt.Printf("    Target Firestore Document: %s\n", item.DocID)
+		fmt.Printf(">>> Processing [%s] (%.2f MB)...\n", filename, sizeMB)
+		fmt.Printf("    Target Firestore Doc ID: %s\n", item.DocID)
 
-		file, err := os.Open(filePath)
-		if err != nil {
-			log.Fatalf("opening file %s: %v", filePath, err)
-		}
-
+		// 1. Upload original video to S3
 		startTime := time.Now()
-		res, err := cld.UploadVideo(ctx, "sat26/reels", filename, file)
-		file.Close()
+		vRes, err := s3c.UploadFile(ctx, "reels", filePath)
 		if err != nil {
-			log.Fatalf("upload error for %s: %v", filename, err)
+			log.Fatalf("failed to upload %s to S3: %v", filename, err)
 		}
+		uploadDuration := time.Since(startTime).Round(time.Millisecond)
+		fmt.Printf("    Video uploaded in %v!\n", uploadDuration)
+		fmt.Printf("    Video S3 Key: %s\n", vRes.Key)
+		fmt.Printf("    Video URL:    %s\n", vRes.URL)
 
-		thumbURL := cloudinary.GenerateAutoThumbnailURL(res.SecureURL)
-		durationSec := int(res.Duration)
-		if durationSec == 0 {
+		// 2. Extract high quality thumbnail from frame 0 and upload to S3
+		tRes, err := s3c.ExtractThumbnailFromVideo(ctx, filePath, "reels/thumbnails", item.Stem)
+		if err != nil {
+			log.Fatalf("failed to extract/upload thumbnail for %s: %v", filename, err)
+		}
+		fmt.Printf("    Thumb S3 Key: %s\n", tRes.Key)
+		fmt.Printf("    Thumb URL:    %s\n", tRes.URL)
+
+		// 3. Extract exact video duration using ffprobe
+		durationSec, err := s3c.GetVideoDuration(ctx, filePath)
+		if err != nil {
+			fmt.Printf("    Warning: ffprobe failed (%v), defaulting duration to 30s\n", err)
 			durationSec = 30
 		}
+		fmt.Printf("    Duration:     %ds\n", durationSec)
 
-		fmt.Printf("    Uploaded in %v!\n", time.Since(startTime).Round(time.Millisecond))
-		fmt.Printf("    Cloudinary Video URL: %s\n", res.SecureURL)
-		fmt.Printf("    Cloudinary Public ID:  %s\n", res.PublicID)
-		fmt.Printf("    Auto Thumbnail URL:   %s\n", thumbURL)
-
-		// Update Firestore
+		// 4. Update Firestore
 		now := time.Now().UTC()
 		updates := []firestore.Update{
-			{Path: "videoUrl", Value: res.SecureURL},
-			{Path: "videoRef", Value: res.PublicID},
-			{Path: "thumbnailUrl", Value: thumbURL},
+			{Path: "videoUrl", Value: vRes.URL},
+			{Path: "videoRef", Value: vRes.Key},
+			{Path: "thumbnailUrl", Value: tRes.URL},
+			{Path: "thumbnailRef", Value: tRes.Key},
 			{Path: "duration", Value: durationSec},
 			{Path: "updatedAt", Value: now},
 		}
@@ -132,15 +127,14 @@ func main() {
 		if err != nil {
 			log.Fatalf("updating firestore doc %s: %v", item.DocID, err)
 		}
-		fmt.Printf("    Firestore doc updated successfully!\n\n")
+		fmt.Printf("    Firestore document successfully updated!\n\n")
 
-		// If a specific stem was requested, we are done
 		if filterStem != "" {
 			break
 		}
 	}
 
-	// Invalidate Redis cache if available
+	// 5. Invalidate Redis cache if available
 	if cfg.RedisURL != "" {
 		provider, err := cache.NewRedis(ctx, cfg.RedisURL, cfg.RedisNamespace)
 		if err == nil {
@@ -149,6 +143,5 @@ func main() {
 			fmt.Println("Redis reels cache invalidated.")
 		}
 	}
-
-	fmt.Println("Done!")
+	fmt.Println("All festival reels migrated to AWS S3 successfully!")
 }
