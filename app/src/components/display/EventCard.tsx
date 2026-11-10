@@ -1,6 +1,8 @@
+import { getOptimizedImageUrl } from '@/utils/image';
 // src/components/display/EventCard.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
 import { MapPin } from 'lucide-react-native';
@@ -48,7 +50,8 @@ const EventCard: React.FC<EventCardProps> = ({
   };
 
   const getEventImage = () => {
-    return event.coverImage ? { uri: event.coverImage } : require("@/assets/event.jpg");
+    const optimizedUrl = getOptimizedImageUrl(event.coverImage, 400);
+    return optimizedUrl ? { uri: optimizedUrl } : require("@/assets/event.jpg");
   };
 
   const { day, month } = getFormattedDate();
@@ -63,7 +66,13 @@ const EventCard: React.FC<EventCardProps> = ({
       activeOpacity={0.9}
     >
       <View className='overflow-hidden m-2 rounded-[18px]'>
-        <Image source={eventImage} className="w-full h-40" resizeMode="cover" />
+        <Image
+          source={eventImage}
+          className="w-full h-40"
+          contentFit="cover"
+          transition={150}
+          cachePolicy="memory-disk"
+        />
         
         {/* Date Badge */}
         <View className="absolute top-3 right-3 bg-white/95 px-3 py-1.5 rounded-xl items-center backdrop-blur-md" style={{ boxShadow: '0px 4px 12px rgba(0,0,0,0.1)' }}>

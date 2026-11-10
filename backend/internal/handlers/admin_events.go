@@ -459,10 +459,13 @@ func (a *API) validateEvent(c *gin.Context, e *models.Event, onCreate bool) *api
 	}
 
 	if e.EventType == models.EventTypeTeam {
-		if e.MaxTeamSize < 1 {
-			return apierr.BadRequest("invalid_team_size", "a team event needs maxTeamSize of at least 1")
+		// Team sizes are optional: 0 means unset (no minimum / no maximum),
+		// which is the same convention the store layer already uses for
+		// maxParticipants, and every consumer guards on > 0.
+		if e.MinTeamSize < 0 || e.MaxTeamSize < 0 {
+			return apierr.BadRequest("invalid_team_size", "team sizes cannot be negative")
 		}
-		if e.MinTeamSize > e.MaxTeamSize {
+		if e.MaxTeamSize > 0 && e.MinTeamSize > e.MaxTeamSize {
 			return apierr.BadRequest("invalid_team_size", "minTeamSize cannot exceed maxTeamSize")
 		}
 	}

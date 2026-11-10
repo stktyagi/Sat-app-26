@@ -1,3 +1,4 @@
+import { getOptimizedImageUrl } from '@/utils/image';
 import React from 'react';
 import { View, Text, Pressable, TouchableOpacity } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -51,7 +52,8 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
   };
 
   const dateBadge = getDateBadge();
-  const coverSource = event?.coverImage ? { uri: event.coverImage } : require('@/assets/event.jpg');
+  const optimizedUrl = getOptimizedImageUrl(event?.coverImage, 500);
+  const coverSource = optimizedUrl ? { uri: optimizedUrl } : require('@/assets/event.jpg');
 
   const formatPrize = () => {
     const raw = event?.shortPrizes || event?.prizes;
@@ -102,10 +104,13 @@ export const FeaturedEventCard: React.FC<FeaturedEventCardProps> = ({ event, onP
           position: 'relative',
         }}
       >
-        <Image transition={200}
+        <Image
           source={coverSource}
           style={{ width: '100%', height: '100%' }}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={150}
+          cachePolicy="memory-disk"
+          priority="high"
         />
 
         {/* Floating Top-Right Date Badge */}

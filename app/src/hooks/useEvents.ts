@@ -11,11 +11,13 @@ export const useEvents = () => {
     queryFn: () => listEvents(),
     enabled: isAuthReady,
     staleTime: 1000 * 60 * 10, // 10 minutes
+    gcTime: 1000 * 60 * 60 * 24, // 24 hours
+    networkMode: 'offlineFirst',
   });
 
   return { 
     events: query.data || [], 
-    loading: query.isLoading, 
+    loading: query.isLoading && !query.data, 
     error: query.error ? query.error.message : null, 
     refresh: query.refetch 
   };

@@ -31,7 +31,14 @@ func (a *API) DeleteSelf(c *gin.Context) {
 
 	// 3. Delete user from Firebase Auth
 	if a.Clients != nil {
-		_ = a.Clients.DeleteUserFromAuth(c.Request.Context(), user.UserID)
+		if err := a.Clients.DeleteUserFromAuth(c.Request.Context(), user.UserID); err != nil {
+			log.Printf("Warning: failed to delete user %s from auth: %v", user.UserID, err)
+		}
+	}
+
+	// 4. Invalidate registration count cache
+	if a.Cache != nil {
+		a.Cache.InvalidateCounts()
 	}
 
 	c.JSON(http.StatusOK, gin.H{

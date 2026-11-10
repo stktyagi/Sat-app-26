@@ -1,3 +1,4 @@
+import { getOptimizedImageUrl } from '@/utils/image';
 import React, { useState } from 'react';
 import {
   View,
@@ -394,10 +395,13 @@ const EventDetailsScreen: React.FC = () => {
             elevation: 5,
           }}
         >
-          <Image transition={200}
-            source={event.coverImage ? { uri: event.coverImage } : require('@/assets/event.jpg')}
+          <Image
+            source={event.coverImage ? { uri: getOptimizedImageUrl(event.coverImage, 700) } : require('@/assets/event.jpg')}
             style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+            priority="high"
           />
 
           {/* Close / Back "X" Button (Top Left) */}

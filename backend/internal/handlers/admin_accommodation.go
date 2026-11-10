@@ -39,17 +39,17 @@ func (a *API) AdminListAccommodation(c *gin.Context) {
 	}
 
 	type userResp struct {
-		UserID              string                 `json:"userId"`
-		DisplayName         string                 `json:"displayName"`
-		Email               string                 `json:"email"`
-		PhoneNumber         string                 `json:"phoneNumber"`
-		CollegeName         string                 `json:"collegeName"`
-		AccommodationNeeded bool                   `json:"accommodationNeeded"`
-		AccommodationStatus bool                   `json:"accommodationStatus"`
-		FoodStatus          bool                   `json:"foodStatus"`
-		Accommodation       map[string]bool        `json:"accommodation"`
-		Food                map[string]bool        `json:"food"`
-		CheckInStatus       models.CheckInStatus   `json:"checkInStatus"`
+		UserID              string               `json:"userId"`
+		DisplayName         string               `json:"displayName"`
+		Email               string               `json:"email"`
+		PhoneNumber         string               `json:"phoneNumber"`
+		CollegeName         string               `json:"collegeName"`
+		AccommodationNeeded bool                 `json:"accommodationNeeded"`
+		AccommodationStatus bool                 `json:"accommodationStatus"`
+		FoodStatus          bool                 `json:"foodStatus"`
+		Accommodation       map[string]bool      `json:"accommodation"`
+		Food                map[string]bool      `json:"food"`
+		CheckInStatus       models.CheckInStatus `json:"checkInStatus"`
 	}
 
 	result := make([]userResp, 0)
@@ -65,12 +65,6 @@ func (a *API) AdminListAccommodation(c *gin.Context) {
 		}
 
 		hasDay := acc[targetDay]
-
-		// Fallback for users where accommodationNeeded is true but specific day is unset
-		if !hasDay && u.AccommodationNeeded && len(acc) == 0 && dayIndex == 0 {
-			hasDay = true
-		}
-
 		if !hasDay {
 			continue
 		}
@@ -158,9 +152,6 @@ func (a *API) AdminAccommodationStats(c *gin.Context) {
 		for _, u := range users {
 			acc := u.Accommodation
 			booked := acc != nil && acc[dayKey]
-			if !booked && u.AccommodationNeeded && len(acc) == 0 && i == 0 {
-				booked = true
-			}
 			if booked {
 				total++
 				if u.CheckInStatus.Accommodation {

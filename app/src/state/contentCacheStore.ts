@@ -6,7 +6,6 @@ import { listVenues } from '@/api/venues';
 import { Reel, Venue } from '@/types/models';
 import { UserStory } from '@/types/story';
 import { BannerItem, DEMO_BANNERS } from '@/components/display/HeroBanner';
-import { MOCK_REELS } from '@/mocks/reels';
 import { resolveStoryImage } from '@/hooks/useStories';
 
 interface ContentCacheState {
@@ -56,7 +55,7 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
   bannersError: null,
   bannersFetched: false,
 
-  reels: MOCK_REELS,
+  reels: [],
   reelsLoading: false,
   reelsError: null,
   reelsFetched: false,
@@ -150,20 +149,20 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
         return sorted;
       } else {
         set({
-          reels: MOCK_REELS,
+          reels: [],
           reelsFetched: true,
           reelsLoading: false,
         });
-        return MOCK_REELS;
+        return [];
       }
     } catch (err: any) {
-      console.warn('Failed to fetch backend reels, using fallback:', err?.message);
+      console.warn('Failed to fetch backend reels:', err?.message);
       set({
         reelsError: err?.message || 'Failed to load reels',
         reelsFetched: true,
         reelsLoading: false,
       });
-      return state.reels.length > 0 ? state.reels : MOCK_REELS;
+      return state.reels.length > 0 ? state.reels : [];
     }
   },
 

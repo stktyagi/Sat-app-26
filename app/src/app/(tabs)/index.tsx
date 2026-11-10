@@ -283,7 +283,7 @@ export default function HomeScreen({ setShowBottomNav }: { setShowBottomNav?: (x
                   fontSize: 14,
                 }}
               >
-                More stories on the way
+                No stories available right now. Check back soon!
               </Text>
             </View>
           ) : (

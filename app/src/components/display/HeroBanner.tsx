@@ -41,7 +41,7 @@ export const DEMO_BANNERS: BannerItem[] = [
     id: 'b1',
     title: 'Saturnalia',
     description: 'Experience the magic under the grand lights',
-    image: require('@/assets/story2/Copy_of_DSC09217_cesaci.jpg'),
+    image: require('@/assets/background.png'),
     link: 'https://saturnalia.in',
   },
 ];

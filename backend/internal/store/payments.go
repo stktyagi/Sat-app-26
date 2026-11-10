@@ -444,6 +444,7 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 				return err
 			}
 			evictUserFromCache(user.UserID)
+			s.InvalidateAccommodationCache()
 		}
 
 		if p.CouponCode != "" {

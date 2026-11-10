@@ -51,6 +51,11 @@ type Config struct {
 	ImageKitAccountsFile string
 	AppConfigFile        string
 
+	// Cloudinary credentials for dedicated reel storage.
+	CloudinaryCloudName string
+	CloudinaryAPIKey    string
+	CloudinaryAPISecret string
+
 	UseEmulator bool
 	GroqAPIKey  string
 }
@@ -69,6 +74,9 @@ func Load() (*Config, error) {
 		RedisNamespace:       env("REDIS_NAMESPACE", "sat26"),
 		ImageKitAccountsFile: os.Getenv("IMAGEKIT_ACCOUNTS_FILE"),
 		AppConfigFile:        env("APP_CONFIG_FILE", "app_config.json"),
+		CloudinaryCloudName:  os.Getenv("CLOUDINARY_CLOUD_NAME"),
+		CloudinaryAPIKey:     os.Getenv("CLOUDINARY_API_KEY"),
+		CloudinaryAPISecret:  os.Getenv("CLOUDINARY_API_SECRET"),
 		UseEmulator:          os.Getenv("FIRESTORE_EMULATOR_HOST") != "",
 		GroqAPIKey:           env("GROQ_API_KEY", os.Getenv("GROQ_API_Key")),
 		EasebuzzKey:          os.Getenv("EASEBUZZ_KEY"),

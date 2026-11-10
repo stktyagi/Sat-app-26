@@ -1,3 +1,4 @@
+import { getOptimizedImageUrl, getImagePlaceholderUrl } from '@/utils/image';
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
@@ -5,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   ActivityIndicator,
   RefreshControl,
   Dimensions,
@@ -89,6 +91,191 @@ function formatTimelineDateLabel(d: Date): string {
   const month = d.toLocaleDateString('en-US', { month: 'long' });
   return `${getOrdinalSuffix(day)} ${month}`;
 }
+
+interface HypedEventCardProps {
+  evt: FirebaseEvent;
+  idx: number;
+  onPress: (evt: FirebaseEvent) => void;
+  hypeBadge: string;
+}
+
+const HypedEventCard = React.memo(({ evt, idx, onPress, hypeBadge }: HypedEventCardProps) => {
+  const optimizedUrl = getOptimizedImageUrl(evt.coverImage, 400);
+  const coverSource = optimizedUrl
+    ? { uri: optimizedUrl }
+    : require('@/assets/event.jpg');
+  const placeholderUrl = getImagePlaceholderUrl(evt.coverImage);
+
+  return (
+    <TouchableOpacity
+      onPress={() => onPress(evt)}
+      activeOpacity={0.92}
+      style={{
+        width: 185,
+        height: 270,
+        borderRadius: 20,
+        overflow: 'hidden',
+        backgroundColor: '#1E1E22',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 5,
+      }}
+    >
+      <Image
+        source={coverSource}
+        placeholder={placeholderUrl ? { uri: placeholderUrl } : undefined}
+        style={{ width: '100%', height: '100%' }}
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
+        priority="high"
+        recyclingKey={`hyped-${evt.eventId || evt.id || idx}`}
+      />
+      <LinearGradient
+        colors={['transparent', 'rgba(0, 0, 0, 0.45)', 'rgba(0, 0, 0, 0.95)']}
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 140,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: 14,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: 'Poppins_700Bold',
+            color: '#FFFFFF',
+            fontSize: 16,
+            lineHeight: 21,
+            marginBottom: 2,
+          }}
+          numberOfLines={1}
+        >
+          {evt.title}
+        </Text>
+        <Text
+          style={{
+            fontFamily: 'Poppins_400Regular',
+            color: '#D1D5DB',
+            fontSize: 12,
+            marginBottom: 6,
+          }}
+          numberOfLines={1}
+        >
+          {evt.category || 'Featured Event'}
+        </Text>
+        <Text
+          style={{
+            fontFamily: 'Poppins_600SemiBold',
+            color: '#38BDF8',
+            fontSize: 12,
+          }}
+        >
+          {hypeBadge}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+interface TimelineEventCardProps {
+  evt: any;
+  cardIdx: number;
+  groupIdx: number;
+  timeText: string;
+  onPress: (evt: any) => void;
+}
+
+const TimelineEventCard = React.memo(({ evt, cardIdx, groupIdx, timeText, onPress }: TimelineEventCardProps) => {
+  const optimizedUrl = getOptimizedImageUrl(evt.coverImage, 350);
+  const coverSource = optimizedUrl
+    ? { uri: optimizedUrl }
+    : require('@/assets/event.jpg');
+  const placeholderUrl = getImagePlaceholderUrl(evt.coverImage);
+
+  return (
+    <TouchableOpacity
+      onPress={() => onPress(evt)}
+      activeOpacity={0.9}
+      style={{
+        width: 155,
+        height: 180,
+        borderRadius: 18,
+        overflow: 'hidden',
+        backgroundColor: '#1E1E22',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 6,
+        elevation: 4,
+      }}
+    >
+      <Image
+        source={coverSource}
+        placeholder={placeholderUrl ? { uri: placeholderUrl } : undefined}
+        style={{ width: '100%', height: '100%' }}
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
+        priority="normal"
+        recyclingKey={`tl-${evt.eventId || evt.id || cardIdx}`}
+      />
+      <LinearGradient
+        colors={['transparent', 'rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.92)']}
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 100,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: 10,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: 'Poppins_700Bold',
+            fontSize: 14,
+            color: '#FFFFFF',
+            lineHeight: 18,
+            marginBottom: 2,
+          }}
+          numberOfLines={1}
+        >
+          {evt.title}
+        </Text>
+        <Text
+          style={{
+            fontFamily: 'Poppins_400Regular',
+            fontSize: 11,
+            color: '#D1D5DB',
+          }}
+          numberOfLines={1}
+        >
+          {timeText}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function EventsTabScreen() {
   const router = useRouter();
@@ -710,108 +897,25 @@ export default function EventsTabScreen() {
                 </Text>
               </View>
 
-              {/* Hyped Events Horizontal Slider (Top 5 registered) */}
-              <ScrollView
+              {/* Hyped Events Horizontal Slider (Top 5 registered) - Virtualized */}
+              <FlatList
                 horizontal
+                data={hypedEvents}
+                keyExtractor={(item, index) => `hyped-${item.eventId || item.id || index}-${index}`}
+                renderItem={({ item, index }) => (
+                  <HypedEventCard
+                    evt={item}
+                    idx={index}
+                    onPress={handleEventPress}
+                    hypeBadge={getHypeCountText(item, index)}
+                  />
+                )}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
-              >
-                {hypedEvents.map((evt, idx) => {
-                  const coverSource = evt.coverImage
-                    ? { uri: evt.coverImage }
-                    : idx % 3 === 0
-                    ? require('@/assets/satwrap2.jpg')
-                    : idx % 3 === 1
-                    ? require('@/assets/satwrap3.jpg')
-                    : require('@/assets/event.jpg');
-                  const hypeBadge = getHypeCountText(evt, idx);
-
-                  return (
-                    <TouchableOpacity
-                      key={`hyped-${evt.eventId || idx}-${idx}`}
-                      onPress={() => handleEventPress(evt)}
-                      activeOpacity={0.92}
-                      style={{
-                        width: 185,
-                        height: 270,
-                        borderRadius: 20,
-                        overflow: 'hidden',
-                        backgroundColor: '#1E1E22',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.35,
-                        shadowRadius: 8,
-                        elevation: 5,
-                      }}
-                    >
-                      {/* Background Image */}
-                      <Image transition={200}
-                        source={coverSource}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-
-                      {/* Dark Gradient Overlay for text readability */}
-                      <LinearGradient
-                        colors={['transparent', 'rgba(0, 0, 0, 0.45)', 'rgba(0, 0, 0, 0.95)']}
-                        style={{
-                          position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: 140,
-                        }}
-                      />
-
-                      {/* Card Content at Bottom */}
-                      <View
-                        style={{
-                          position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          padding: 14,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontFamily: 'Poppins_700Bold',
-                            color: '#FFFFFF',
-                            fontSize: 16,
-                            lineHeight: 21,
-                            marginBottom: 2,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {evt.title}
-                        </Text>
-
-                        <Text
-                          style={{
-                            fontFamily: 'Poppins_400Regular',
-                            color: '#D1D5DB',
-                            fontSize: 12,
-                            marginBottom: 6,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {evt.category || 'Featured Event'}
-                        </Text>
-
-                        <Text
-                          style={{
-                            fontFamily: 'Poppins_600SemiBold',
-                            color: '#38BDF8',
-                            fontSize: 12,
-                          }}
-                        >
-                          {hypeBadge}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                initialNumToRender={3}
+                maxToRenderPerBatch={3}
+                windowSize={3}
+              />
             </View>
             )}
 
@@ -940,98 +1044,26 @@ export default function EventsTabScreen() {
                           {group.dateLabel}
                         </Text>
 
-                        {/* Horizontal ScrollView of Event Cards for this date */}
-                        <ScrollView
+                        {/* Horizontal Virtualized FlatList of Event Cards for this date */}
+                        <FlatList
                           horizontal
+                          data={group.events}
+                          keyExtractor={(item: any, cardIdx: number) => `tl-card-${groupIdx}-${item.eventId || item.id || cardIdx}-${cardIdx}`}
+                          renderItem={({ item, index }: { item: any; index: number }) => (
+                            <TimelineEventCard
+                              evt={item}
+                              cardIdx={index}
+                              groupIdx={groupIdx}
+                              timeText={getEventTimeText(item)}
+                              onPress={handleEventPress}
+                            />
+                          )}
                           showsHorizontalScrollIndicator={false}
                           contentContainerStyle={{ gap: 14, paddingRight: 20, paddingBottom: 6 }}
-                        >
-                          {group.events.map((evt: any, cardIdx: number) => {
-                            const coverSource = evt.coverImage
-                              ? { uri: evt.coverImage }
-                              : (groupIdx + cardIdx) % 3 === 0
-                              ? require('@/assets/satwrap2.jpg')
-                              : (groupIdx + cardIdx) % 3 === 1
-                              ? require('@/assets/satwrap3.jpg')
-                              : require('@/assets/event.jpg');
-
-                            const timeText = getEventTimeText(evt);
-
-                            return (
-                              <TouchableOpacity
-                                key={`tl-card-${groupIdx}-${evt.eventId || cardIdx}-${cardIdx}`}
-                                onPress={() => handleEventPress(evt)}
-                                activeOpacity={0.9}
-                                style={{
-                                  width: 155,
-                                  height: 180,
-                                  borderRadius: 18,
-                                  overflow: 'hidden',
-                                  backgroundColor: '#1E1E22',
-                                  shadowColor: '#000',
-                                  shadowOffset: { width: 0, height: 4 },
-                                  shadowOpacity: 0.35,
-                                  shadowRadius: 6,
-                                  elevation: 4,
-                                }}
-                              >
-                                {/* Event Image */}
-                                <Image transition={200}
-                                  source={coverSource}
-                                  style={{ width: '100%', height: '100%' }}
-                                  resizeMode="cover"
-                                />
-
-                                {/* Dark Gradient Overlay */}
-                                <LinearGradient
-                                  colors={['transparent', 'rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.92)']}
-                                  style={{
-                                    position: 'absolute',
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: 100,
-                                  }}
-                                />
-
-                                {/* Content Overlaid at Bottom */}
-                                <View
-                                  style={{
-                                    position: 'absolute',
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    padding: 10,
-                                  }}
-                                >
-                                  <Text
-                                    style={{
-                                      fontFamily: 'Poppins_700Bold',
-                                      fontSize: 14,
-                                      color: '#FFFFFF',
-                                      lineHeight: 18,
-                                      marginBottom: 2,
-                                    }}
-                                    numberOfLines={1}
-                                  >
-                                    {evt.title}
-                                  </Text>
-
-                                  <Text
-                                    style={{
-                                      fontFamily: 'Poppins_400Regular',
-                                      fontSize: 11,
-                                      color: '#D1D5DB',
-                                    }}
-                                    numberOfLines={1}
-                                  >
-                                    {timeText}
-                                  </Text>
-                                </View>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
+                          initialNumToRender={3}
+                          maxToRenderPerBatch={3}
+                          windowSize={3}
+                        />
                       </View>
                     </View>
                   );

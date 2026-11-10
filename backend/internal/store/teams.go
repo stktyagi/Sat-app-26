@@ -276,3 +276,62 @@ func (s *Store) MarkTeamPaid(ctx context.Context, teamID string) error {
 	})
 	return wrap(err)
 }
+
+// CleanUserFromTeam cleans up a user's presence from a team when their account is deleted.
+// - If the user was the only member, the team document is deleted.
+// - If the user was the leader and other members remain, leadership is handed over to the next member.
+// - If the event specifies minTeamSize and the remaining member count drops below it, status becomes pending.
+func (s *Store) CleanUserFromTeam(ctx context.Context, teamID, userID string) error {
+	teamRef := s.FS.Collection(ColTeams).Doc(teamID)
+
+	return s.FS.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(teamRef)
+		if err != nil {
+			if errors.Is(wrap(err), ErrNotFound) {
+				return nil
+			}
+			return wrap(err)
+		}
+		team, err := decodeTeam(snap)
+		if err != nil {
+			return err
+		}
+
+		if !team.HasMember(userID) && !team.IsLeader(userID) {
+			return nil
+		}
+
+		kept := team.Without(userID)
+		if len(kept) == 0 {
+			// No remaining members — delete the team document to avoid orphans
+			return tx.Delete(teamRef)
+		}
+
+		// Read event within transaction read phase to determine minTeamSize
+		var minSize int
+		if team.EventID != "" {
+			evDoc, evErr := tx.Get(s.FS.Collection(ColEvents).Doc(team.EventID))
+			if evErr == nil {
+				if ev, err := decodeEvent(evDoc); err == nil && ev != nil {
+					minSize = ev.MinTeamSize
+				}
+			}
+		}
+
+		updates := []firestore.Update{
+			{Path: "memberIds", Value: kept},
+			{Path: "updatedAt", Value: isotime.Now()},
+		}
+
+		// If the user was the leader, handover leadership to the next person
+		if team.IsLeader(userID) {
+			updates = append(updates, firestore.Update{Path: "leaderUserId", Value: kept[0]})
+		}
+
+		if minSize > 0 && len(kept) < minSize {
+			updates = append(updates, firestore.Update{Path: "status", Value: models.TeamStatusPending})
+		}
+
+		return tx.Update(teamRef, updates)
+	})
+}

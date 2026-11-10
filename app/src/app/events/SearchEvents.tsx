@@ -1,3 +1,4 @@
+import { getOptimizedImageUrl } from '@/utils/image';
 // src/screens/App/Home/SearchEventsScreen.tsx
 import React, { useState } from 'react';
 import {
@@ -48,7 +49,8 @@ export default function SearchEventsScreen() {
   const renderEventItem = ({ item }: { item: FirebaseEvent }) => {
     const date = getFormattedDate(item.dateTime, item.startDateTime);
     const time = getFormattedTime(item.dateTime);
-    const eventImage = item.coverImage ? { uri: item.coverImage } : require('@/assets/event.jpg');
+    const optimizedUrl = getOptimizedImageUrl(item.coverImage, 250);
+    const eventImage = optimizedUrl ? { uri: optimizedUrl } : require('@/assets/event.jpg');
 
     return (
       <TouchableOpacity
@@ -67,7 +69,15 @@ export default function SearchEventsScreen() {
       >
         {/* Event Image */}
         <View style={{ width: 100, height: 100, overflow: 'hidden', borderRadius: 14, marginRight: 12 }}>
-          <Image transition={200} source={eventImage} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          <Image
+            source={eventImage}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+            priority="low"
+            recyclingKey={`search-${item.eventId || item.id}`}
+          />
         </View>
 
         {/* Event Details */}

@@ -225,6 +225,9 @@ func (a *API) AdminDeleteUser(c *gin.Context) {
 		return
 	}
 	a.dropIdentityFiles(ctx, user)
+	if a.Cache != nil {
+		a.Cache.InvalidateCounts()
+	}
 
 	c.Status(http.StatusNoContent)
 }
@@ -264,7 +267,7 @@ func (a *API) AdminGetUserEvents(c *gin.Context) {
 			event.EffectiveFee = &fee
 			row["event"] = event
 		}
-		
+
 		if reg.TeamID != "" {
 			if team, err := a.Store.GetTeam(ctx, reg.TeamID); err == nil {
 				a.hydrateMembers(ctx, team)

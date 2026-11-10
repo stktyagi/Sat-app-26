@@ -1191,7 +1191,11 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     marginBottom: 24,
                   }}
                 >
-                  Team size: {event.minTeamSize || 1} - {event.maxTeamSize || 5} members
+                  {event.minTeamSize
+                    ? `Team size: ${event.minTeamSize} - ${event.maxTeamSize || "unlimited"} members`
+                    : event.maxTeamSize
+                    ? `Team size: up to ${event.maxTeamSize} members`
+                    : "No team size limit"}
                 </Text>
 
                 <MetallicButton

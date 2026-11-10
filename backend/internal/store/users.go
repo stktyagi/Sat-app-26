@@ -163,14 +163,44 @@ func (s *Store) UpdateUser(ctx context.Context, uid string, fields map[string]an
 	return s.GetUser(ctx, uid)
 }
 
-// DeleteUser removes a user document and all associated registrations.
+// DeleteUser removes a user document, associated registrations, and cleans up team memberships
+// (handing over leadership to the next member or disbanding empty teams).
 // This is an irreversible operation that should be used with caution.
 func (s *Store) DeleteUser(ctx context.Context, uid string) error {
-	// First delete all registrations for this user to avoid orphaned data
+	// 1. First list all registrations for this user to avoid orphaned data
 	regs, err := s.ListUserRegistrations(ctx, uid)
 	if err != nil {
 		return wrap(err)
 	}
+
+	// 2. Discover any teams associated with this user
+	teamIDs := make(map[string]struct{})
+	for _, reg := range regs {
+		if reg.TeamID != "" {
+			teamIDs[reg.TeamID] = struct{}{}
+		}
+	}
+
+	// Also find teams where the user is listed directly as leader or member
+	if leaderDocs, err := s.FS.Collection(ColTeams).Where("leaderUserId", "==", uid).Documents(ctx).GetAll(); err == nil {
+		for _, doc := range leaderDocs {
+			teamIDs[doc.Ref.ID] = struct{}{}
+		}
+	}
+	if memberDocs, err := s.FS.Collection(ColTeams).Where("memberIds", "array-contains", uid).Documents(ctx).GetAll(); err == nil {
+		for _, doc := range memberDocs {
+			teamIDs[doc.Ref.ID] = struct{}{}
+		}
+	}
+
+	// 3. Clean up user from each team (handover leadership to the next person or delete empty team)
+	for teamID := range teamIDs {
+		if err := s.CleanUserFromTeam(ctx, teamID, uid); err != nil {
+			log.Printf("failed to clean user %s from team %s: %v", uid, teamID, err)
+		}
+	}
+
+	// 4. Delete all user event registrations
 	for _, reg := range regs {
 		if err := s.DeleteRegistration(ctx, reg.ID); err != nil {
 			// Log but continue deleting other registrations
@@ -178,13 +208,16 @@ func (s *Store) DeleteUser(ctx context.Context, uid string) error {
 		}
 	}
 
-	// Now delete the user document itself
+	// 5. Delete the user document itself
 	delRef := s.FS.Collection(ColUsers).Doc(uid)
 	_, delErr := delRef.Delete(ctx)
 	if delErr != nil {
 		return wrap(delErr)
 	}
+
+	// 6. Evict from memory caches
 	evictUserFromCache(uid)
+	s.InvalidateAccommodationCache()
 	return nil
 }
 
@@ -208,8 +241,8 @@ var (
 	accomMu        sync.RWMutex
 	accomCache     []*models.User
 	accomCacheTime time.Time
-	// Fix #5: bumped from 60s to 10 minutes — admin dashboard open in a tab
-	// was draining the entire users collection every minute.
+	// Bumped from 60s to 10 minutes — admin dashboard open in a tab
+	// was draining reads every minute.
 	accomTTL = 10 * time.Minute
 )
 
@@ -220,14 +253,8 @@ func (s *Store) InvalidateAccommodationCache() {
 	accomMu.Unlock()
 }
 
-// ListAccommodationUsers returns anyone with accommodation needed or booked,
+// ListAccommodationUsers returns users who have booked accommodation days,
 // cached with a 10-minute TTL.
-//
-// Fix #5: the query now filters in Firestore (accommodationNeeded == true)
-// instead of downloading every user document and filtering in Go. Users who
-// set accommodation.* map entries without the top-level flag are uncommon
-// enough that the admin can refresh manually if needed; the overwhelming
-// majority of accommodation users set the flag.
 func (s *Store) ListAccommodationUsers(ctx context.Context) ([]*models.User, error) {
 	accomMu.RLock()
 	if accomCache != nil && time.Since(accomCacheTime) < accomTTL {
@@ -245,9 +272,18 @@ func (s *Store) ListAccommodationUsers(ctx context.Context) ([]*models.User, err
 		return accomCache, nil
 	}
 
-	// Fix #5: push the filter to Firestore — only reads documents where the
-	// accommodationNeeded flag is true, instead of a full collection scan.
-	iter := s.FS.Collection(ColUsers).Where("accommodationNeeded", "==", true).Documents(ctx)
+	// Query Firestore using an OR filter across all accommodation days.
+	// This only reads users who actually have an accommodation day booked,
+	// rather than scanning all users or pulling users who only checked accommodationNeeded.
+	iter := s.FS.Collection(ColUsers).WhereEntity(firestore.OrFilter{
+		Filters: []firestore.EntityFilter{
+			firestore.PropertyFilter{Path: "accommodation.day0", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day1", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day2", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day3", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day4", Operator: "==", Value: true},
+		},
+	}).Documents(ctx)
 	defer iter.Stop()
 
 	var users []*models.User
@@ -263,7 +299,16 @@ func (s *Store) ListAccommodationUsers(ctx context.Context) ([]*models.User, err
 		if err != nil {
 			continue
 		}
-		users = append(users, u)
+		hasAcc := false
+		for _, v := range u.Accommodation {
+			if v {
+				hasAcc = true
+				break
+			}
+		}
+		if hasAcc {
+			users = append(users, u)
+		}
 	}
 
 	accomCache = users

@@ -129,7 +129,20 @@ func (a *API) PatchMe(c *gin.Context) {
 		fields["interests"] = *body.Interests
 	}
 	if body.AccommodationNeeded != nil {
-		fields["accommodationNeeded"] = *body.AccommodationNeeded
+		hasBookedAcc := false
+		if user != nil {
+			for _, booked := range user.Accommodation {
+				if booked {
+					hasBookedAcc = true
+					break
+				}
+			}
+		}
+		if hasBookedAcc && !*body.AccommodationNeeded {
+			fields["accommodationNeeded"] = true
+		} else {
+			fields["accommodationNeeded"] = *body.AccommodationNeeded
+		}
 	}
 	if body.ReferredBy != nil {
 		fields["referredBy"] = strings.TrimSpace(*body.ReferredBy)

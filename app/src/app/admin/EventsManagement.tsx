@@ -101,6 +101,7 @@ export default function EventsManagement() {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
+      if (!dateString || isNaN(date.getTime())) return "Date TBD";
       return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",

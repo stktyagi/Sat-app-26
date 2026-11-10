@@ -29,6 +29,7 @@ const ProfileDetailsScreen = () => {
   const router = useRouter();
   const { userData: userProfile } = useUserStore();
   const [isDelete, setIsDelete] = React.useState(false);
+  const [deletingAccount, setDeletingAccount] = React.useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = React.useState(false);
   const [isUploadingCollegeId, setIsUploadingCollegeId] = React.useState(false);
 
@@ -90,7 +91,31 @@ const ProfileDetailsScreen = () => {
   );
 
   const handleDeleteAccount = () => {
-    Linking.openURL("https://www.saturnalia.in/deleteuser");
+    showAlert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action is permanent and cannot be undone. All your registrations, passes, and account details will be permanently removed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              const { deleteAccount } = await import("@/api/auth");
+              await deleteAccount();
+              useUserStore.getState().logout();
+              router.replace("/(auth)");
+            } catch (error: any) {
+              console.error("Delete account error:", error);
+              showAlert("Error", error?.message || "Failed to delete account. Please try again.");
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -684,6 +709,7 @@ const ProfileDetailsScreen = () => {
           </Text>
 
           <TouchableOpacity
+            disabled={deletingAccount}
             onPress={handleDeleteAccount}
             style={{
               backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
@@ -692,11 +718,16 @@ const ProfileDetailsScreen = () => {
               borderRadius: 16,
               paddingVertical: 14,
               alignItems: "center",
+              opacity: deletingAccount ? 0.6 : 1,
             }}
           >
-            <Text style={{ fontFamily: "Poppins_600SemiBold", color: '#EF4444', fontSize: 15 }}>
-              Delete My Account
-            </Text>
+            {deletingAccount ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <Text style={{ fontFamily: "Poppins_600SemiBold", color: '#EF4444', fontSize: 15 }}>
+                Delete My Account
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>

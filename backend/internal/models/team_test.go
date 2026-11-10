@@ -95,3 +95,39 @@ func TestTeamNormaliseRecomputesSize(t *testing.T) {
 		t.Error("Normalise should leave empty collections serialisable as []")
 	}
 }
+
+func TestTeamLeadershipHandover(t *testing.T) {
+	team := &models.Team{
+		LeaderUserID: "leader",
+		MemberIDs:    []string{"leader", "member1", "member2"},
+	}
+
+	// When leader is removed, remaining members should be in order and the first becomes new leader
+	kept := team.Without("leader")
+	if len(kept) != 2 {
+		t.Fatalf("expected 2 kept members, got %d", len(kept))
+	}
+	if kept[0] != "member1" || kept[1] != "member2" {
+		t.Errorf("unexpected members after leader removal: %v", kept)
+	}
+
+	newLeader := kept[0]
+	if newLeader != "member1" {
+		t.Errorf("expected member1 to become leader, got %s", newLeader)
+	}
+
+	// Status drops to pending if minTeamSize is not met
+	if got := models.StatusFor(len(kept), 3); got != models.TeamStatusPending {
+		t.Errorf("expected pending status when below minTeamSize, got %s", got)
+	}
+
+	// When only leader is in team
+	soleLeaderTeam := &models.Team{
+		LeaderUserID: "sole_leader",
+		MemberIDs:    []string{"sole_leader"},
+	}
+	soleKept := soleLeaderTeam.Without("sole_leader")
+	if len(soleKept) != 0 {
+		t.Errorf("expected 0 members remaining for sole leader, got %d", len(soleKept))
+	}
+}

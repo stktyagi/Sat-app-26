@@ -191,8 +191,8 @@ export default function EventInfo({
       externalUrl: (event as any).externalUrl || "",
 
       // Team-specific fields
-      minTeamSize: event.minTeamSize || 2,
-      maxTeamSize: event.maxTeamSize || 5,
+      minTeamSize: event.minTeamSize || 0,
+      maxTeamSize: event.maxTeamSize || 0,
       sameCollegeOnly: event.sameCollegeOnly || false,
 
       // Event Dates & Venue
@@ -255,37 +255,30 @@ export default function EventInfo({
       return;
     }
 
-    // Validation
-    if (!editData.title?.trim()) {
-      showAlert("Error", "Event title is required");
-      return;
-    }
+    // All event fields are optional: empty values are allowed and saved.
+    // Validation below only checks values that were actually entered.
 
-    if (!editData.category) {
-      showAlert("Error", "Event category is required");
-      return;
-    }
-
-    if (
-      editData.eventType === "externalLink" &&
-      !editData.externalUrl?.trim()
-    ) {
-      showAlert("Error", "External URL is required for external link events");
-      return;
-    }
-
-    if (editData.coordinators?.length === 0) {
-      showAlert("Error", "At least one coordinator is required");
-      return;
-    }
-
-    // Validate custom fields
-    const customFields = editData.customFields || [];
+    // Custom registration fields are optional subrecords: a row left
+    // completely blank is dropped on save, while a partially filled row
+    // still needs its missing pieces.
+    const isBlankCustomField = (field: CustomField) => {
+      if (field.label?.trim()) return false;
+      if (field.type === "select" || field.type === "multi-select") {
+        return !(field.options || []).some((opt: string) => opt.trim());
+      }
+      return !(field.placeholder?.trim());
+    };
+    const customFields = (editData.customFields || []).filter(
+      (field: CustomField) => !isBlankCustomField(field)
+    );
     for (let i = 0; i < customFields.length; i++) {
       const field = customFields[i];
 
       if (!field.label?.trim()) {
-        showAlert("Error", `Custom field ${i + 1} must have a label`);
+        showAlert(
+          "Error",
+          `Custom field ${i + 1} has details entered but no label - add a label or clear the row`
+        );
         return;
       }
 
@@ -305,7 +298,8 @@ export default function EventInfo({
     const deadlineISO = parseInputDate(editData.registrationDeadline);
     const startISO = parseInputDate(editData.startDateTime);
     const endISO = parseInputDate(editData.endDateTime);
-    const dateTimeISO = parseInputDate(editData.dateTime) || startISO;
+    // A cleared Event Date & Time stays empty; it does not fall back to Start.
+    const dateTimeISO = parseInputDate(editData.dateTime);
 
     if (editData.registrationDeadline && editData.registrationDeadline.trim() && !deadlineISO) {
       showAlert("Error", "Registration Deadline is invalid. Please use DD/MM/YYYY HH:MM format.");
@@ -339,13 +333,15 @@ export default function EventInfo({
         ? parseInt(String(editData.maxParticipants), 10)
         : 0;
 
+      // Team sizes are optional: empty stays empty (0 = no minimum / no
+      // maximum, the same unset convention as maxParticipants).
       const parsedMinTeamSize = editData.minTeamSize !== undefined && editData.minTeamSize !== null && editData.minTeamSize !== ""
         ? parseInt(String(editData.minTeamSize), 10)
-        : 2;
+        : 0;
 
       const parsedMaxTeamSize = editData.maxTeamSize !== undefined && editData.maxTeamSize !== null && editData.maxTeamSize !== ""
         ? parseInt(String(editData.maxTeamSize), 10)
-        : 5;
+        : 0;
 
       // Sanitize venue: backend rejects non-existent venueId with "no venue with that id"
       let finalVenueName = (editData.venueName || "").trim();
@@ -401,8 +397,8 @@ export default function EventInfo({
         dateTime: dateTimeISO,
         // Ensure integer fields are numbers, never strings
         maxParticipants: !isNaN(parsedMaxParticipants) && parsedMaxParticipants > 0 ? parsedMaxParticipants : 0,
-        minTeamSize: !isNaN(parsedMinTeamSize) && parsedMinTeamSize >= 1 ? parsedMinTeamSize : 2,
-        maxTeamSize: !isNaN(parsedMaxTeamSize) && parsedMaxTeamSize >= 1 ? parsedMaxTeamSize : 5,
+        minTeamSize: !isNaN(parsedMinTeamSize) && parsedMinTeamSize > 0 ? parsedMinTeamSize : 0,
+        maxTeamSize: !isNaN(parsedMaxTeamSize) && parsedMaxTeamSize > 0 ? parsedMaxTeamSize : 0,
         registrationFee: {
           host: Number(editData.registrationFee?.host) || 0,
           other: Number(editData.registrationFee?.other) || 0,
@@ -420,8 +416,9 @@ export default function EventInfo({
           phone: c.phone || "",
           userID: c.userID || c.userId || "",
         })),
-        // Clean up custom fields ensuring fieldId is always set
-        customFields: (editData.customFields || []).map(
+        // Clean up custom fields ensuring fieldId is always set (blank
+        // rows were already dropped during validation above)
+        customFields: customFields.map(
           (field: CustomField, idx: number) => {
             const fieldId = field.fieldId && field.fieldId.trim()
               ? field.fieldId.trim()
@@ -1175,7 +1172,7 @@ export default function EventInfo({
   const renderCategorySelector = () => (
     <View style={{ marginBottom: 16 }}>
       <Text style={{ fontFamily: "Poppins_600SemiBold", color: textColor, fontSize: 14, marginBottom: 10 }}>
-        Category *
+        Category
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -2093,7 +2090,7 @@ export default function EventInfo({
         "Basic Information",
         <>
           <Input
-            label="Event Title *"
+            label="Event Title"
             value={editData.title || ""}
             onChangeText={(value) => setEditData({ ...editData, title: value })}
             placeholder="e.g. Hackathon 2025"
@@ -2156,7 +2153,7 @@ export default function EventInfo({
           {/* External URL field for external link events */}
           {editData.eventType === "externalLink" && (
             <Input
-              label="External URL *"
+              label="External URL"
               value={editData.externalUrl || ""}
               onChangeText={(value) =>
                 setEditData({ ...editData, externalUrl: value })
@@ -2172,8 +2169,8 @@ export default function EventInfo({
               <View className="flex-row gap-4 mb-4">
                 <View className="flex-1">
                   <Input
-                    label="Min Team Size *"
-                    value={editData.minTeamSize?.toString() || ""}
+                    label="Min Team Size"
+                    value={editData.minTeamSize ? editData.minTeamSize.toString() : ""}
                     onChangeText={(value) => {
                       if (value === "" || /^\d+$/.test(value)) {
                         setEditData({
@@ -2183,14 +2180,14 @@ export default function EventInfo({
                         });
                       }
                     }}
-                    placeholder="e.g. 2"
+                    placeholder="Empty = no minimum"
                     keyboardType="numeric"
                   />
                 </View>
                 <View className="flex-1">
                   <Input
-                    label="Max Team Size *"
-                    value={editData.maxTeamSize?.toString() || ""}
+                    label="Max Team Size"
+                    value={editData.maxTeamSize ? editData.maxTeamSize.toString() : ""}
                     onChangeText={(value) => {
                       if (value === "" || /^\d+$/.test(value)) {
                         setEditData({
@@ -2200,7 +2197,7 @@ export default function EventInfo({
                         });
                       }
                     }}
-                    placeholder="e.g. 5"
+                    placeholder="Empty = no maximum"
                     keyboardType="numeric"
                   />
                 </View>
@@ -2232,29 +2229,25 @@ export default function EventInfo({
           {renderDateTimeInput(
             "Registration Deadline",
             "registrationDeadline",
-            editData.registrationDeadline || "",
-            true
+            editData.registrationDeadline || ""
           )}
 
           {renderDateTimeInput(
             "Start Date & Time",
             "startDateTime",
-            editData.startDateTime || "",
-            true
+            editData.startDateTime || ""
           )}
 
           {renderDateTimeInput(
             "End Date & Time",
             "endDateTime",
-            editData.endDateTime || "",
-            true
+            editData.endDateTime || ""
           )}
 
           {renderDateTimeInput(
             "Event Date & Time",
             "dateTime",
-            editData.dateTime || "",
-            true
+            editData.dateTime || ""
           )}
 
           {/* Venue and max participants only for non-external events */}
@@ -2464,8 +2457,7 @@ export default function EventInfo({
         <>
           {renderCoordinatorSearch()}
           <Text style={{ fontFamily: "Poppins_400Regular", color: subTextColor, fontSize: 13 }}>
-            At least one coordinator is required. Search by name or email to add
-            coordinators.
+            Optional. Search by name or email to add coordinators.
           </Text>
         </>,
         <UserPlus size={20} color="#41B8F0" />

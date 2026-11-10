@@ -12,6 +12,7 @@ import (
 
 	"backend/internal/cache"
 	"backend/internal/chatbot"
+	"backend/internal/cloudinary"
 	"backend/internal/config"
 	"backend/internal/fb"
 	"backend/internal/handlers"
@@ -52,6 +53,8 @@ func main() {
 		mediaStore = ms
 	}
 
+	cld := cloudinary.NewClient(cfg.CloudinaryCloudName, cfg.CloudinaryAPIKey, cfg.CloudinaryAPISecret)
+
 	st := store.New(clients.FS, cfg)
 	events := store.NewEventCache(st, provider, provider, cfg.EventCacheTTL)
 	events.StartInvalidationListener(ctx)
@@ -62,7 +65,7 @@ func main() {
 	reels := store.NewListCache(provider, store.KeyReels, cfg.EventCacheTTL, st.AllReels)
 	stories := store.NewListCache(provider, store.KeyStories, cfg.EventCacheTTL, st.AllStories)
 	storeItems := store.NewListCache(provider, store.KeyStore, cfg.EventCacheTTL, st.AllStoreItems)
-	api := handlers.New(st, events, faqs, venues, banners, reels, stories, storeItems, qr.New(cfg.QRSecret), cfg, cb, clients, mediaStore)
+	api := handlers.New(st, events, faqs, venues, banners, reels, stories, storeItems, qr.New(cfg.QRSecret), cfg, cb, clients, mediaStore, cld)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

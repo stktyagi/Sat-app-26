@@ -1,33 +1,40 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   StatusBar,
+  Animated,
+  Easing,
+  Vibration,
+  Platform,
+  Dimensions,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  ArrowLeft,
+  Zap,
+  ZapOff,
+  Check,
+  X,
+  Utensils,
+  Camera,
+  RotateCcw,
+  ShieldCheck,
+  AlertCircle,
+  Building,
+  User,
+  Sparkles,
+} from "lucide-react-native";
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
+import { verifyMealPassQR, MealVerificationResult } from "@/api/mealPass";
 
-interface FestDay {
-  key: string;
-  title: string;
-  subtitle: string;
-  dayOfMonth: number;
-  month: number; // 0-indexed: 10 = Nov
-}
-
-const FESTIVAL_DAYS: FestDay[] = [
-  { key: "day0", title: "19 Nov", subtitle: "Wednesday (from 8:00 PM)", dayOfMonth: 19, month: 10 },
-  { key: "day1", title: "20 Nov", subtitle: "Thursday", dayOfMonth: 20, month: 10 },
-  { key: "day2", title: "21 Nov", subtitle: "Friday", dayOfMonth: 21, month: 10 },
-  { key: "day3", title: "22 Nov", subtitle: "Saturday", dayOfMonth: 22, month: 10 },
-  { key: "day4", title: "23 Nov", subtitle: "Sunday", dayOfMonth: 23, month: 10 },
-];
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const SCANNER_SIZE = Math.min(SCREEN_WIDTH * 0.72, 280);
 
 export default function MealPassScreen() {
   const router = useRouter();
@@ -35,101 +42,312 @@ export default function MealPassScreen() {
   const { isDark } = useThemeStore();
   const { userData: user, refreshUserProfile } = useUserStore();
 
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [loading, setLoading] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraKey, setCameraKey] = useState(Date.now());
+  const [torchOn, setTorchOn] = useState(false);
 
-  // Fetch / refresh latest profile and update date when screen opens
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setCurrentDate(new Date());
-    try {
-      await refreshUserProfile();
-    } catch (err) {
-      console.warn("Could not refresh user profile on meal pass screen:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshUserProfile]);
+  // Scanning & verification state
+  const [scanned, setScanned] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<MealVerificationResult | null>(null);
 
+  // ── Animations ────────────────────────────────────────────────────────────
+  // 1. Scanning laser beam animation
+  const laserAnim = useRef(new Animated.Value(0)).current;
+
+  // 2. Result modal entrance spring & opacity
+  const modalScale = useRef(new Animated.Value(0.85)).current;
+  const modalOpacity = useRef(new Animated.Value(0)).current;
+
+  // 3. Success badge pop & rotation
+  const badgeScale = useRef(new Animated.Value(0)).current;
+
+  // 4. Expanding pulsing halo rings
+  const ring1Scale = useRef(new Animated.Value(1)).current;
+  const ring1Opacity = useRef(new Animated.Value(0.7)).current;
+  const ring2Scale = useRef(new Animated.Value(1)).current;
+  const ring2Opacity = useRef(new Animated.Value(0.7)).current;
+
+  // 5. Celebration burst particles (scale & spread)
+  const particlesAnim = useRef(new Animated.Value(0)).current;
+
+  // 6. Shake animation for negative result
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  // Start continuous scanner laser animation
+  useEffect(() => {
+    const laserLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(laserAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(laserAnim, {
+          toValue: 0,
+          duration: 2000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    laserLoop.start();
+    return () => laserLoop.stop();
+  }, [laserAnim]);
+
+  // Reset camera when screen gains focus
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData])
+      setScanned(false);
+      setVerifying(false);
+      setVerificationResult(null);
+      setCameraReady(false);
+      setTorchOn(false);
+
+      const timer = setTimeout(() => {
+        setCameraKey(Date.now());
+        setTimeout(() => {
+          setCameraReady(true);
+        }, 150);
+      }, 100);
+
+      // Refresh profile silently in background
+      refreshUserProfile().catch(() => {});
+
+      return () => {
+        clearTimeout(timer);
+        setCameraReady(false);
+        setTorchOn(false);
+      };
+    }, [refreshUserProfile])
   );
 
-  // Determine current festival day key based on today's date
-  const getTodayDayKey = (date: Date): string | null => {
-    const month = date.getMonth(); // 10 = November
-    const day = date.getDate();
+  // Play celebration animation when result is PAID
+  const playPaidAnimation = () => {
+    // Reset values
+    modalScale.setValue(0.85);
+    modalOpacity.setValue(0);
+    badgeScale.setValue(0);
+    particlesAnim.setValue(0);
+    ring1Scale.setValue(1);
+    ring1Opacity.setValue(0.7);
+    ring2Scale.setValue(1);
+    ring2Opacity.setValue(0.7);
 
-    const matched = FESTIVAL_DAYS.find(
-      (d) => d.month === month && d.dayOfMonth === day
-    );
+    // Modal entrance
+    Animated.parallel([
+      Animated.timing(modalOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(modalScale, {
+        toValue: 1,
+        friction: 6,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+      Animated.spring(badgeScale, {
+        toValue: 1,
+        friction: 5,
+        tension: 40,
+        delay: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(particlesAnim, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.back(1.5)),
+        delay: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-    return matched ? matched.key : null;
+    // Looping pulsing halo rings
+    Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(ring1Scale, {
+            toValue: 1.6,
+            duration: 1600,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(ring1Scale, {
+            toValue: 1,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(ring1Opacity, {
+            toValue: 0,
+            duration: 1600,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(ring1Opacity, {
+            toValue: 0.7,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.delay(400),
+          Animated.timing(ring2Scale, {
+            toValue: 1.8,
+            duration: 1600,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(ring2Scale, {
+            toValue: 1,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.delay(400),
+          Animated.timing(ring2Opacity, {
+            toValue: 0,
+            duration: 1600,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(ring2Opacity, {
+            toValue: 0.6,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    ).start();
   };
 
-  const todayDayKey = getTodayDayKey(currentDate);
+  // Play shake animation for unpaid/rejected result
+  const playUnpaidAnimation = () => {
+    modalScale.setValue(0.85);
+    modalOpacity.setValue(0);
+    shakeAnim.setValue(0);
 
-  // Check whether the user has paid for today's meal
-  const checkPaidForToday = (): boolean => {
-    if (!user?.food) return false;
-
-    // 1. Direct match with festival day key (e.g. day0, day1, day2...)
-    if (todayDayKey && user.food[todayDayKey]) {
-      return true;
-    }
-
-    // 2. Direct ISO date format check (e.g. YYYY-MM-DD)
-    const isoDate = currentDate.toISOString().split("T")[0];
-    if (user.food[isoDate]) {
-      return true;
-    }
-
-    // 3. Fallback: Check standard date string formats
-    const dayStr = `${currentDate.getDate()}-${currentDate.getMonth() + 1}`;
-    if (user.food[dayStr]) {
-      return true;
-    }
-
-    return false;
+    Animated.parallel([
+      Animated.timing(modalOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(modalScale, {
+        toValue: 1,
+        friction: 6,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 10, duration: 60, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+      ]).start();
+    });
   };
 
-  const hasPaidToday = checkPaidForToday();
+  // ── Handle Barcode Scanned ────────────────────────────────────────────────
+  const handleBarcodeScanned = async ({ data }: { type: string; data: string }) => {
+    if (scanned || verifying || !data) return;
 
-  // Color palette
+    setScanned(true);
+    setVerifying(true);
+
+    // Subtle tactile confirmation
+    try {
+      Vibration.vibrate(Platform.OS === "android" ? 60 : [0, 60]);
+    } catch {
+      // ignore
+    }
+
+    try {
+      const res = await verifyMealPassQR(data, user);
+      setVerificationResult(res);
+
+      if (res.paid) {
+        playPaidAnimation();
+      } else {
+        playUnpaidAnimation();
+      }
+    } catch (err: any) {
+      const fallback: MealVerificationResult = {
+        paid: false,
+        statusText: "ERROR",
+        message: err.message || "Could not process QR code",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setVerificationResult(fallback);
+      playUnpaidAnimation();
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResetScanner = () => {
+    setScanned(false);
+    setVerifying(false);
+    setVerificationResult(null);
+  };
+
+  // Particle positions for celebration burst around center
+  const particleAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+  const particleColors = [
+    "#10B981", // emerald
+    "#41B8F0", // cyan
+    "#F59E0B", // amber
+    "#10B981", // emerald
+    "#38BDF8", // sky blue
+    "#F59E0B", // amber
+    "#10B981", // emerald
+    "#A78BFA", // lavender
+  ];
+
+  // Colors & Theme
   const bgColor = isDark ? "#131316" : "#E0E0E0";
   const cardBg = isDark ? "#1C1C20" : "#FFFFFF";
   const cardBorder = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)";
   const textPrimary = isDark ? "#FFFFFF" : "#111827";
   const textSecondary = isDark ? "#9CA3AF" : "#6B7280";
 
-  // Formatted date string
-  const formattedToday = currentDate.toLocaleDateString("en-US", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+  // Laser translation interpolation
+  const laserTranslateY = laserAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, SCANNER_SIZE - 6],
   });
 
-  return (
-    <View style={{ flex: 1, backgroundColor: bgColor }}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+  // Camera Permission Handling
+  if (!permission) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#000000", alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color="#41B8F0" />
+      </View>
+    );
+  }
 
-      {/* Header Bar */}
+  if (!permission.granted) {
+    return (
       <View
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingTop: Math.max(insets.top + 8, 16),
-          paddingHorizontal: 16,
-          paddingBottom: 14,
-          borderBottomWidth: 1,
-          borderBottomColor: cardBorder,
+          flex: 1,
           backgroundColor: bgColor,
+          paddingTop: Math.max(insets.top + 16, 24),
+          paddingHorizontal: 24,
+          justifyContent: "space-between",
+          paddingBottom: Math.max(insets.bottom + 20, 24),
         }}
       >
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+
+        {/* Header */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -138,208 +356,48 @@ export default function MealPassScreen() {
               width: 42,
               height: 42,
               borderRadius: 21,
-              backgroundColor: isDark ? "#1C1C20" : "#FFFFFF",
+              backgroundColor: cardBg,
               borderWidth: 1,
               borderColor: cardBorder,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Ionicons name="arrow-back" size={22} color={textPrimary} />
+            <ArrowLeft size={20} color={textPrimary} />
           </TouchableOpacity>
-          <View>
-            <Text
-              style={{
-                fontFamily: "Talina",
-                fontSize: 22,
-                color: textPrimary,
-                letterSpacing: 0.5,
-              }}
-            >
-              Meal Pass
-            </Text>
-            <Text
-              style={{
-                fontFamily: "Poppins_400Regular",
-                fontSize: 12,
-                color: "#41B8F0",
-              }}
-            >
-              Daily Meal Verification
-            </Text>
-          </View>
+          <Text style={{ fontFamily: "Talina", fontSize: 22, color: textPrimary }}>
+            Meal Pass
+          </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={loadData}
-          disabled={loading}
-          activeOpacity={0.7}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: isDark ? "#1C1C20" : "#FFFFFF",
-            borderWidth: 1,
-            borderColor: cardBorder,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#41B8F0" />
-          ) : (
-            <Ionicons name="refresh" size={20} color={textPrimary} />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: 18,
-          paddingTop: 18,
-          paddingBottom: 40,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Today's Date Banner */}
-        <View
-          style={{
-            backgroundColor: cardBg,
-            borderRadius: 18,
-            borderWidth: 1,
-            borderColor: cardBorder,
-            padding: 16,
-            marginBottom: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 12,
-                backgroundColor: "rgba(65, 184, 240, 0.15)",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="calendar-outline" size={22} color="#41B8F0" />
-            </View>
-            <View>
-              <Text
-                style={{
-                  fontFamily: "Poppins_400Regular",
-                  fontSize: 12,
-                  color: textSecondary,
-                }}
-              >
-                Today's Date
-              </Text>
-              <Text
-                style={{
-                  fontFamily: "Poppins_600SemiBold",
-                  fontSize: 15,
-                  color: textPrimary,
-                }}
-              >
-                {formattedToday}
-              </Text>
-            </View>
-          </View>
-
-          {todayDayKey && (
-            <View
-              style={{
-                backgroundColor: "rgba(65, 184, 240, 0.2)",
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 10,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: "Poppins_600SemiBold",
-                  fontSize: 12,
-                  color: "#41B8F0",
-                  textTransform: "uppercase",
-                }}
-              >
-                {todayDayKey}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Primary Status Card (Tick mark if Paid, Cross mark if Not Paid) */}
-        <View
-          style={{
-            backgroundColor: cardBg,
-            borderRadius: 24,
-            borderWidth: 2,
-            borderColor: hasPaidToday
-              ? "rgba(16, 185, 129, 0.5)"
-              : "rgba(239, 68, 68, 0.5)",
-            paddingVertical: 32,
-            paddingHorizontal: 20,
-            alignItems: "center",
-            marginBottom: 20,
-            shadowColor: hasPaidToday ? "#10B981" : "#EF4444",
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: isDark ? 0.25 : 0.1,
-            shadowRadius: 12,
-            elevation: 4,
-          }}
-        >
-          {/* Status Icon Indicator */}
-          {hasPaidToday ? (
-            <View
-              style={{
-                width: 110,
-                height: 110,
-                borderRadius: 55,
-                backgroundColor: "rgba(16, 185, 129, 0.15)",
-                borderWidth: 3,
-                borderColor: "#10B981",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 18,
-              }}
-            >
-              <Ionicons name="checkmark" size={68} color="#10B981" />
-            </View>
-          ) : (
-            <View
-              style={{
-                width: 110,
-                height: 110,
-                borderRadius: 55,
-                backgroundColor: "rgba(239, 68, 68, 0.15)",
-                borderWidth: 3,
-                borderColor: "#EF4444",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 18,
-              }}
-            >
-              <Ionicons name="close" size={68} color="#EF4444" />
-            </View>
-          )}
-
-          {/* Status Label */}
-          <Text
+        {/* Permission Request Body */}
+        <View style={{ alignItems: "center", paddingHorizontal: 12 }}>
+          <View
             style={{
-              fontFamily: "Talina",
-              fontSize: 26,
-              color: hasPaidToday ? "#10B981" : "#EF4444",
-              marginBottom: 6,
-              textAlign: "center",
+              width: 90,
+              height: 90,
+              borderRadius: 45,
+              backgroundColor: "rgba(65, 184, 240, 0.15)",
+              borderWidth: 2,
+              borderColor: "#41B8F0",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
             }}
           >
-            {hasPaidToday ? "MEAL PAID" : "MEAL NOT PAID"}
+            <Camera size={44} color="#41B8F0" />
+          </View>
+
+          <Text
+            style={{
+              fontFamily: "Poppins_600SemiBold",
+              fontSize: 20,
+              color: textPrimary,
+              textAlign: "center",
+              marginBottom: 10,
+            }}
+          >
+            Camera Access Required
           </Text>
 
           <Text
@@ -348,284 +406,706 @@ export default function MealPassScreen() {
               fontSize: 14,
               color: textSecondary,
               textAlign: "center",
-              paddingHorizontal: 16,
-              lineHeight: 20,
+              lineHeight: 22,
             }}
           >
-            {hasPaidToday
-              ? "You have a verified meal pass for today. Enjoy your meal!"
-              : "No meal payment was found for today's date."}
+            To scan the QR code placed at your hostel mess counter and verify your meal pass, camera permission is required.
           </Text>
+        </View>
 
-          {/* Badge */}
+        {/* Action Button */}
+        <TouchableOpacity
+          onPress={requestPermission}
+          activeOpacity={0.8}
+          style={{
+            backgroundColor: "#41B8F0",
+            paddingVertical: 15,
+            borderRadius: 16,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 16, color: "#FFFFFF" }}>
+            Enable Camera
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: "#000000" }}>
+      <StatusBar barStyle="light-content" />
+
+      {/* ── Camera Viewfinder ── */}
+      {cameraReady ? (
+        <CameraView
+          key={`meal-camera-${cameraKey}`}
+          style={{ flex: 1 }}
+          facing="back"
+          enableTorch={torchOn}
+          onBarcodeScanned={scanned || verifying ? undefined : handleBarcodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr"],
+          }}
+        />
+      ) : (
+        <View style={{ flex: 1, backgroundColor: "#000000", alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="large" color="#41B8F0" />
+          <Text
+            style={{
+              fontFamily: "Poppins_500Medium",
+              color: "#FFFFFF",
+              fontSize: 14,
+              marginTop: 14,
+            }}
+          >
+            Initializing camera...
+          </Text>
+        </View>
+      )}
+
+      {/* ── Scanner Mask & Frame Overlay ── */}
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        pointerEvents="none"
+      >
+        {/* Scanner Target Box */}
+        <View
+          style={{
+            width: SCANNER_SIZE,
+            height: SCANNER_SIZE,
+            borderRadius: 24,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {/* Subtle translucent dark tint inside box */}
           <View
             style={{
-              marginTop: 18,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              backgroundColor: hasPaidToday
-                ? "rgba(16, 185, 129, 0.12)"
-                : "rgba(239, 68, 68, 0.12)",
-              paddingHorizontal: 14,
-              paddingVertical: 6,
-              borderRadius: 20,
+              ...Platform.select({
+                ios: { backgroundColor: "rgba(255, 255, 255, 0.03)" },
+                android: { backgroundColor: "rgba(255, 255, 255, 0.02)" },
+              }),
+              flex: 1,
             }}
-          >
-            <Ionicons
-              name={hasPaidToday ? "shield-checkmark" : "alert-circle"}
-              size={16}
-              color={hasPaidToday ? "#10B981" : "#EF4444"}
-            />
-            <Text
+          />
+
+          {/* Animated Laser Scanning Beam */}
+          {!scanned && cameraReady && (
+            <Animated.View
               style={{
-                fontFamily: "Poppins_600SemiBold",
-                fontSize: 12,
-                color: hasPaidToday ? "#10B981" : "#EF4444",
+                position: "absolute",
+                left: 12,
+                right: 12,
+                height: 3,
+                backgroundColor: "#41B8F0",
+                borderRadius: 2,
+                shadowColor: "#41B8F0",
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.9,
+                shadowRadius: 8,
+                elevation: 6,
+                transform: [{ translateY: laserTranslateY }],
               }}
-            >
-              {hasPaidToday ? "Verified Active" : "Not Active Today"}
-            </Text>
-          </View>
+            />
+          )}
+
+          {/* Neon Corner Brackets */}
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: 38,
+              height: 38,
+              borderLeftWidth: 4,
+              borderTopWidth: 4,
+              borderColor: "#41B8F0",
+              borderTopLeftRadius: 20,
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: 38,
+              height: 38,
+              borderRightWidth: 4,
+              borderTopWidth: 4,
+              borderColor: "#41B8F0",
+              borderTopRightRadius: 20,
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              width: 38,
+              height: 38,
+              borderLeftWidth: 4,
+              borderBottomWidth: 4,
+              borderColor: "#41B8F0",
+              borderBottomLeftRadius: 20,
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              width: 38,
+              height: 38,
+              borderRightWidth: 4,
+              borderBottomWidth: 4,
+              borderColor: "#41B8F0",
+              borderBottomRightRadius: 20,
+            }}
+          />
         </View>
 
-        {/* User Information Summary */}
+        {/* Viewfinder Instructions Banner */}
         <View
           style={{
-            backgroundColor: cardBg,
-            borderRadius: 18,
+            marginTop: 28,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 20,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
             borderWidth: 1,
-            borderColor: cardBorder,
-            padding: 18,
-            marginBottom: 20,
+            borderColor: "rgba(255, 255, 255, 0.15)",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
           }}
         >
+          <Utensils size={16} color="#41B8F0" />
           <Text
             style={{
-              fontFamily: "Poppins_600SemiBold",
-              fontSize: 15,
-              color: textPrimary,
-              marginBottom: 12,
+              fontFamily: "Poppins_500Medium",
+              fontSize: 13,
+              color: "#FFFFFF",
+              letterSpacing: 0.2,
             }}
           >
-            User Details
+            Scan hostel mess QR to verify meal
           </Text>
-
-          <View style={{ gap: 8 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 13, color: textSecondary }}>
-                Name
-              </Text>
-              <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: textPrimary }}>
-                {user?.displayName || "N/A"}
-              </Text>
-            </View>
-
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 13, color: textSecondary }}>
-                Email
-              </Text>
-              <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 13, color: textPrimary }}>
-                {user?.email || "N/A"}
-              </Text>
-            </View>
-
-            {user?.rollNumber ? (
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 13, color: textSecondary }}>
-                  Roll Number
-                </Text>
-                <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 13, color: textPrimary }}>
-                  {user.rollNumber}
-                </Text>
-              </View>
-            ) : null}
-
-            {user?.collegeName ? (
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 13, color: textSecondary }}>
-                  College
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: "Poppins_500Medium",
-                    fontSize: 13,
-                    color: textPrimary,
-                    maxWidth: "60%",
-                    textAlign: "right",
-                  }}
-                  numberOfLines={1}
-                >
-                  {user.collegeName}
-                </Text>
-              </View>
-            ) : null}
-          </View>
         </View>
+      </View>
 
-        {/* Festival Days Meal Breakdown */}
+      {/* ── Top Bar Overlay (Back, Title, Torch) ── */}
+      <View
+        style={{
+          position: "absolute",
+          top: Math.max(insets.top + 8, 16),
+          left: 16,
+          right: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          zIndex: 30,
+        }}
+        pointerEvents="box-none"
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: "rgba(0, 0, 0, 0.65)",
+            borderWidth: 1,
+            borderColor: "rgba(255, 255, 255, 0.2)",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          activeOpacity={0.7}
+        >
+          <ArrowLeft size={22} color="#FFFFFF" />
+        </TouchableOpacity>
+
         <View
           style={{
-            backgroundColor: cardBg,
-            borderRadius: 18,
+            backgroundColor: "rgba(0, 0, 0, 0.65)",
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 20,
             borderWidth: 1,
-            borderColor: cardBorder,
-            padding: 18,
-            marginBottom: 20,
+            borderColor: "rgba(255, 255, 255, 0.15)",
+            alignItems: "center",
           }}
         >
           <Text
             style={{
-              fontFamily: "Poppins_600SemiBold",
-              fontSize: 15,
-              color: textPrimary,
-              marginBottom: 4,
+              fontFamily: "Talina",
+              fontSize: 18,
+              color: "#FFFFFF",
+              letterSpacing: 0.5,
             }}
           >
-            All Festival Days
+            Meal Pass
           </Text>
           <Text
             style={{
               fontFamily: "Poppins_400Regular",
-              fontSize: 12,
-              color: textSecondary,
-              marginBottom: 14,
+              fontSize: 11,
+              color: "#41B8F0",
             }}
           >
-            Meal pass status across festival dates
+            Mess Verification
           </Text>
-
-          <View style={{ gap: 10 }}>
-            {FESTIVAL_DAYS.map((festDay) => {
-              const isPaid = !!user?.food?.[festDay.key];
-              const isCurrentDay = todayDayKey === festDay.key;
-
-              return (
-                <View
-                  key={festDay.key}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingVertical: 12,
-                    paddingHorizontal: 14,
-                    borderRadius: 14,
-                    backgroundColor: isCurrentDay
-                      ? isDark
-                        ? "rgba(65, 184, 240, 0.12)"
-                        : "rgba(65, 184, 240, 0.08)"
-                      : isDark
-                      ? "#24242A"
-                      : "#F3F4F6",
-                    borderWidth: isCurrentDay ? 1 : 0,
-                    borderColor: "#41B8F0",
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Text
-                        style={{
-                          fontFamily: "Poppins_600SemiBold",
-                          fontSize: 14,
-                          color: textPrimary,
-                        }}
-                      >
-                        {festDay.title}
-                      </Text>
-                      {isCurrentDay && (
-                        <View
-                          style={{
-                            backgroundColor: "#41B8F0",
-                            paddingHorizontal: 6,
-                            paddingVertical: 1,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontFamily: "Poppins_700Bold",
-                              fontSize: 10,
-                              color: "#FFFFFF",
-                            }}
-                          >
-                            TODAY
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text
-                      style={{
-                        fontFamily: "Poppins_400Regular",
-                        fontSize: 12,
-                        color: textSecondary,
-                        marginTop: 2,
-                      }}
-                    >
-                      {festDay.subtitle}
-                    </Text>
-                  </View>
-
-                  {/* Tick mark or Cross mark */}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 6,
-                      backgroundColor: isPaid
-                        ? "rgba(16, 185, 129, 0.15)"
-                        : "rgba(239, 68, 68, 0.15)",
-                      paddingHorizontal: 10,
-                      paddingVertical: 5,
-                      borderRadius: 12,
-                    }}
-                  >
-                    <Ionicons
-                      name={isPaid ? "checkmark" : "close"}
-                      size={16}
-                      color={isPaid ? "#10B981" : "#EF4444"}
-                    />
-                    <Text
-                      style={{
-                        fontFamily: "Poppins_600SemiBold",
-                        fontSize: 12,
-                        color: isPaid ? "#10B981" : "#EF4444",
-                      }}
-                    >
-                      {isPaid ? "Paid" : "Not Paid"}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
         </View>
 
-        {/* Accommodation / Food purchase shortcut if not paid */}
-        {!hasPaidToday && !user?.isHostCollegeStudent && !user?.collegeName?.toLowerCase().includes("thapar") && !user?.email?.toLowerCase().endsWith("@thapar.edu") && (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push("/profile/Accommodation")}
+        <TouchableOpacity
+          onPress={() => setTorchOn((prev) => !prev)}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: torchOn ? "#41B8F0" : "rgba(0, 0, 0, 0.65)",
+            borderWidth: 1,
+            borderColor: torchOn ? "#41B8F0" : "rgba(255, 255, 255, 0.2)",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          activeOpacity={0.7}
+        >
+          {torchOn ? <Zap size={20} color="#FFFFFF" /> : <ZapOff size={20} color="#FFFFFF" />}
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Verifying Loading Indicator ── */}
+      {verifying && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 40,
+          }}
+        >
+          <View
             style={{
-              backgroundColor: "#41B8F0",
-              paddingVertical: 14,
-              borderRadius: 16,
+              backgroundColor: cardBg,
+              borderRadius: 20,
+              padding: 24,
               alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: cardBorder,
+              maxWidth: 280,
             }}
           >
+            <ActivityIndicator size="large" color="#41B8F0" />
             <Text
               style={{
                 fontFamily: "Poppins_600SemiBold",
-                fontSize: 15,
-                color: "#FFFFFF",
+                fontSize: 16,
+                color: textPrimary,
+                marginTop: 14,
+                textAlign: "center",
               }}
             >
-              Get Food & Accommodation Pass
+              Verifying Meal Pass...
             </Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+            <Text
+              style={{
+                fontFamily: "Poppins_400Regular",
+                fontSize: 12,
+                color: textSecondary,
+                marginTop: 4,
+                textAlign: "center",
+              }}
+            >
+              Checking hostel mess payment
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* ── Verification Result Modal with Normal Nice Animation ── */}
+      {verificationResult && !verifying && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.82)",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 20,
+            zIndex: 50,
+          }}
+        >
+          <Animated.View
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              backgroundColor: cardBg,
+              borderRadius: 28,
+              borderWidth: 2,
+              borderColor: verificationResult.paid
+                ? "rgba(16, 185, 129, 0.6)"
+                : "rgba(239, 68, 68, 0.6)",
+              paddingHorizontal: 22,
+              paddingTop: 32,
+              paddingBottom: 24,
+              alignItems: "center",
+              opacity: modalOpacity,
+              transform: [
+                { scale: modalScale },
+                { translateX: shakeAnim },
+              ],
+              shadowColor: verificationResult.paid ? "#10B981" : "#EF4444",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.35,
+              shadowRadius: 20,
+              elevation: 10,
+            }}
+          >
+            {/* ── Paid Celebration Icon Animation ── */}
+            {verificationResult.paid ? (
+              <View style={{ width: 140, height: 140, alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                {/* Expanding Halo Ring 1 */}
+                <Animated.View
+                  style={{
+                    position: "absolute",
+                    width: 100,
+                    height: 100,
+                    borderRadius: 50,
+                    borderWidth: 3,
+                    borderColor: "#10B981",
+                    opacity: ring1Opacity,
+                    transform: [{ scale: ring1Scale }],
+                  }}
+                />
+
+                {/* Expanding Halo Ring 2 */}
+                <Animated.View
+                  style={{
+                    position: "absolute",
+                    width: 100,
+                    height: 100,
+                    borderRadius: 50,
+                    borderWidth: 2,
+                    borderColor: "#34D399",
+                    opacity: ring2Opacity,
+                    transform: [{ scale: ring2Scale }],
+                  }}
+                />
+
+                {/* Celebration Particles Starburst */}
+                {particleAngles.map((angle, idx) => {
+                  const rad = (angle * Math.PI) / 180;
+                  const distance = 58;
+                  const tx = particlesAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, Math.cos(rad) * distance],
+                  });
+                  const ty = particlesAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, Math.sin(rad) * distance],
+                  });
+                  const pScale = particlesAnim.interpolate({
+                    inputRange: [0, 0.6, 1],
+                    outputRange: [0, 1.4, 1],
+                  });
+
+                  return (
+                    <Animated.View
+                      key={`particle-${idx}`}
+                      style={{
+                        position: "absolute",
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: particleColors[idx],
+                        transform: [{ translateX: tx }, { translateY: ty }, { scale: pScale }],
+                      }}
+                    />
+                  );
+                })}
+
+                {/* Center Badge Pop */}
+                <Animated.View
+                  style={{
+                    width: 88,
+                    height: 88,
+                    borderRadius: 44,
+                    backgroundColor: "#10B981",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    shadowColor: "#10B981",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.5,
+                    shadowRadius: 12,
+                    elevation: 8,
+                    transform: [{ scale: badgeScale }],
+                  }}
+                >
+                  <Utensils size={42} color="#FFFFFF" strokeWidth={2.3} />
+                  <View
+                    style={{
+                      position: "absolute",
+                      bottom: -2,
+                      right: -2,
+                      width: 30,
+                      height: 30,
+                      borderRadius: 15,
+                      backgroundColor: "#059669",
+                      borderWidth: 2,
+                      borderColor: "#FFFFFF",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Check size={18} color="#FFFFFF" strokeWidth={3} />
+                  </View>
+                </Animated.View>
+              </View>
+            ) : (
+              /* ── Unpaid / Rejected Icon Badge ── */
+              <View
+                style={{
+                  width: 90,
+                  height: 90,
+                  borderRadius: 45,
+                  backgroundColor: "rgba(239, 68, 68, 0.15)",
+                  borderWidth: 3,
+                  borderColor: "#EF4444",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <X size={48} color="#EF4444" strokeWidth={2.5} />
+              </View>
+            )}
+
+            {/* Title & Status Pill */}
+            <Text
+              style={{
+                fontFamily: "Talina",
+                fontSize: 24,
+                color: verificationResult.paid ? "#10B981" : "#EF4444",
+                textAlign: "center",
+                marginBottom: 6,
+                letterSpacing: 0.5,
+              }}
+            >
+              {verificationResult.paid ? "MEAL PASS VERIFIED" : "MEAL NOT PAID"}
+            </Text>
+
+            {/* Status Chip */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: verificationResult.paid
+                  ? "rgba(16, 185, 129, 0.12)"
+                  : "rgba(239, 68, 68, 0.12)",
+                paddingHorizontal: 12,
+                paddingVertical: 5,
+                borderRadius: 20,
+                marginBottom: 12,
+              }}
+            >
+              {verificationResult.paid ? (
+                <ShieldCheck size={15} color="#10B981" />
+              ) : (
+                <AlertCircle size={15} color="#EF4444" />
+              )}
+              <Text
+                style={{
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 12,
+                  color: verificationResult.paid ? "#10B981" : "#EF4444",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                {verificationResult.statusText}
+              </Text>
+            </View>
+
+            {/* Subtitle / Message */}
+            <Text
+              style={{
+                fontFamily: "Poppins_400Regular",
+                fontSize: 13,
+                color: textSecondary,
+                textAlign: "center",
+                lineHeight: 19,
+                paddingHorizontal: 8,
+                marginBottom: 18,
+              }}
+            >
+              {verificationResult.message}
+            </Text>
+
+            {/* Student & Pass Verification Details Card */}
+            <View
+              style={{
+                width: "100%",
+                backgroundColor: isDark ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.03)",
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: cardBorder,
+                padding: 14,
+                gap: 8,
+                marginBottom: 20,
+              }}
+            >
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <User size={13} color="#41B8F0" />
+                  <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 12, color: textSecondary }}>
+                    Student
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_600SemiBold",
+                    fontSize: 13,
+                    color: textPrimary,
+                    maxWidth: 180,
+                  }}
+                  numberOfLines={1}
+                >
+                  {user?.displayName || "Participant"}
+                </Text>
+              </View>
+
+              {user?.rollNumber ? (
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 12, color: textSecondary, marginLeft: 19 }}>
+                    Roll No
+                  </Text>
+                  <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 12, color: textPrimary }}>
+                    {user.rollNumber}
+                  </Text>
+                </View>
+              ) : null}
+
+              {user?.collegeName ? (
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Building size={13} color="#41B8F0" />
+                    <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 12, color: textSecondary }}>
+                      College
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      fontSize: 12,
+                      color: textPrimary,
+                      maxWidth: 180,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {user.collegeName}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View
+                style={{
+                  borderTopWidth: 1,
+                  borderTopColor: cardBorder,
+                  paddingTop: 8,
+                  marginTop: 2,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: textSecondary }}>
+                  Scanned At
+                </Text>
+                <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 11, color: textPrimary }}>
+                  {verificationResult.timestamp}
+                </Text>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={{ width: "100%", gap: 10 }}>
+              <TouchableOpacity
+                onPress={handleResetScanner}
+                activeOpacity={0.8}
+                style={{
+                  width: "100%",
+                  backgroundColor: verificationResult.paid ? "#10B981" : "#41B8F0",
+                  paddingVertical: 14,
+                  borderRadius: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "row",
+                  gap: 8,
+                }}
+              >
+                <RotateCcw size={18} color="#FFFFFF" />
+                <Text
+                  style={{
+                    fontFamily: "Poppins_600SemiBold",
+                    fontSize: 15,
+                    color: "#FFFFFF",
+                  }}
+                >
+                  {verificationResult.paid ? "Done / Scan Another" : "Scan Again"}
+                </Text>
+              </TouchableOpacity>
+
+              {/* If unpaid, provide shortcut to buy food/accommodation pass */}
+              {!verificationResult.paid && (
+                <TouchableOpacity
+                  onPress={() => {
+                    handleResetScanner();
+                    router.push("/profile/Accommodation");
+                  }}
+                  activeOpacity={0.75}
+                  style={{
+                    width: "100%",
+                    paddingVertical: 12,
+                    borderRadius: 16,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: isDark ? "#24242A" : "#E5E7EB",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      fontSize: 13,
+                      color: textPrimary,
+                    }}
+                  >
+                    Get Food & Accommodation Pass
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+        </View>
+      )}
     </View>
   );
 }
