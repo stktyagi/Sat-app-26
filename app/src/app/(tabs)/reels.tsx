@@ -6,6 +6,7 @@ import {
   Dimensions,
   ActivityIndicator,
   FlatList,
+  Image,
   Animated,
   StatusBar,
   Pressable,
@@ -64,8 +65,10 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
     const description = reel.description ?? "";
     const isDescriptionLong = description.length > 50;
 
+    // Optimization: only allocate and buffer ExoPlayer for the active reel & immediate neighbours (+/- 1)
+    const isNearby = Math.abs(index - currentIndex) <= 1;
     const videoSource =
-      typeof reel.videoUrl === "number" || reel.videoUrl
+      isNearby && (typeof reel.videoUrl === "number" || reel.videoUrl)
         ? reel.videoUrl
         : null;
 
@@ -123,7 +126,7 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
     }, [isMuted, player]);
 
     useEffect(() => {
-      const shouldPlay = isActive && isScreenFocused && !paused;
+      const shouldPlay = isActive && isScreenFocused && !paused && isNearby;
       try {
         if (shouldPlay) {
           player.play();
@@ -136,7 +139,7 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
       } catch {
         // Player may not be ready yet
       }
-    }, [isActive, isScreenFocused, paused, player]);
+    }, [isActive, isScreenFocused, paused, player, isNearby]);
 
     useEffect(() => {
       const sub = player.addListener("statusChange", ({ status }) => {
@@ -296,7 +299,7 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
             className="absolute inset-0 z-10"
           />
 
-                              {Math.abs(index - currentIndex) <= 1 && videoSource && (
+          {isNearby && videoSource ? (
             <VideoView
               player={player}
               style={{
@@ -306,7 +309,16 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
               contentFit="contain"
               nativeControls={false}
             />
-          )}
+          ) : reel.thumbnailUrl ? (
+            <Image
+              source={{ uri: reel.thumbnailUrl }}
+              style={{
+                height: "100%",
+                width: "100%",
+              }}
+              resizeMode="contain"
+            />
+          ) : null}
 
           {/* --- Overlays --- */}
           <View className="absolute inset-0" pointerEvents="box-none">
@@ -825,7 +837,7 @@ const ReelsScreen: React.FC = () => {
         getItemLayout={getItemLayout}
         removeClippedSubviews={true}
         initialNumToRender={1}
-        maxToRenderPerBatch={2}
+        maxToRenderPerBatch={1}
         windowSize={3}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}

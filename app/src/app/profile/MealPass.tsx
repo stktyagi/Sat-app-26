@@ -51,6 +51,7 @@ export default function MealPassScreen() {
   const [scanned, setScanned] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<MealVerificationResult | null>(null);
+  const [showCheckInAlert, setShowCheckInAlert] = useState(true);
 
   // ── Animations ────────────────────────────────────────────────────────────
   // 1. Scanning laser beam animation
@@ -296,6 +297,7 @@ export default function MealPassScreen() {
     setScanned(false);
     setVerifying(false);
     setVerificationResult(null);
+    setShowCheckInAlert(true);
   };
 
   // Particle positions for celebration burst around center
@@ -959,6 +961,60 @@ export default function MealPassScreen() {
             >
               {verificationResult.message}
             </Text>
+
+            {/* Closable Accommodation Check-in Notice */}
+            {verificationResult.paid && verificationResult.needsAccommodationCheckIn && showCheckInAlert && (
+              <View
+                style={{
+                  width: "100%",
+                  backgroundColor: isDark ? "rgba(245, 158, 11, 0.15)" : "#FEF3C7",
+                  borderWidth: 1,
+                  borderColor: isDark ? "rgba(245, 158, 11, 0.35)" : "#FDE68A",
+                  borderRadius: 14,
+                  padding: 12,
+                  marginBottom: 16,
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: 10,
+                }}
+              >
+                <AlertCircle size={18} color="#F59E0B" style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_600SemiBold",
+                      fontSize: 12,
+                      color: isDark ? "#FBBF24" : "#B45309",
+                      marginBottom: 2,
+                    }}
+                  >
+                    Hostel Check-in Reminder
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_400Regular",
+                      fontSize: 11,
+                      color: isDark ? "#FCD34D" : "#92400E",
+                      lineHeight: 16,
+                    }}
+                  >
+                    You have not checked into your hostel accommodation yet. Please visit the accommodation desk to check in.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowCheckInAlert(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    padding: 4,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <X size={14} color={isDark ? "#FCD34D" : "#B45309"} />
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Student & Pass Verification Details Card */}
             <View

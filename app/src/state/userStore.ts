@@ -51,7 +51,7 @@ interface UserState {
  * - Outside college students: requires rollNumber, collegeName, profile photo, AND college ID card.
  */
 export const hasCompletedProfile = (p?: UserProfile | null): boolean => {
-  if (!p?.rollNumber || !p?.collegeName) return false;
+  if (!p?.rollNumber || !p?.collegeName || !p?.phoneNumber) return false;
   if (!isHostStudent(p)) {
     const hasPhoto = Boolean(p.photoUrl || (p as any).photoURL);
     const hasCollegeId = Boolean(p.collegeIdUrl);

@@ -277,6 +277,90 @@ const TimelineEventCard = React.memo(({ evt, cardIdx, groupIdx, timeText, onPres
   );
 });
 
+interface BentoCardProps {
+  event?: FirebaseEvent;
+  config: { height: number; bgColor: string };
+  maxLines: number;
+  onPress: (evt: FirebaseEvent) => void;
+  idx: number;
+}
+
+const BentoCard = React.memo(({ event, config, maxLines, onPress, idx }: BentoCardProps) => {
+  if (!event) {
+    return <View style={{ height: config.height, borderRadius: 18 }} />;
+  }
+
+  const optimizedUrl = getOptimizedImageUrl(event.coverImage, 350);
+  const coverSource = optimizedUrl
+    ? { uri: optimizedUrl }
+    : require('@/assets/event.jpg');
+  const placeholderUrl = getImagePlaceholderUrl(event.coverImage);
+
+  return (
+    <TouchableOpacity
+      onPress={() => onPress(event)}
+      activeOpacity={0.88}
+      style={{
+        height: config.height,
+        backgroundColor: '#1E1E22',
+        borderRadius: 18,
+        borderWidth: 1.5,
+        borderColor: config.bgColor,
+        overflow: 'hidden',
+        padding: 12,
+        justifyContent: 'flex-end',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+        elevation: 4,
+      }}
+    >
+      <Image
+        source={coverSource}
+        placeholder={placeholderUrl ? { uri: placeholderUrl } : undefined}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          height: '100%',
+        }}
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
+        recyclingKey={`bento-${event.eventId || event.id || idx}`}
+      />
+      <LinearGradient
+        colors={['transparent', 'rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.88)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      />
+      <Text
+        style={{
+          fontFamily: 'Poppins_700Bold',
+          fontSize: 15,
+          color: '#FFFFFF',
+          lineHeight: 19,
+          textShadowColor: 'rgba(0, 0, 0, 0.8)',
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 3,
+        }}
+        numberOfLines={maxLines}
+      >
+        {event.title || 'Event'}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
 export default function EventsTabScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -734,144 +818,38 @@ export default function EventsTabScreen() {
                       >
                         {/* Left Column */}
                         <View style={{ flex: 1, gap: 12 }}>
-                          {/* Card 1 (Top Left - Height 110) */}
-                          {c1 ? (
-                            <TouchableOpacity
-                              onPress={() => handleEventPress(c1)}
-                              activeOpacity={0.88}
-                              style={{
-                                height: BENTO_CONFIG[0].height,
-                                backgroundColor: BENTO_CONFIG[0].bgColor,
-                                borderRadius: 18,
-                                padding: 14,
-                                justifyContent: 'flex-end',
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.25,
-                                shadowRadius: 6,
-                                elevation: 4,
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontFamily: 'Poppins_700Bold',
-                                  fontSize: 16,
-                                  color: '#000000',
-                                  lineHeight: 20,
-                                }}
-                                numberOfLines={2}
-                              >
-                                {c1.title || 'Event'}
-                              </Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <View style={{ height: BENTO_CONFIG[0].height, borderRadius: 18 }} />
-                          )}
-
-                          {/* Card 2 (Bottom Left - Height 175) */}
-                          {c2 ? (
-                            <TouchableOpacity
-                              onPress={() => handleEventPress(c2)}
-                              activeOpacity={0.88}
-                              style={{
-                                height: BENTO_CONFIG[1].height,
-                                backgroundColor: BENTO_CONFIG[1].bgColor,
-                                borderRadius: 18,
-                                padding: 14,
-                                justifyContent: 'flex-end',
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.25,
-                                shadowRadius: 6,
-                                elevation: 4,
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontFamily: 'Poppins_700Bold',
-                                  fontSize: 16,
-                                  color: '#000000',
-                                  lineHeight: 20,
-                                }}
-                                numberOfLines={3}
-                              >
-                                {c2.title || 'Event'}
-                              </Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <View style={{ height: BENTO_CONFIG[1].height, borderRadius: 18 }} />
-                          )}
+                          <BentoCard
+                            event={c1}
+                            config={BENTO_CONFIG[0]}
+                            maxLines={2}
+                            onPress={handleEventPress}
+                            idx={groupIdx * 4}
+                          />
+                          <BentoCard
+                            event={c2}
+                            config={BENTO_CONFIG[1]}
+                            maxLines={3}
+                            onPress={handleEventPress}
+                            idx={groupIdx * 4 + 1}
+                          />
                         </View>
 
                         {/* Right Column */}
                         <View style={{ flex: 1, gap: 12 }}>
-                          {/* Card 3 (Top Right - Height 175) */}
-                          {c3 ? (
-                            <TouchableOpacity
-                              onPress={() => handleEventPress(c3)}
-                              activeOpacity={0.88}
-                              style={{
-                                height: BENTO_CONFIG[2].height,
-                                backgroundColor: BENTO_CONFIG[2].bgColor,
-                                borderRadius: 18,
-                                padding: 14,
-                                justifyContent: 'flex-end',
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.25,
-                                shadowRadius: 6,
-                                elevation: 4,
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontFamily: 'Poppins_700Bold',
-                                  fontSize: 16,
-                                  color: '#000000',
-                                  lineHeight: 20,
-                                }}
-                                numberOfLines={3}
-                              >
-                                {c3.title || 'Event'}
-                              </Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <View style={{ height: BENTO_CONFIG[2].height, borderRadius: 18 }} />
-                          )}
-
-                          {/* Card 4 (Bottom Right - Height 110) */}
-                          {c4 ? (
-                            <TouchableOpacity
-                              onPress={() => handleEventPress(c4)}
-                              activeOpacity={0.88}
-                              style={{
-                                height: BENTO_CONFIG[3].height,
-                                backgroundColor: BENTO_CONFIG[3].bgColor,
-                                borderRadius: 18,
-                                padding: 14,
-                                justifyContent: 'flex-end',
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.25,
-                                shadowRadius: 6,
-                                elevation: 4,
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontFamily: 'Poppins_700Bold',
-                                  fontSize: 16,
-                                  color: '#000000',
-                                  lineHeight: 20,
-                                }}
-                                numberOfLines={2}
-                              >
-                                {c4.title || 'Event'}
-                              </Text>
-                            </TouchableOpacity>
-                          ) : (
-                            <View style={{ height: BENTO_CONFIG[3].height, borderRadius: 18 }} />
-                          )}
+                          <BentoCard
+                            event={c3}
+                            config={BENTO_CONFIG[2]}
+                            maxLines={3}
+                            onPress={handleEventPress}
+                            idx={groupIdx * 4 + 2}
+                          />
+                          <BentoCard
+                            event={c4}
+                            config={BENTO_CONFIG[3]}
+                            maxLines={2}
+                            onPress={handleEventPress}
+                            idx={groupIdx * 4 + 3}
+                          />
                         </View>
                       </View>
                     );

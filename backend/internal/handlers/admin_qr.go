@@ -28,6 +28,8 @@ type hostelCheckInRequest struct {
 	UserID        *string `json:"userId"`
 	Accommodation *bool   `json:"accommodation"`
 	Hostel        *string `json:"hostel"`
+	RoomNo        *string `json:"roomNo"`
+	RoomNoAlt     *string `json:"RoomNo"`
 }
 
 type eventCheckInRequest struct {
@@ -284,6 +286,7 @@ func (a *API) handleUserQRScan(c *gin.Context, rawData, category string) {
 				"remark":        user.CheckInStatus.Remark,
 				"accommodation": user.CheckInStatus.Accommodation,
 				"Hostel":        user.CheckInStatus.Hostel,
+				"RoomNo":        user.CheckInStatus.RoomNo,
 			},
 			"userEvents": eventsList,
 		},
@@ -337,6 +340,7 @@ func (a *API) AdminGateCheckIn(c *gin.Context) {
 			"remark":        remark,
 			"accommodation": u.CheckInStatus.Accommodation,
 			"Hostel":        u.CheckInStatus.Hostel,
+			"RoomNo":        u.CheckInStatus.RoomNo,
 		},
 	}
 
@@ -356,6 +360,7 @@ func (a *API) AdminGateCheckIn(c *gin.Context) {
 				"remark":        updatedUser.CheckInStatus.Remark,
 				"accommodation": updatedUser.CheckInStatus.Accommodation,
 				"Hostel":        updatedUser.CheckInStatus.Hostel,
+				"RoomNo":        updatedUser.CheckInStatus.RoomNo,
 			},
 		},
 	})
@@ -401,8 +406,15 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 	if req.Hostel != nil {
 		hostel = strings.TrimSpace(*req.Hostel)
 	}
+	roomNo := u.CheckInStatus.RoomNo
+	if req.RoomNo != nil {
+		roomNo = strings.TrimSpace(*req.RoomNo)
+	} else if req.RoomNoAlt != nil {
+		roomNo = strings.TrimSpace(*req.RoomNoAlt)
+	}
 	if !accommodationStatus {
 		hostel = ""
+		roomNo = ""
 	}
 
 	fields := map[string]any{
@@ -411,6 +423,7 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 			"remark":        u.CheckInStatus.Remark,
 			"accommodation": accommodationStatus,
 			"Hostel":        hostel,
+			"RoomNo":        roomNo,
 		},
 	}
 
@@ -431,6 +444,7 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 				"remark":        updatedUser.CheckInStatus.Remark,
 				"accommodation": updatedUser.CheckInStatus.Accommodation,
 				"Hostel":        updatedUser.CheckInStatus.Hostel,
+				"RoomNo":        updatedUser.CheckInStatus.RoomNo,
 			},
 		},
 	})

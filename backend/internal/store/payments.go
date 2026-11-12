@@ -422,7 +422,10 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			}
 			for day, v := range p.ProcessedIntentions.Food {
 				if on, _ := v.(bool); on {
-					food[day] = true
+					// Invariant: food is only granted if accommodation is also booked for this day
+					if acc[day] {
+						food[day] = true
+					}
 				}
 			}
 			tier := user.AccommodationTier

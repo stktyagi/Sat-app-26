@@ -84,7 +84,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [detailName, setDetailName] = useState("");
   const [detailPhone, setDetailPhone] = useState("");
   const [detailAge, setDetailAge] = useState("");
-  const [detailGender, setDetailGender] = useState<"" | "male" | "female" | "other">("");
+  const [detailGender, setDetailGender] = useState<string>("");
 
   // Reset state when modal opens
   useEffect(() => {
@@ -651,36 +651,78 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
               <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
                 Gender
               </Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {(["male", "female", "other"] as const).map((option) => {
-                  const isSelected = detailGender === option;
-                  return (
-                    <TouchableOpacity
-                      key={option}
-                      onPress={() => setDetailGender(isSelected ? "" : option)}
-                      style={{
-                        flex: 1,
-                        alignItems: "center",
-                        paddingVertical: 12,
-                        borderRadius: 14,
-                        borderWidth: 1,
-                        borderColor: isSelected ? "#38BDF8" : modalBorderColor,
-                        backgroundColor: isSelected ? "rgba(56, 189, 248, 0.12)" : modalCardBg,
-                      }}
-                    >
-                      <Text
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {[
+                    { id: "male", label: "Male" },
+                    { id: "female", label: "Female" },
+                  ].map((opt) => {
+                    const isSelected = detailGender === opt.id;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        onPress={() => setDetailGender(isSelected ? "" : opt.id)}
                         style={{
-                          fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
-                          color: isSelected ? "#38BDF8" : modalTextPrimary,
-                          fontSize: 14,
-                          textTransform: "capitalize",
+                          flex: 1,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          paddingVertical: 12,
+                          paddingHorizontal: 6,
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderColor: isSelected ? "#38BDF8" : modalBorderColor,
+                          backgroundColor: isSelected ? "rgba(56, 189, 248, 0.12)" : modalCardBg,
                         }}
                       >
-                        {option}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                        <Text
+                          style={{
+                            fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
+                            color: isSelected ? "#38BDF8" : modalTextPrimary,
+                            fontSize: 13.5,
+                          }}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {[
+                    { id: "other", label: "Other" },
+                    { id: "not_disclosed", label: "Not to disclose" },
+                  ].map((opt) => {
+                    const isSelected = detailGender === opt.id;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        onPress={() => setDetailGender(isSelected ? "" : opt.id)}
+                        style={{
+                          flex: 1,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          paddingVertical: 12,
+                          paddingHorizontal: 6,
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderColor: isSelected ? "#38BDF8" : modalBorderColor,
+                          backgroundColor: isSelected ? "rgba(56, 189, 248, 0.12)" : modalCardBg,
+                        }}
+                      >
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
+                            color: isSelected ? "#38BDF8" : modalTextPrimary,
+                            fontSize: 12.5,
+                          }}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             </View>
           </View>

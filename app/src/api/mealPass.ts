@@ -1,4 +1,4 @@
-import { apiFetch, getIdTokenIfSignedIn } from "./client";
+import { apiFetch, getIdTokenIfSignedIn, readError } from "./client";
 import { API_BASE_URL } from "../config/api";
 import type { UserProfile } from "../types/models";
 
@@ -7,6 +7,8 @@ export interface MealVerificationResult {
   statusText: string;
   message: string;
   day?: string;
+  qrDay?: string;
+  needsAccommodationCheckIn?: boolean;
   timestamp: string;
   rawResponse?: any;
 }
@@ -16,7 +18,7 @@ export interface MealVerificationResult {
  * Supports:
  * - Direct boolean: true | false
  * - String responses: "yes" | "no" | "true" | "false" | "paid" | "unpaid"
- * - JSON with: paid, hasPaid, food, status, success, valid, verified, available, result, etc.
+ * - JSON with: paid, hasPaid, food, status, success, valid, verified, available, result, allowed, etc.
  */
 export function parseMealPaidStatus(data: any): boolean {
   if (data === null || data === undefined) return false;
@@ -36,7 +38,8 @@ export function parseMealPaidStatus(data: any): boolean {
   }
 
   if (typeof data === "object") {
-    // Priority keys for paid status
+    // Priority keys for paid/allowed status
+    if (data.allowed !== undefined) return Boolean(data.allowed);
     if (data.paid !== undefined) return parseMealPaidStatus(data.paid);
     if (data.hasPaid !== undefined) return parseMealPaidStatus(data.hasPaid);
     if (data.food !== undefined) return parseMealPaidStatus(data.food);
@@ -60,11 +63,7 @@ export function parseMealPaidStatus(data: any): boolean {
 
 /**
  * Scans an offline or dynamic QR code from the hostel mess.
- * The QR code can be:
- * 1. A complete URL (e.g. https://api.saturnalia.in/api/v1/meals/verify?day=day1)
- * 2. A relative backend path (e.g. /meals/verify?meal=lunch)
- * 3. A JSON payload with an endpoint or URL
- * 4. An offline mess code/identifier (which falls back to /meals/verify?code=...)
+ * Primary endpoint: POST /food/scan with { data: qrData }
  */
 export async function verifyMealPassQR(
   qrData: string,
@@ -98,115 +97,86 @@ export async function verifyMealPassQR(
     };
   }
 
-  // 1. Determine target URL / endpoint
-  let targetUrl = "";
-  let isRelative = false;
-
-  // Check if QR data is JSON
+  // Handle direct JSON embedded result
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
     try {
       const parsed = JSON.parse(trimmed);
-      if (parsed.url) {
-        targetUrl = parsed.url;
-      } else if (parsed.endpoint || parsed.path) {
-        targetUrl = parsed.endpoint || parsed.path;
-      } else {
-        // If the QR directly encoded the result:
+      if (parsed.allowed !== undefined || parsed.paid !== undefined) {
         const directPaid = parseMealPaidStatus(parsed);
         return {
           paid: directPaid,
           statusText: directPaid ? "PAID" : "NOT PAID",
           message: parsed.message || (directPaid ? "Meal pass verified" : "No active meal payment found"),
           day: parsed.day,
+          qrDay: parsed.qrDay,
+          needsAccommodationCheckIn: Boolean(parsed.needsAccommodationCheckIn),
           timestamp,
           rawResponse: parsed,
         };
       }
     } catch {
-      // Not JSON, continue
-    }
-  }
-
-  if (!targetUrl) {
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-      targetUrl = trimmed;
-    } else if (trimmed.startsWith("/")) {
-      targetUrl = trimmed;
-      isRelative = true;
-    } else {
-      // It's a code/token/plain string: query our backend verification endpoint
-      targetUrl = `/meals/verify?code=${encodeURIComponent(trimmed)}`;
-      isRelative = true;
+      // Not JSON, continue to API
     }
   }
 
   try {
-    const token = await getIdTokenIfSignedIn();
-    const headers: Record<string, string> = {
-      Accept: "application/json, text/plain, */*",
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    let response: Response;
-
-    if (isRelative) {
-      // Normalize path for apiFetch (ensure starts with / and remove duplicate /api/v1 if included)
-      let cleanPath = targetUrl;
-      if (cleanPath.startsWith("/api/v1")) {
-        cleanPath = cleanPath.substring("/api/v1".length);
-      }
-      response = await apiFetch(cleanPath, { method: "GET", headers }, token ? "optional" : "none");
-    } else {
-      // Absolute URL
-      response = await fetch(targetUrl, {
-        method: "GET",
-        headers,
-      });
-
-      // If GET gave 405 Method Not Allowed, retry with POST
-      if (response.status === 405) {
-        response = await fetch(targetUrl, {
-          method: "POST",
-          headers: {
-            ...headers,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: user?.userId,
-            email: user?.email,
-          }),
-        });
-      }
-    }
-
+    // Primary path: call POST /food/scan with signed QR payload
     let responseData: any = null;
-    const contentType = response.headers.get("content-type") || "";
 
-    if (contentType.includes("application/json")) {
-      responseData = await response.json();
-    } else {
-      const text = await response.text();
-      try {
-        responseData = JSON.parse(text);
-      } catch {
-        responseData = text;
+    try {
+      const res = await apiFetch("/food/scan", {
+        method: "POST",
+        body: JSON.stringify({ data: trimmed }),
+      });
+      if (!res.ok) {
+        const detail = await readError(res, "food scan failed");
+        throw new Error(detail);
       }
+      responseData = await res.json();
+    } catch (apiErr: any) {
+      // If endpoint returned 400 with invalid_qr or other known error
+      if (apiErr?.code === "invalid_qr" || apiErr?.message?.includes("invalid_qr")) {
+        return {
+          paid: false,
+          statusText: "INVALID QR",
+          message: "The scanned QR code is not a valid mess counter QR.",
+          timestamp,
+          rawResponse: apiErr,
+        };
+      }
+      throw apiErr;
     }
 
     const paid = parseMealPaidStatus(responseData);
-    const message =
-      (typeof responseData === "object" && responseData?.message) ||
-      (paid ? "Meal pass verified successfully. Enjoy your meal!" : "No active meal pass found for this meal.");
-
-    const day = (typeof responseData === "object" && responseData?.day) || undefined;
+    let message = "";
+    if (paid) {
+      message = "Meal pass verified successfully. Enjoy your meal!";
+    } else {
+      switch (responseData?.reason) {
+        case "no_food_today":
+          message = "No meal pass found for today. Please book meals with accommodation.";
+          break;
+        case "wrong_day":
+          message = `This mess QR is for ${responseData?.qrDay || "another day"}, but today is ${responseData?.day || "today"}.`;
+          break;
+        case "not_fest_day":
+          message = "Today is not a scheduled festival day.";
+          break;
+        case "invalid_qr":
+          message = "The scanned QR code is not a valid mess counter QR.";
+          break;
+        default:
+          message = responseData?.message || "No active meal pass found for this meal.";
+      }
+    }
 
     return {
       paid,
       statusText: paid ? "PAID" : "NOT PAID",
       message,
-      day,
+      day: responseData?.day,
+      qrDay: responseData?.qrDay,
+      needsAccommodationCheckIn: Boolean(responseData?.needsAccommodationCheckIn),
       timestamp,
       rawResponse: responseData,
     };
@@ -219,6 +189,7 @@ export async function verifyMealPassQR(
         paid: true,
         statusText: "PAID (OFFLINE VERIFIED)",
         message: "Active food pass verified from your account record.",
+        needsAccommodationCheckIn: !user?.checkInStatus?.accommodation,
         timestamp,
       };
     }

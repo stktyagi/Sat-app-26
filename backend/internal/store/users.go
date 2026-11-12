@@ -223,6 +223,12 @@ func (s *Store) DeleteUser(ctx context.Context, uid string) error {
 
 // UpdateUserAccommodation saves the updated accommodation choices for a user.
 func (s *Store) UpdateUserAccommodation(ctx context.Context, userID string, needed bool, acc map[string]bool, food map[string]bool, txIDs []string) error {
+	// Invariant: food is strictly an add-on to accommodation for each day
+	for day, hasFood := range food {
+		if hasFood && (acc == nil || !acc[day]) {
+			delete(food, day)
+		}
+	}
 	updates := []firestore.Update{
 		{Path: "accommodationNeeded", Value: needed},
 		{Path: "accommodation", Value: acc},

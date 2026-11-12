@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserStore } from '@/state/userStore';
 import { useThemeStore } from '@/state/themeStore';
+import { formatHostelDisplay } from '@/data/hostels';
 import { initiateEventPayment, getPaymentStatus, validateCoupon, CouponResponse } from '@/api/payments';
 import { showAlert } from '@/components';
 import { startEasebuzzPayment } from '@/services/easebuzz';
@@ -431,6 +432,34 @@ export default function AccommodationScreen() {
                 </View>
               ))}
             </View>
+
+            {(user?.checkInStatus?.Hostel || user?.checkInStatus?.RoomNo) && (
+              <View
+                style={{
+                  marginTop: 12,
+                  paddingVertical: 9,
+                  paddingHorizontal: 12,
+                  backgroundColor: isDark ? "rgba(65, 184, 240, 0.1)" : "#E0F2FE",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: isDark ? "rgba(65, 184, 240, 0.25)" : "#BAE6FD",
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="home-outline" size={16} color="#41B8F0" />
+                <Text
+                  style={{
+                    fontFamily: "Poppins_600SemiBold",
+                    color: textColor,
+                    fontSize: 12,
+                    marginLeft: 8,
+                  }}
+                >
+                  Allotted: {formatHostelDisplay(user.checkInStatus.Hostel, user.checkInStatus.RoomNo)}
+                </Text>
+              </View>
+            )}
           </View>
         ) : (
           <View

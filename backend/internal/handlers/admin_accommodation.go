@@ -95,12 +95,14 @@ func (a *API) AdminListAccommodation(c *gin.Context) {
 			phone := strings.ToLower(u.PhoneNumber)
 			college := strings.ToLower(u.CollegeName)
 			hostel := strings.ToLower(u.CheckInStatus.Hostel)
+			roomNo := strings.ToLower(u.CheckInStatus.RoomNo)
 
 			if !strings.Contains(name, search) &&
 				!strings.Contains(email, search) &&
 				!strings.Contains(phone, search) &&
 				!strings.Contains(college, search) &&
-				!strings.Contains(hostel, search) {
+				!strings.Contains(hostel, search) &&
+				!strings.Contains(roomNo, search) {
 				continue
 			}
 		}

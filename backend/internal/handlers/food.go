@@ -17,27 +17,40 @@ import (
 // payload spaces apart.
 const foodQRPrefix = "food:"
 
-// AdminGenerateFoodQR returns the signed payload to print as a mess QR for one hostel.
+// AdminGenerateFoodQR returns the signed payload to print as a common mess QR for a specific fest day or for all days.
 func (a *API) AdminGenerateFoodQR(c *gin.Context) {
 	var req struct {
-		HostelID string `json:"hostelId"`
+		Day string `json:"day"`
 	}
-	if !bind(c, &req) {
+	_ = c.ShouldBindJSON(&req)
+
+	day := strings.TrimSpace(req.Day)
+	if day == "" {
+		if a.Cfg.FestDay0.IsZero() {
+			apierr.Respond(c, apierr.New(http.StatusServiceUnavailable, "food_not_configured", "fest dates not configured"))
+			return
+		}
+		var ok bool
+		day, ok = festDay(a.Cfg.FestDay0, time.Now())
+		if !ok {
+			apierr.Respond(c, apierr.BadRequest("not_fest_day", "today is not a fest day"))
+			return
+		}
+	} else if day != "all" && !stayDays[day] {
+		apierr.Respond(c, apierr.BadRequest("invalid_day", "day must be one of day0..day4 or all"))
 		return
 	}
-	hostel := strings.TrimSpace(req.HostelID)
-	if hostel == "" {
-		apierr.Respond(c, apierr.BadRequest("missing_hostel_id", "hostelId is required"))
-		return
-	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"hostelId": hostel,
-		"qr":       a.QR.Sign(foodQRPrefix + hostel),
+		"day": day,
+		"qr":  a.QR.Sign(foodQRPrefix + day),
 	})
 }
 
-// ScanFoodQR checks the caller is checked into the scanned mess's hostel and
-// has food booked for today. Blocked scans are 200 with allowed=false.
+// ScanFoodQR checks the caller has food booked for today.
+// Supports day-specific mess QRs ("food:dayX") as well as all-day multi-day mess QRs ("food:all").
+// Blocked scans are 200 with allowed=false.
+// Accommodation check-in is not mandatory to receive food, but an alert flag is returned.
 func (a *API) ScanFoodQR(c *gin.Context) {
 	var req struct {
 		Data string `json:"data"`
@@ -46,8 +59,8 @@ func (a *API) ScanFoodQR(c *gin.Context) {
 		return
 	}
 	payload, err := a.QR.Verify(strings.TrimSpace(req.Data))
-	hostel, isFood := strings.CutPrefix(payload, foodQRPrefix)
-	if err != nil || !isFood || hostel == "" {
+	qrDay, isFood := strings.CutPrefix(payload, foodQRPrefix)
+	if err != nil || !isFood || (qrDay != "all" && !stayDays[qrDay]) {
 		apierr.Respond(c, apierr.BadRequest("invalid_qr", "not a valid mess QR"))
 		return
 	}
@@ -57,27 +70,34 @@ func (a *API) ScanFoodQR(c *gin.Context) {
 	}
 
 	u := middleware.CurrentUser(c)
-	day, ok := festDay(a.Cfg.FestDay0, time.Now())
+	if u == nil {
+		apierr.Respond(c, apierr.Unauthorized("unauthorized", "login required"))
+		return
+	}
+
+	currentDay, ok := festDay(a.Cfg.FestDay0, time.Now())
 
 	reason := ""
 	switch {
 	case !ok:
 		reason = "not_fest_day"
-	case !u.CheckInStatus.Accommodation:
-		reason = "not_checked_in"
-	case !strings.EqualFold(strings.TrimSpace(u.CheckInStatus.Hostel), hostel):
-		reason = "wrong_hostel"
-	case !u.Food[day]:
+	case qrDay != "all" && stayDays[qrDay] && qrDay != currentDay:
+		reason = "wrong_day"
+	case u.Food == nil || !u.Food[currentDay]:
 		reason = "no_food_today"
 	}
 
+	// Accommodation check-in is not mandatory to receive food, but attendees
+	// who haven't checked into their hostel are flagged so the app can show a closable alert.
+	needsCheckIn := !u.CheckInStatus.Accommodation
+
 	c.JSON(http.StatusOK, gin.H{
-		"allowed":    reason == "",
-		"reason":     reason,
-		"hostelId":   hostel,
-		"userHostel": u.CheckInStatus.Hostel,
-		"day":        day,
-		"name":       u.DisplayName,
+		"allowed":                   reason == "",
+		"reason":                    reason,
+		"day":                       currentDay,
+		"qrDay":                     qrDay,
+		"name":                      u.DisplayName,
+		"needsAccommodationCheckIn": needsCheckIn,
 	})
 }
 

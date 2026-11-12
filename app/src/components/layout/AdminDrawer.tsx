@@ -37,6 +37,7 @@ const ALL_ITEMS: DrawerItem[] = [
   { label: 'Venue Management', icon: 'location-outline', route: '/admin/Venue', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS] },
   { label: 'FAQ Management', icon: 'help-circle-outline', route: '/admin/FAQ', requiredRoles: [ROLE_ADMIN] },
   { label: 'Accommodation', icon: 'bed-outline', route: '/admin/Accommodation', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY] },
+  { label: 'Meal Pass QR', icon: 'restaurant-outline', route: '/admin/MealPassQR', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY] },
   { label: 'Users Management', icon: 'people-outline', route: '/admin/Users', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EB_OUTREACH, ROLE_EB_FINANCE, ROLE_EB_HOSPITALITY] },
   { label: 'Payment Management', icon: 'card-outline', route: '/admin/Transactions', requiredRoles: [ROLE_ADMIN, ROLE_EB_OUTREACH, ROLE_EB_FINANCE] },
   { label: 'Send Notification', icon: 'notifications-outline', route: '/admin/SendNotification', requiredRoles: [ROLE_ADMIN] },

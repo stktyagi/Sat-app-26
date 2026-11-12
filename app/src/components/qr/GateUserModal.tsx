@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../index";
 import { useThemeStore } from "@/state/themeStore";
+import { formatHostelDisplay } from "@/data/hostels";
 import {
   UserGateData,
   updateGateFestStatus,
@@ -666,13 +667,13 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
                   </View>
                 </View>
 
-                {currentUserData.checkInStatus.Hostel && (
+                {(currentUserData.checkInStatus.Hostel || currentUserData.checkInStatus.RoomNo) && (
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                     <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
                       Assigned Hostel
                     </Text>
-                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 13 }}>
-                      {currentUserData.checkInStatus.Hostel}
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 13, flex: 1, textAlign: "right", marginLeft: 8 }}>
+                      {formatHostelDisplay(currentUserData.checkInStatus.Hostel, currentUserData.checkInStatus.RoomNo)}
                     </Text>
                   </View>
                 )}

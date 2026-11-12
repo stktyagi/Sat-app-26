@@ -38,6 +38,8 @@ import {
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 import { useThemeStore } from "@/state/themeStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HostelPickerModal } from "@/components/admin/HostelPickerModal";
+import { formatHostelDisplay, matchHostelSearch } from "@/data/hostels";
 import type {
   AccommodationStats,
   UserAccommodation,
@@ -76,6 +78,8 @@ const Accommodation: React.FC = () => {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<"normal" | "hostel">("normal");
   const [editingHostelUser, setEditingHostelUser] = useState<{ [userId: string]: string }>({});
+  const [editingRoomUser, setEditingRoomUser] = useState<{ [userId: string]: string }>({});
+  const [activeHostelPickerUserId, setActiveHostelPickerUserId] = useState<string | null>(null);
   const [updatingUser, setUpdatingUser] = useState<string | null>(null);
 
   const bgColor = isDark ? "#131316" : "#E0E0E0";
@@ -98,10 +102,14 @@ const Accommodation: React.FC = () => {
       editingHostelUser[user.userId] !== undefined
         ? editingHostelUser[user.userId]
         : user.checkInStatus?.Hostel || "";
+    const roomToSave =
+      editingRoomUser[user.userId] !== undefined
+        ? editingRoomUser[user.userId]
+        : user.checkInStatus?.RoomNo || "";
 
     try {
       setUpdatingUser(user.userId);
-      await updateAccommodationCheckIn(user.userId, newStatus, hostelToSave);
+      await updateAccommodationCheckIn(user.userId, newStatus, hostelToSave, roomToSave);
 
       setUsers((prev) =>
         prev.map((u) => {
@@ -112,6 +120,7 @@ const Accommodation: React.FC = () => {
                 ...u.checkInStatus,
                 accommodation: newStatus,
                 Hostel: hostelToSave,
+                RoomNo: roomToSave,
               },
             };
           }
@@ -127,13 +136,19 @@ const Accommodation: React.FC = () => {
   };
 
   const handleSaveHostel = async (user: UserAccommodation) => {
-    const hostelToSave = editingHostelUser[user.userId];
-    if (hostelToSave === undefined) return;
+    const hostelToSave =
+      editingHostelUser[user.userId] !== undefined
+        ? editingHostelUser[user.userId]
+        : user.checkInStatus?.Hostel || "";
+    const roomToSave =
+      editingRoomUser[user.userId] !== undefined
+        ? editingRoomUser[user.userId]
+        : user.checkInStatus?.RoomNo || "";
 
     try {
       setUpdatingUser(user.userId);
       const currentStatus = !!user.checkInStatus?.accommodation;
-      await updateAccommodationCheckIn(user.userId, currentStatus, hostelToSave);
+      await updateAccommodationCheckIn(user.userId, currentStatus, hostelToSave, roomToSave);
 
       setUsers((prev) =>
         prev.map((u) => {
@@ -143,13 +158,14 @@ const Accommodation: React.FC = () => {
               checkInStatus: {
                 ...u.checkInStatus,
                 Hostel: hostelToSave,
+                RoomNo: roomToSave,
               },
             };
           }
           return u;
         })
       );
-      Alert.alert("Success", "Hostel allotment updated successfully");
+      Alert.alert("Success", "Hostel & Room allotment updated successfully");
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to update hostel allotment");
     } finally {
@@ -217,8 +233,9 @@ const Accommodation: React.FC = () => {
 
     if (searchMode === "hostel") {
       return users.filter((user) => {
-        const hostel = user.checkInStatus?.Hostel?.toLowerCase() || "";
-        return hostel.includes(query);
+        const hostel = user.checkInStatus?.Hostel || "";
+        const roomNo = user.checkInStatus?.RoomNo || "";
+        return matchHostelSearch(hostel, roomNo, query);
       });
     }
 
@@ -227,14 +244,15 @@ const Accommodation: React.FC = () => {
       const college = user.collegeName?.toLowerCase() || "";
       const email = user.email?.toLowerCase() || "";
       const phone = user.phoneNumber?.toLowerCase() || "";
-      const hostel = user.checkInStatus?.Hostel?.toLowerCase() || "";
+      const hostel = user.checkInStatus?.Hostel || "";
+      const roomNo = user.checkInStatus?.RoomNo || "";
 
       return (
         name.includes(query) ||
         college.includes(query) ||
         email.includes(query) ||
         phone.includes(query) ||
-        hostel.includes(query)
+        matchHostelSearch(hostel, roomNo, query)
       );
     });
   }, [users, searchQuery, searchMode]);
@@ -356,13 +374,13 @@ const Accommodation: React.FC = () => {
                 </Text>
               </View>
 
-              {user.checkInStatus?.Hostel && (
+              {(user.checkInStatus?.Hostel || user.checkInStatus?.RoomNo) && (
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <House size={13} color="#41B8F0" />
                   <Text
                     style={{ fontFamily: "Poppins_500Medium", color: textPrimary, fontSize: 12, marginLeft: 6 }}
                   >
-                    Hostel Allotted: {user.checkInStatus.Hostel}
+                    Allotted: {formatHostelDisplay(user.checkInStatus.Hostel, user.checkInStatus.RoomNo)}
                   </Text>
                 </View>
               )}
@@ -446,52 +464,91 @@ const Accommodation: React.FC = () => {
               </View>
             </View>
 
-            {/* Hostel Allotment Input */}
+            {/* Hostel & Room Allotment Section */}
             <View style={{ marginTop: 14, marginBottom: 12 }}>
-              <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 12, color: textPrimary, marginBottom: 6 }}>
-                Allot / Edit Hostel:
+              <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12, color: textPrimary, marginBottom: 6 }}>
+                Hostel & Room Allotment:
               </Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TextInput
+              <View style={{ gap: 8 }}>
+                {/* Hostel Dropdown Trigger */}
+                <TouchableOpacity
+                  onPress={() => setActiveHostelPickerUserId(user.userId)}
                   style={{
-                    flex: 1,
                     backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.04)",
                     borderRadius: 10,
                     paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    fontSize: 12,
-                    fontFamily: "Poppins_400Regular",
-                    color: textPrimary,
+                    paddingVertical: 9,
                     borderWidth: 1,
-                    borderColor: cardBorder,
-                  }}
-                  placeholder="Enter hostel (e.g. Boys Hostel 1)"
-                  placeholderTextColor={textSecondary}
-                  value={
-                    editingHostelUser[user.userId] !== undefined
-                      ? editingHostelUser[user.userId]
-                      : user.checkInStatus?.Hostel || ""
-                  }
-                  onChangeText={(text) =>
-                    setEditingHostelUser((prev) => ({ ...prev, [user.userId]: text }))
-                  }
-                />
-                <TouchableOpacity
-                  disabled={updatingUser === user.userId}
-                  onPress={() => handleSaveHostel(user)}
-                  style={{
-                    backgroundColor: "#41B8F0",
-                    borderRadius: 10,
-                    paddingHorizontal: 14,
-                    justifyContent: "center",
+                    borderColor: (editingHostelUser[user.userId] !== undefined ? editingHostelUser[user.userId] : user.checkInStatus?.Hostel) ? "#41B8F0" : cardBorder,
+                    flexDirection: "row",
                     alignItems: "center",
+                    justifyContent: "space-between",
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12, color: "#FFFFFF" }}>
-                    Save
-                  </Text>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_500Medium",
+                        fontSize: 12,
+                        color: (editingHostelUser[user.userId] !== undefined ? editingHostelUser[user.userId] : user.checkInStatus?.Hostel) ? textPrimary : textSecondary,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {formatHostelDisplay(
+                        editingHostelUser[user.userId] !== undefined
+                          ? editingHostelUser[user.userId]
+                          : user.checkInStatus?.Hostel || ""
+                      ) || "Select Hostel..."}
+                    </Text>
+                  </View>
+                  <ChevronDown size={15} color={textSecondary} />
                 </TouchableOpacity>
+
+                {/* Room No Input + Save Button */}
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.04)",
+                      borderRadius: 10,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      fontSize: 12,
+                      fontFamily: "Poppins_400Regular",
+                      color: textPrimary,
+                      borderWidth: 1,
+                      borderColor: cardBorder,
+                    }}
+                    placeholder="Room No (e.g. 102, B-204)"
+                    placeholderTextColor={textSecondary}
+                    value={
+                      editingRoomUser[user.userId] !== undefined
+                        ? editingRoomUser[user.userId]
+                        : user.checkInStatus?.RoomNo || ""
+                    }
+                    onChangeText={(text) =>
+                      setEditingRoomUser((prev) => ({ ...prev, [user.userId]: text }))
+                    }
+                    autoCapitalize="characters"
+                  />
+                  <TouchableOpacity
+                    disabled={updatingUser === user.userId}
+                    onPress={() => handleSaveHostel(user)}
+                    style={{
+                      backgroundColor: "#41B8F0",
+                      borderRadius: 10,
+                      paddingHorizontal: 14,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12, color: "#FFFFFF" }}>
+                      Save
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
 
@@ -824,7 +881,7 @@ const Accommodation: React.FC = () => {
             }}
             placeholder={
               searchMode === "hostel"
-                ? "Search by hostel letter (e.g., M, F, D)..."
+                ? "Search by hostel (e.g. Agira, Hostel A, FRF) or room..."
                 : "Search by name, college, email..."
             }
             placeholderTextColor={textSecondary}
@@ -883,6 +940,24 @@ const Accommodation: React.FC = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Hostel Picker Modal */}
+      <HostelPickerModal
+        visible={!!activeHostelPickerUserId}
+        onClose={() => setActiveHostelPickerUserId(null)}
+        selectedCode={
+          activeHostelPickerUserId
+            ? (editingHostelUser[activeHostelPickerUserId] !== undefined
+                ? editingHostelUser[activeHostelPickerUserId]
+                : users.find((u) => u.userId === activeHostelPickerUserId)?.checkInStatus?.Hostel || "")
+            : ""
+        }
+        onSelect={(code) => {
+          if (activeHostelPickerUserId) {
+            setEditingHostelUser((prev) => ({ ...prev, [activeHostelPickerUserId]: code }));
+          }
+        }}
+      />
     </View>
   );
 };

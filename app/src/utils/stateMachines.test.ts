@@ -43,7 +43,7 @@ function calculateEventFee(
 }
 
 function hasCompletedProfile(p?: any | null): boolean {
-  if (!p?.rollNumber || !p?.collegeName) return false;
+  if (!p?.rollNumber || !p?.collegeName || !p?.phoneNumber) return false;
   if (!isHostStudent(p)) {
     const hasPhoto = Boolean(p.photoUrl || p.photoURL);
     const hasCollegeId = Boolean(p.collegeIdUrl);
@@ -156,6 +156,7 @@ test('hasCompletedProfile: verifies identity for non-host students', () => {
     collegeName: 'Thapar Institute',
     email: 'test@thapar.edu',
     isHostCollegeStudent: true,
+    phoneNumber: "9876543210",
   };
   assert.equal(hasCompletedProfile(completeHost), true);
 
@@ -175,6 +176,7 @@ test('hasCompletedProfile: verifies identity for non-host students', () => {
     isHostCollegeStudent: false,
     photoUrl: 'https://cdn/photo.jpg',
     collegeIdUrl: 'https://cdn/id.jpg',
+    phoneNumber: "9876543210",
   };
   assert.equal(hasCompletedProfile(completeOutside), true);
 });

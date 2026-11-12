@@ -100,6 +100,7 @@ type CheckInStatus struct {
 	Remark        string `json:"remark,omitempty"        firestore:"remark"`
 	Accommodation bool   `json:"accommodation"           firestore:"accommodation"`
 	Hostel        string `json:"Hostel,omitempty"        firestore:"Hostel"`
+	RoomNo        string `json:"RoomNo,omitempty"        firestore:"RoomNo"`
 }
 
 // NewUser is the document written at first sign-in. Everything else the profile

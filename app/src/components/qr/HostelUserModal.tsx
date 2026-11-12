@@ -11,6 +11,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../index";
 import { useThemeStore } from "@/state/themeStore";
+import { HostelPickerModal } from "@/components/admin/HostelPickerModal";
+import { formatHostelDisplay } from "@/data/hostels";
 import {
   UserGateData,
   updateHostelStatus,
@@ -48,7 +50,9 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
   const { isDark } = useThemeStore();
   const [loading, setLoading] = useState(false);
   const [showHostelInput, setShowHostelInput] = useState(false);
-  const [hostelName, setHostelName] = useState("");
+  const [selectedHostelCode, setSelectedHostelCode] = useState("");
+  const [roomNo, setRoomNo] = useState("");
+  const [showHostelPicker, setShowHostelPicker] = useState(false);
   const [currentUserData, setCurrentUserData] = useState<UserGateData | null>(
     userData
   );
@@ -73,7 +77,8 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
     setCurrentUserData(userData);
     setUserEvents(userData?.userEvents || []);
     setShowHostelInput(false);
-    setHostelName("");
+    setSelectedHostelCode(userData?.checkInStatus?.Hostel || "");
+    setRoomNo(userData?.checkInStatus?.RoomNo || "");
   }, [userData]);
 
   // Fetch user events when modal opens
@@ -103,8 +108,8 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
   const currentDay: DayCode = (getCurrentEventDay() as DayCode) || "day1";
 
   const handleHostelCheckin = async () => {
-    if (!hostelName.trim()) {
-      showAlert("Error", "Please enter a hostel name");
+    if (!selectedHostelCode.trim()) {
+      showAlert("Error", "Please select a hostel from the list");
       return;
     }
 
@@ -113,7 +118,8 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
       const result = await updateHostelStatus(
         currentUserData.userId,
         true,
-        hostelName.trim()
+        selectedHostelCode.trim(),
+        roomNo.trim()
       );
 
       if (result.success) {
@@ -122,7 +128,8 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
           checkInStatus: {
             ...currentUserData.checkInStatus,
             accommodation: true,
-            Hostel: hostelName.trim(),
+            Hostel: selectedHostelCode.trim(),
+            RoomNo: roomNo.trim(),
           },
         };
         setCurrentUserData(updatedData);
@@ -132,8 +139,6 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
         }
 
         setShowHostelInput(false);
-        setHostelName("");
-
         setSuccessMessage("Hostel check-in confirmed successfully!");
         setUpdateSuccess(true);
         setTimeout(() => setUpdateSuccess(false), 3000);
@@ -169,6 +174,7 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
             ...currentUserData.checkInStatus,
             accommodation: false,
             Hostel: null,
+            RoomNo: null,
           },
         };
         setCurrentUserData(updatedData);
@@ -613,13 +619,13 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                 </View>
 
                 {/* Assigned Hostel */}
-                {currentUserData.checkInStatus.Hostel && (
+                {(currentUserData.checkInStatus.Hostel || currentUserData.checkInStatus.RoomNo) && (
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                     <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
                       Assigned Hostel:
                     </Text>
-                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 14 }}>
-                      {currentUserData.checkInStatus.Hostel}
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 13, flex: 1, textAlign: "right", marginLeft: 8 }}>
+                      {formatHostelDisplay(currentUserData.checkInStatus.Hostel, currentUserData.checkInStatus.RoomNo)}
                     </Text>
                   </View>
                 )}
@@ -730,7 +736,7 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
         </View>
       </View>
 
-      {/* Hostel Name Input Modal */}
+      {/* Hostel & Room Input Modal */}
       <Modal
         visible={showHostelInput}
         transparent={true}
@@ -752,7 +758,7 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
               borderRadius: 22,
               padding: 20,
               width: "100%",
-              maxWidth: 340,
+              maxWidth: 350,
               borderWidth: 1,
               borderColor: modalBorder,
               shadowColor: "#000",
@@ -771,7 +777,7 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                 textAlign: "center",
               }}
             >
-              Assign Hostel
+              Assign Hostel & Room
             </Text>
             <Text
               style={{
@@ -782,9 +788,68 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                 textAlign: "center",
               }}
             >
-              Enter the hostel or room name for this user
+              Select the hostel and enter room number
             </Text>
 
+            {/* Hostel Dropdown Trigger */}
+            <Text
+              style={{
+                fontFamily: "Poppins_600SemiBold",
+                fontSize: 11,
+                color: textSecondary,
+                marginBottom: 6,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Hostel Name
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowHostelPicker(true)}
+              style={{
+                backgroundColor: inputBg,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                borderRadius: 12,
+                marginBottom: 14,
+                borderWidth: 1,
+                borderColor: selectedHostelCode ? "#41B8F0" : cardBorder,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    fontSize: 13,
+                    color: selectedHostelCode ? textPrimary : textSecondary,
+                  }}
+                  numberOfLines={1}
+                >
+                  {selectedHostelCode
+                    ? formatHostelDisplay(selectedHostelCode)
+                    : "Select Hostel..."}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={16} color={textSecondary} />
+            </TouchableOpacity>
+
+            {/* Room Number Input */}
+            <Text
+              style={{
+                fontFamily: "Poppins_600SemiBold",
+                fontSize: 11,
+                color: textSecondary,
+                marginBottom: 6,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Room Number
+            </Text>
             <TextInput
               style={{
                 backgroundColor: inputBg,
@@ -792,17 +857,17 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                 paddingHorizontal: 14,
                 paddingVertical: 12,
                 borderRadius: 12,
-                marginBottom: 16,
-                fontSize: 14,
+                marginBottom: 18,
+                fontSize: 13,
                 fontFamily: "Poppins_500Medium",
                 borderWidth: 1,
                 borderColor: cardBorder,
               }}
-              placeholder="e.g. Hostel A - Room 102"
+              placeholder="e.g. 102, B-204"
               placeholderTextColor={textSecondary}
-              value={hostelName}
-              onChangeText={setHostelName}
-              autoFocus={true}
+              value={roomNo}
+              onChangeText={setRoomNo}
+              autoCapitalize="characters"
             />
 
             <View style={{ flexDirection: "row", gap: 10 }}>
@@ -817,7 +882,6 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                 }}
                 onPress={() => {
                   setShowHostelInput(false);
-                  setHostelName("");
                 }}
                 activeOpacity={0.7}
               >
@@ -829,14 +893,14 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
               <TouchableOpacity
                 style={{
                   flex: 1,
-                  backgroundColor: !hostelName.trim() || loading ? "rgba(65, 184, 240, 0.5)" : "#41B8F0",
+                  backgroundColor: !selectedHostelCode.trim() || loading ? "rgba(65, 184, 240, 0.5)" : "#41B8F0",
                   paddingVertical: 12,
                   borderRadius: 12,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
                 onPress={handleHostelCheckin}
-                disabled={!hostelName.trim() || loading}
+                disabled={!selectedHostelCode.trim() || loading}
                 activeOpacity={0.7}
               >
                 <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>
@@ -847,6 +911,14 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
           </View>
         </View>
       </Modal>
+
+      {/* Hostel Picker Modal */}
+      <HostelPickerModal
+        visible={showHostelPicker}
+        onClose={() => setShowHostelPicker(false)}
+        selectedCode={selectedHostelCode}
+        onSelect={(code) => setSelectedHostelCode(code)}
+      />
     </Modal>
   );
 };

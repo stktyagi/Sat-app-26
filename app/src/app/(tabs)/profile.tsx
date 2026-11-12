@@ -888,6 +888,12 @@ const ProfileScreen = () => {
         />
 
         <ProfileMenuItem
+          icon="help-buoy-outline"
+          label="Report a Problem / Support"
+          onPress={() => router.push("/profile/ReportProblem")}
+        />
+
+        <ProfileMenuItem
           icon="cloud-download-outline"
           label={checkingUpdate ? "Checking for Updates..." : `Check for Updates (v${getAppVersion()})`}
           onPress={handleCheckForUpdates}

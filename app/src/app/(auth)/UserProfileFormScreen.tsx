@@ -39,6 +39,8 @@ interface UserProfileFormProps {
 interface FormData {
   displayName: string;
   email: string;
+  phoneNumber: string;
+  gender: string;
   rollNumber?: string;
   refferedBy?: string;
   applyCampusAmbassador?: boolean;
@@ -81,6 +83,8 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   const [formData, setFormData] = useState<FormData>({
     displayName: user?.displayName || "",
     email: user?.email || "",
+    phoneNumber: user?.phoneNumber || "",
+    gender: "",
     rollNumber: "",
     refferedBy: "",
     applyCampusAmbassador: false,
@@ -141,6 +145,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
       ...prev,
       displayName: user.displayName || prev.displayName,
       email: user.email || prev.email,
+      phoneNumber: prev.phoneNumber || user.phoneNumber || "",
       appleId: user.uid || prev.appleId,
       isHostCollegeStudent: user.email
         ? THAPAR_EMAIL_REGEX.test(user.email)
@@ -149,14 +154,26 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   }, [user]);
 
   const validateForm = (): string | null => {
-    if (!formData.graduationYear)
-      return "Please select your graduation year";
+    const digits = (formData.phoneNumber || "").replace(/\D/g, "");
+    if (!digits) {
+      return "Please enter your 10-digit mobile phone number";
+    }
+    if (digits.length !== 10) {
+      return "Phone number must be exactly 10 digits";
+    }
 
-    if (!formData.rollNumber)
-      return "Please enter your roll number";
+    if (!formData.rollNumber || !formData.rollNumber.trim()) {
+      return "Please enter your roll number / student ID";
+    }
+
     if (!formData.isHostCollegeStudent) {
-      if (!formData.collegeName.trim())
+      if (!formData.collegeName.trim()) {
         return "Please select your college name";
+      }
+    }
+
+    if (!formData.graduationYear) {
+      return "Please select your graduation year";
     }
 
     return null;
@@ -214,8 +231,10 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          phoneNumber: (formData.phoneNumber || "").replace(/\D/g, ""),
+          gender: formData.gender || undefined,
           graduationYear: formData.graduationYear,
-          rollNumber: formData.rollNumber,
+          rollNumber: (formData.rollNumber || "").trim(),
           collegeName,
           referredBy: formData.refferedBy,
         }),
@@ -615,6 +634,117 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
             className="mb-4"
           />
 
+          <Input
+            label="Phone Number *"
+            value={formData.phoneNumber}
+            onChangeText={(value) => {
+              const digits = value.replace(/\D/g, "").slice(0, 10);
+              updateField("phoneNumber", digits);
+            }}
+            placeholder="Enter 10-digit mobile number"
+            keyboardType="phone-pad"
+            maxLength={10}
+            className="mb-4"
+          />
+
+          <View style={{ marginTop: 4, marginBottom: 8 }}>
+            <Text
+              style={{
+                fontFamily: "Poppins_600SemiBold",
+                color: textColor,
+                fontSize: 14,
+                marginBottom: 8,
+              }}
+            >
+              Gender
+            </Text>
+            <View style={{ gap: 8 }}>
+              {/* Row 1: Male & Female */}
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {[
+                  { id: "male", label: "Male" },
+                  { id: "female", label: "Female" },
+                ].map((opt) => {
+                  const isSelected = formData.gender === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      activeOpacity={0.8}
+                      onPress={() => updateField("gender", isSelected ? "" : opt.id)}
+                      style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 12,
+                        paddingHorizontal: 8,
+                        borderRadius: 14,
+                        borderWidth: 1.5,
+                        borderColor: isSelected ? "#41B8F0" : inputBorder,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? "rgba(65, 184, 240, 0.15)"
+                            : "rgba(65, 184, 240, 0.1)"
+                          : inputBg,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
+                          fontSize: 13.5,
+                          color: isSelected ? "#41B8F0" : subTextColor,
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Row 2: Other & Not to disclose */}
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {[
+                  { id: "other", label: "Other" },
+                  { id: "not_disclosed", label: "Not to disclose" },
+                ].map((opt) => {
+                  const isSelected = formData.gender === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      activeOpacity={0.8}
+                      onPress={() => updateField("gender", isSelected ? "" : opt.id)}
+                      style={{
+                        flex: 1,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 12,
+                        paddingHorizontal: 8,
+                        borderRadius: 14,
+                        borderWidth: 1.5,
+                        borderColor: isSelected ? "#41B8F0" : inputBorder,
+                        backgroundColor: isSelected
+                          ? isDark
+                            ? "rgba(65, 184, 240, 0.15)"
+                            : "rgba(65, 184, 240, 0.1)"
+                          : inputBg,
+                      }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
+                          fontSize: 12.5,
+                          color: isSelected ? "#41B8F0" : subTextColor,
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* Section 2: Academic Information Card */}

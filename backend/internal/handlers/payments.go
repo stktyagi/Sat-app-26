@@ -552,6 +552,16 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		return
 	}
 
+	// Invariant: Nobody can have only food for a day. Food is strictly an add-on
+	// to accommodation; the user must already hold accommodation for that day or be purchasing it now.
+	for day := range foodMap {
+		hasAcc := (accommodationMap != nil && accommodationMap[day] != nil) || (user != nil && user.Accommodation != nil && user.Accommodation[day])
+		if !hasAcc {
+			apierr.Respond(c, apierr.BadRequest("food_requires_accommodation", "food cannot be booked without accommodation for "+day))
+			return
+		}
+	}
+
 	if accFee > 0 && body.EventID == "" && a.Store != nil {
 		regs, err := a.Store.ListUserRegistrations(ctx, user.UserID)
 		if err != nil || len(regs) == 0 {

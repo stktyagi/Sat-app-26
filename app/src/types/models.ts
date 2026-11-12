@@ -66,6 +66,13 @@ export interface UserProfile {
   graduationYear: string;
   points?: number;
   isVerified: boolean;
+  checkInStatus?: {
+    fest: boolean;
+    remark?: string | null;
+    accommodation: boolean;
+    Hostel?: string | null;
+    RoomNo?: string | null;
+  };
 }
 
 export type Event = {
@@ -158,6 +165,7 @@ export type Reel = {
   videoUrl: string;
   videoRef?: string;
   thumbnailUrl?: string;
+  thumbnailRef?: string;
   title: string;
   description: string;
   eventId?: string;

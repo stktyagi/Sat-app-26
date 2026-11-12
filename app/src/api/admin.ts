@@ -332,14 +332,20 @@ export async function fetchOutgoingUsers(
 export async function updateAccommodationCheckIn(
   userId: string,
   status: boolean,
-  hostel?: string
+  hostel?: string,
+  roomNo?: string
 ): Promise<void> {
   const body: Record<string, any> = {
     userId,
     accommodation: status,
   };
   if (hostel !== undefined) {
+    body.hostel = hostel;
     body.Hostel = hostel;
+  }
+  if (roomNo !== undefined) {
+    body.roomNo = roomNo;
+    body.RoomNo = roomNo;
   }
   const res = await apiFetch(`/admin/qr/hostel/${userId}`, {
     method: 'PATCH',
@@ -976,6 +982,7 @@ export interface UserGateData {
     remark?: string | null;
     accommodation: boolean;
     Hostel?: string | null;
+    RoomNo?: string | null;
   };
   userEvents?: {
     eventId: string;
@@ -1064,12 +1071,19 @@ export const updateGateFestStatus = async (
 export const updateHostelStatus = async (
   userId: string,
   accommodation: boolean,
-  hostel?: string
+  hostel?: string,
+  roomNo?: string
 ): Promise<{ success: boolean; error?: string; message?: string; data?: any }> => {
   try {
     const res = await apiFetch(`/admin/qr/hostel/${userId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ accommodation, hostel }),
+      body: JSON.stringify({
+        accommodation,
+        hostel,
+        Hostel: hostel,
+        roomNo,
+        RoomNo: roomNo,
+      }),
     }, 'required');
 
     if (!res.ok) {
@@ -1119,3 +1133,13 @@ export const checkMealAvailability = async (
   return { available: true, message: 'Meal available' };
 };
 
+export const adminGenerateFoodQR = async (
+  day?: string
+): Promise<{ day: string; qr: string }> => {
+  const res = await apiFetch('/admin/food/generate', {
+    method: 'POST',
+    body: JSON.stringify({ day: day || '' }),
+  }, 'required');
+  if (!res.ok) throw new Error(await readError(res, 'Failed to generate food QR'));
+  return res.json();
+};

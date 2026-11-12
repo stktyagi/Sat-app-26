@@ -80,9 +80,9 @@ const StoryContent = React.memo(
     const mediaUrl = currentStory?.storyLink || currentStory?.uri || "";
     const isVideo = currentStory?.mediaType === "video";
 
-    // FIX: Create player only for videos to prevent crashes
-    // Use null for non-videos to avoid unnecessary player instances
-    const player = useVideoPlayer(isVideo ? mediaUrl : null, (player) => {
+    // FIX: Create player only for active video to prevent crashes & OOM
+    // Use null for non-videos or inactive stories to avoid unnecessary player instances
+    const player = useVideoPlayer(isVideo && isActive ? mediaUrl : null, (player) => {
       if (player && isVideo) {
         player.loop = false;
         player.showsTimecodes = false;
@@ -240,7 +240,7 @@ const StoryContent = React.memo(
 
     return (
       <>
-        {isVideo && mediaUrl && player ? (
+        {isVideo && mediaUrl && player && isActive ? (
           <VideoView
             player={player}
             style={styles.image}
@@ -257,6 +257,10 @@ const StoryContent = React.memo(
             // FIX: Prevent visual analysis which causes crashes
             pointerEvents="none"
           />
+        ) : isVideo ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#FFBA00" />
+          </View>
         ) : (
           <>
             {!isImageLoaded && (
