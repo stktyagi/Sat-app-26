@@ -59,7 +59,14 @@ type Config struct {
 
 	UseEmulator bool
 	GroqAPIKey  string
+
+	// FestDay0 is midnight IST of fest day0 (FEST_DAY0_DATE=YYYY-MM-DD).
+	// Zero when unset; the food scan then answers food_not_configured.
+	FestDay0 time.Time
 }
+
+// IST is fixed so the container needs no tzdata.
+var IST = time.FixedZone("IST", 5*3600+30*60)
 
 func Load() (*Config, error) {
 	loadDotEnv(".env")
@@ -104,6 +111,14 @@ func Load() (*Config, error) {
 
 	if c.PaymentsDummy && c.EasebuzzEnv == "prod" {
 		return nil, fmt.Errorf("PAYMENTS_DUMMY must not be enabled with EASEBUZZ_ENV=prod")
+	}
+
+	if v := os.Getenv("FEST_DAY0_DATE"); v != "" {
+		d, err := time.ParseInLocation("2006-01-02", v, IST)
+		if err != nil {
+			return nil, fmt.Errorf("FEST_DAY0_DATE: %w", err)
+		}
+		c.FestDay0 = d
 	}
 
 	if len(c.QRSecret) == 0 {

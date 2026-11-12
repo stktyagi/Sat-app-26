@@ -45,6 +45,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	authed.DELETE("/me", api.DeleteSelf)
 	authed.GET("/me/events", api.GetMyEvents)
 	authed.POST("/me/fcm-token", api.UpdateFCMToken)
+	authed.POST("/food/scan", api.ScanFoodQR)
 	authed.POST("/me/photo", api.uploadMine("photoRef", "photoUrl", "users/photos", func(u *models.User) string { return u.PhotoRef }))
 	authed.POST("/me/college-id", api.uploadMine("collegeIdRef", "collegeIdUrl", "users/college-ids", func(u *models.User) string { return u.CollegeIDRef }))
 
@@ -182,6 +183,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	accom.GET("/admin/accommodation", api.AdminListAccommodation)
 	accom.GET("/admin/accommodation/stats", api.AdminAccommodationStats)
 	accom.POST("/admin/accommodation/checkin", api.AdminHostelCheckIn)
+	accom.POST("/admin/food/generate", api.AdminGenerateFoodQR)
 
 	// QR Gate: Admin, EB_Hospitality, EC_Hospitality
 	gateQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality))
