@@ -24,6 +24,8 @@ const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+export type AlertType = 'success' | 'destructive' | 'error' | 'warning' | 'info';
+
 export interface AlertButton {
   text: string;
   onPress?: () => void;
@@ -35,6 +37,7 @@ interface CustomAlertProps {
   title?: string;
   message: string;
   buttons?: AlertButton[];
+  variant?: AlertType;
   onDismiss?: () => void;
 }
 
@@ -43,6 +46,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   title,
   message,
   buttons = [],
+  variant,
   onDismiss,
 }) => {
   const { isDark } = useThemeStore();
@@ -95,26 +99,27 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   const normalizedMsg = (message || '').toLowerCase();
   const hasDestructive = buttons.some((b) => b.style === 'destructive');
 
-  type AlertType = 'success' | 'destructive' | 'error' | 'warning' | 'info';
-  let type: AlertType = 'info';
+  let type: AlertType = variant || 'info';
 
-  if (hasDestructive || normalizedTitle.includes('delete') || normalizedTitle.includes('remove')) {
-    type = 'destructive';
-  } else if (normalizedTitle.includes('success') || normalizedMsg.includes('success')) {
-    type = 'success';
-  } else if (
-    normalizedTitle.includes('error') ||
-    normalizedTitle.includes('fail') ||
-    normalizedMsg.includes('failed') ||
-    normalizedMsg.includes('error')
-  ) {
-    type = 'error';
-  } else if (
-    normalizedTitle.includes('warn') ||
-    normalizedTitle.includes('permission') ||
-    normalizedTitle.includes('require')
-  ) {
-    type = 'warning';
+  if (!variant) {
+    if (hasDestructive || normalizedTitle.includes('delete') || normalizedTitle.includes('remove')) {
+      type = 'destructive';
+    } else if (normalizedTitle.includes('success') || normalizedMsg.includes('success')) {
+      type = 'success';
+    } else if (
+      normalizedTitle.includes('error') ||
+      normalizedTitle.includes('fail') ||
+      normalizedMsg.includes('failed') ||
+      normalizedMsg.includes('error')
+    ) {
+      type = 'error';
+    } else if (
+      normalizedTitle.includes('warn') ||
+      normalizedTitle.includes('permission') ||
+      normalizedTitle.includes('require')
+    ) {
+      type = 'warning';
+    }
   }
 
   // Type-specific colors and icons using Events & Store fest palette
@@ -390,16 +395,18 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
 
 
 // Global alert manager
-interface AlertConfig {
+export interface AlertConfig {
   title?: string;
   message: string;
   buttons?: AlertButton[];
+  variant?: AlertType;
 }
 
 class AlertManager {
   private static instance: AlertManager;
   private listeners: ((config: AlertConfig | null) => void)[] = [];
   private currentAlert: AlertConfig | null = null;
+  private queue: AlertConfig[] = [];
 
   static getInstance(): AlertManager {
     if (!AlertManager.instance) {
@@ -415,24 +422,34 @@ class AlertManager {
     };
   }
 
-  show(title?: string, message?: string, buttons?: AlertButton[]) {
-    // Handle both (title, message, buttons) and (message, buttons) signatures
-    let config: AlertConfig;
-    if (message === undefined) {
-      // Single argument: treat title as message
-      config = { message: title || '', buttons };
-    } else {
-      // Two or three arguments
-      config = { title, message, buttons };
-    }
-
-    this.currentAlert = config;
+  private notify(config: AlertConfig | null) {
     this.listeners.forEach((listener) => listener(config));
   }
 
+  show(title?: string, message?: string, buttons?: AlertButton[], variant?: AlertType) {
+    let config: AlertConfig;
+    if (message === undefined) {
+      config = { message: title || '', buttons, variant };
+    } else {
+      config = { title, message, buttons, variant };
+    }
+
+    if (!this.currentAlert) {
+      this.currentAlert = config;
+      this.notify(config);
+    } else {
+      this.queue.push(config);
+    }
+  }
+
   hide() {
-    this.currentAlert = null;
-    this.listeners.forEach((listener) => listener(null));
+    if (this.queue.length > 0) {
+      this.currentAlert = this.queue.shift()!;
+      this.notify(this.currentAlert);
+    } else {
+      this.currentAlert = null;
+      this.notify(null);
+    }
   }
 
   getCurrentAlert(): AlertConfig | null {
@@ -459,6 +476,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({
         title={alertConfig?.title}
         message={alertConfig?.message || ''}
         buttons={alertConfig?.buttons}
+        variant={alertConfig?.variant}
         onDismiss={() => AlertManager.getInstance().hide()}
       />
     </>
@@ -469,9 +487,10 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({
 export const showAlert = (
   title?: string,
   message?: string,
-  buttons?: AlertButton[]
+  buttons?: AlertButton[],
+  variant?: AlertType
 ) => {
-  AlertManager.getInstance().show(title, message, buttons);
+  AlertManager.getInstance().show(title, message, buttons, variant);
 };
 
 export default CustomAlert;

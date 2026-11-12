@@ -31,6 +31,7 @@ import {
 } from "lucide-react-native";
 import MarkdownText from "@/components/display/MarkdownText";
 import { FirebaseEvent } from "@/types/models";
+import { getOptimizedImageUrl } from "@/utils/image";
 import {
   updateEventInfo,
   searchUsers,
@@ -936,7 +937,7 @@ export default function EventInfo({
           <View style={{ height: 220, borderRadius: 20, overflow: 'hidden', backgroundColor: cardBg, borderWidth: 1, borderColor: cardBorder }}>
             <Image
               source={{
-                uri: event.coverImage,
+                uri: getOptimizedImageUrl(event.coverImage, 700),
               }}
               style={{ width: '100%', height: '100%' }}
               resizeMode="cover"
@@ -2137,7 +2138,7 @@ export default function EventInfo({
               <Text style={{ fontFamily: "Poppins_500Medium", color: subTextColor, fontSize: 13, marginBottom: 8 }}>Image Preview:</Text>
               <View style={{ backgroundColor: cardBg, borderColor: cardBorder, borderWidth: 1 }} className="h-32 rounded-xl overflow-hidden">
                 <Image
-                  source={{ uri: editData.coverImage }}
+                  source={{ uri: getOptimizedImageUrl(editData.coverImage, 400) }}
                   className="w-full h-full"
                   resizeMode="cover"
                   onError={() => {

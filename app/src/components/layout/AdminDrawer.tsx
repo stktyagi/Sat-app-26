@@ -62,6 +62,7 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
   const [isModalVisible, setIsModalVisible] = useState(visible);
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const pendingRouteRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -94,6 +95,11 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
         }),
       ]).start(() => {
         setIsModalVisible(false);
+        if (pendingRouteRef.current) {
+          const target = pendingRouteRef.current;
+          pendingRouteRef.current = null;
+          router.push(target as any);
+        }
       });
     }
   }, [visible, slideAnim, fadeAnim]);
@@ -115,10 +121,8 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
   }, [userRoles]);
 
   const navigate = (route: string) => {
+    pendingRouteRef.current = route;
     onClose();
-    setTimeout(() => {
-      router.push(route as any);
-    }, 220);
   };
 
   if (!isModalVisible) return null;

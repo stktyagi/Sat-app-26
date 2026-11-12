@@ -25,6 +25,7 @@ import { showAlert } from "@/components";
 import { checkAppStatus } from "@/utils/versionCheck";
 import { runAllDebugChecks } from "@/utils/debugVersion";
 import { promptAndUploadIdentity, isOutsideCollegeStudent, isIdentityVerificationComplete } from "@/utils/identityUpload";
+import { isHostStudent } from "@/utils/paymentHelpers";
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -90,11 +91,7 @@ const ProfileScreen = () => {
 
   const profilePicUrl = `https://api.dicebear.com/10.x/open-peeps/png?seed=${userProfile?.userId}&hair=${getRandomHairStyle()}`;
 
-  const isHostCollegeStudent =
-    userProfile?.isHostCollegeStudent ||
-    userProfile?.collegeName?.toLowerCase().includes("thapar") ||
-    userProfile?.email?.toLowerCase().endsWith("@thapar.edu") ||
-    false;
+  const isHostCollegeStudent = isHostStudent(userProfile);
 
   const handleDebugTap = async () => {
     const newCount = debugTapCount + 1;

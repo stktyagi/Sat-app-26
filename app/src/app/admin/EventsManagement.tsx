@@ -21,6 +21,7 @@ import {
   ImageIcon,
 } from "lucide-react-native";
 import { Input } from "@/components";
+import { getOptimizedImageUrl } from "@/utils/image";
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
@@ -155,7 +156,7 @@ export default function EventsManagement() {
       <View style={{ width: 105, height: "100%", backgroundColor: isDark ? "#2A2A30" : "#E5E7EB" }}>
         {item.coverImage ? (
           <Image
-            source={{ uri: item.coverImage }}
+            source={{ uri: getOptimizedImageUrl(item.coverImage, 250) }}
             style={{ width: "100%", height: "100%" }}
             resizeMode="cover"
           />

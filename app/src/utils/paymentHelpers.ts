@@ -7,6 +7,22 @@ export interface StayDayPrices {
 
 export const FESTIVAL_DAY_KEYS = ["day0", "day1", "day2", "day3", "day4"];
 
+/**
+ * Authoritative check for host college eligibility across the application.
+ * Only verified `@thapar.edu` email domains or backend-flagged `isHostCollegeStudent` qualify.
+ * Never inspects arbitrary college name strings.
+ */
+export function isHostStudent(
+  user?: { isHostCollegeStudent?: boolean; email?: string } | null
+): boolean {
+  if (!user) return false;
+  if (user.isHostCollegeStudent === true) return true;
+  if (typeof user.email === "string" && user.email.trim().toLowerCase().endsWith("@thapar.edu")) {
+    return true;
+  }
+  return false;
+}
+
 export function resolveStayPrices(
   doc: AppAccommodation | null | undefined,
   hasTechnical: boolean,
@@ -110,7 +126,6 @@ export function calculateAccommodationUpgrade(
     return { upgradeDays: {}, upgradeFee: 0 };
   }
 
-
   const currentCat = currentEvent?.category?.toLowerCase();
   if (currentCat !== 'technical') {
     return { upgradeDays: {}, upgradeFee: 0 };
@@ -201,6 +216,32 @@ export const isPerIndividualPayment = (paymentType?: string | null): boolean => 
   return pt === 'per_individual' || pt === 'perhead' || pt === 'per_head' || pt === 'individual';
 };
 
+/**
+ * Centralized calculation of base event registration fee across individual and team events.
+ */
+export function calculateEventFee(
+  event?: any,
+  user?: { isHostCollegeStudent?: boolean; email?: string } | null,
+  team?: any
+): number {
+  if (!event || !event.paymentRequired) return 0;
+  const isHost = isHostStudent(user);
+
+  if (event.eventType === 'team' && team) {
+    if (isPerIndividualPayment(event.paymentType) && team.members?.length) {
+      const totalRosterFee = team.members.reduce((acc: number, m: any) => {
+        const memberIsHost = isHostStudent(m);
+        return acc + (memberIsHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
+      }, 0);
+      return Math.max(0, totalRosterFee - (team.paidTill || 0));
+    }
+    const flatFee = isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
+    return Math.max(0, flatFee - (team.paidTill || 0));
+  }
+
+  return isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
+}
+
 export interface EventPaymentStatusParams {
   event?: any;
   team?: any;
@@ -244,7 +285,8 @@ export const isEventPaymentDue = ({
     if (team.paidTill && team.paidTill > 0) {
       if (isPerInd && team.members?.length) {
         const totalRosterFee = team.members.reduce((acc: number, m: any) => {
-          return acc + (m.isHostCollegeStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
+          const memberIsHost = isHostStudent(m);
+          return acc + (memberIsHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
         }, 0);
         if (totalRosterFee > 0 && team.paidTill >= totalRosterFee) {
           return false;

@@ -1,5 +1,5 @@
 import React from "react";
-import { Tabs } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,7 +12,7 @@ import {
 import { GlassView } from "expo-glass-effect";
 import { useThemeStore } from "@/state/themeStore";
 import { useAdminDrawerStore } from "@/state/adminDrawerStore";
-import { useUserStore } from "@/state/userStore";
+import { useUserStore, hasCompletedProfile } from "@/state/userStore";
 import AdminDrawer from "@/components/layout/AdminDrawer";
 import { getUserRoles } from "@/utils/roles";
 
@@ -236,7 +236,17 @@ function CustomTabBar({
 export default function TabLayout() {
   const { isDark } = useThemeStore();
   const { isOpen, closeDrawer } = useAdminDrawerStore();
-  const { userData } = useUserStore();
+  const { userData, authUser, isAuthReady, isRehydrating } = useUserStore();
+
+  if (isRehydrating || !isAuthReady) {
+    return null;
+  }
+  if (!authUser) {
+    return <Redirect href="/(auth)" />;
+  }
+  if (!hasCompletedProfile(userData)) {
+    return <Redirect href="/(auth)/UserProfileFormScreen" />;
+  }
 
   const userRoles = getUserRoles(userData);
 

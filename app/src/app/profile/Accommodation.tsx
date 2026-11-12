@@ -10,7 +10,7 @@ import { showAlert } from '@/components';
 import { startEasebuzzPayment } from '@/services/easebuzz';
 import { getAppAccommodation } from '@/api/appConfig';
 import { getMyEvents } from '@/api/events';
-import { resolveStayPrices } from '@/utils/paymentHelpers';
+import { resolveStayPrices, isHostStudent } from '@/utils/paymentHelpers';
 
 interface DayInfo {
   key: string;
@@ -324,11 +324,7 @@ export default function AccommodationScreen() {
   const bookedDaysList = FESTIVAL_DAYS.filter(
     d => user?.accommodation?.[d.key] || user?.food?.[d.key]
   );
-  const isHostCollegeStudent =
-    user?.isHostCollegeStudent ||
-    user?.collegeName?.toLowerCase().includes('thapar') ||
-    user?.email?.toLowerCase().endsWith('@thapar.edu') ||
-    false;
+  const isHostCollegeStudent = isHostStudent(user);
 
   if (isHostCollegeStudent) {
     return (

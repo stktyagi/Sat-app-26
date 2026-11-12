@@ -21,6 +21,7 @@ import { useAdminDrawerStore } from '@/state/adminDrawerStore';
 import { useUserStore } from '@/state/userStore';
 import { isUserAdmin } from '@/utils/roles';
 import { UserProfile } from '@/types/models';
+import { getOptimizedImageUrl } from '@/utils/image';
 
 export interface BannerItem {
   id: string;
@@ -138,7 +139,7 @@ export default function HeroBanner({
         style={{ width: screenWidth, height: bannerHeight }}
       >
         {activeBanners.map((item) => {
-          const imageSource = typeof item.image === 'number' ? item.image : { uri: item.image };
+          const imageSource = typeof item.image === 'number' ? item.image : { uri: getOptimizedImageUrl(item.image, 800) };
           return (
             <View
               key={item.id}

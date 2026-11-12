@@ -33,7 +33,7 @@ import RegistrationModal from '@/components/registration/RegistrationModal';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import MetallicButton from '@/components/MetallicButton';
 import EventTicketCard from '@/components/registration/EventTicketCard';
-import { isEventPaymentDue } from '@/utils/paymentHelpers';
+import { isEventPaymentDue, isHostStudent, calculateEventFee } from '@/utils/paymentHelpers';
 import { showAlert } from '@/components';
 import { isIdentityVerificationComplete, getMissingIdentityRequirements } from '@/utils/identityUpload';
 
@@ -110,14 +110,8 @@ const EventDetailsScreen: React.FC = () => {
   const myTeam = eventDetailData?.myTeam;
   const isTeamEvent = event?.eventType === 'team';
   const isLeader = myTeam ? myTeam.leaderUserId === userId : false;
-  const isHost = !!(
-    userProfile?.isHostCollegeStudent ||
-    userProfile?.collegeName?.toLowerCase().includes("thapar") ||
-    userProfile?.email?.toLowerCase().endsWith("@thapar.edu")
-  );
-  const registrationFee = event?.paymentRequired
-    ? (isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0))
-    : 0;
+  const isHost = isHostStudent(userProfile);
+  const registrationFee = calculateEventFee(event, userProfile, myTeam);
   const requiresPayment = !!event?.paymentRequired && registrationFee > 0;
   const isPaymentDue = requiresPayment && isEventPaymentDue({
     event,

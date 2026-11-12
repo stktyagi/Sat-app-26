@@ -114,31 +114,55 @@ export default function ConnectivityWrapper({
     networkStatus.isConnected === false ||
     networkStatus.isInternetReachable === false;
 
+  const isMaintenance = Boolean(enableMaintenanceCheck && maintenanceInfo?.isUnderMaintenance);
+  const isUpdateRequired = Boolean(enableVersionCheck && versionInfo?.updateRequired);
 
-  // 2. CONDITIONAL RENDERING (NO HOOKS BELOW THIS POINT)
-
-  // Priority 1: Show maintenance screen (blocking)
-  if (enableMaintenanceCheck && maintenanceInfo?.isUnderMaintenance) {
-    return <MaintenanceScreen onRetry={handleRetryStatus} />;
-  }
-
-  // Priority 2: Show update required screen (blocking)
-  if (enableVersionCheck && versionInfo?.updateRequired) {
-    return (
-      <UpdateRequiredScreen
-        currentVersion={currentVersion}
-        requiredVersion={versionInfo.requiredVersion}
-        updateUrl={versionInfo.updateUrl}
-        isOptional={false}
-      />
-    );
-  }
-
-  // Priority 3: Show normal app with offline overlay if disconnected
+  // 2. OVERLAY RENDERING (Preserves children and underlying navigation / component state)
   return (
     <View style={{ flex: 1 }}>
       {children}
-      {isOffline && (
+
+      {/* Priority 1: Maintenance Screen (Highest priority overlay) */}
+      {isMaintenance && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100001,
+            elevation: 100001,
+          }}
+        >
+          <MaintenanceScreen onRetry={handleRetryStatus} />
+        </View>
+      )}
+
+      {/* Priority 2: Update Required Screen */}
+      {!isMaintenance && isUpdateRequired && versionInfo && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100000,
+            elevation: 100000,
+          }}
+        >
+          <UpdateRequiredScreen
+            currentVersion={currentVersion}
+            requiredVersion={versionInfo.requiredVersion}
+            updateUrl={versionInfo.updateUrl}
+            isOptional={false}
+          />
+        </View>
+      )}
+
+      {/* Priority 3: No Internet Screen */}
+      {!isMaintenance && !isUpdateRequired && isOffline && (
         <View
           style={{
             position: 'absolute',

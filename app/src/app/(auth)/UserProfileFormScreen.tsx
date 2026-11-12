@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { showAlert } from "../../components";
 import Input from "@/components/ui/Input";
 import { UserProfile } from "@/types/models";
+import { isHostStudent } from "@/utils/paymentHelpers";
 import { Ionicons } from "@expo/vector-icons";
 import { CollegeDropdown } from "@/components/ui/CollegeDropdown";
 
@@ -94,9 +95,23 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   });
 
   const isHost =
+    isHostStudent(user as any) ||
     formData.isHostCollegeStudent ||
-    THAPAR_EMAIL_REGEX.test(formData.email || user?.email || "");
+    (typeof formData.email === "string" && formData.email.trim().toLowerCase().endsWith("@thapar.edu"));
   const totalStages = isHost ? 1 : 3;
+  const existingUserProfile = useUserStore((s) => s.userData);
+
+  useEffect(() => {
+    if (isHost) return;
+    const p = savedProfile || existingUserProfile;
+    if (p?.rollNumber && p?.collegeName) {
+      if (!p.photoUrl && !(p as any).photoURL) {
+        setCurrentStage(2);
+      } else if (!p.collegeIdUrl) {
+        setCurrentStage(3);
+      }
+    }
+  }, [isHost, existingUserProfile]);
 
   const handleBackPress = () => {
     if (currentStage === 3) {
@@ -223,6 +238,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
       }
 
       setSavedProfile(updatedProfile);
+      useUserStore.getState().setUserData(updatedProfile);
       if (isHost) {
         if (onProfileCreated) {
           onProfileCreated(updatedProfile);
@@ -851,6 +867,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           setIsUploadingMedia(true);
           const updated = await uploadProfilePhoto(uri);
           setSavedProfile(updated);
+          useUserStore.getState().setUserData(updated);
           setCurrentStage(3);
         } catch (err: any) {
           showAlert("Upload Failed", err?.message || "Failed to upload profile photo");
@@ -874,6 +891,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           setIsUploadingMedia(true);
           const updated = await uploadCollegeId(uri);
           setSavedProfile(updated);
+          useUserStore.getState().setUserData(updated);
           onProfileCreated(updated);
         } catch (err: any) {
           showAlert("Upload Failed", err?.message || "Failed to upload college ID card");

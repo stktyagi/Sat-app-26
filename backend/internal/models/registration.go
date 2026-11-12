@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"strings"
 
 	"backend/internal/isotime"
 )
@@ -14,9 +15,26 @@ const (
 	RegPaymentPending = "pending"
 	RegPaymentSuccess = "success"
 
-	CheckinPending = "pending"
-	CheckinDone    = "checked-in"
+	CheckinPending  = "pending"
+	CheckinDone     = "checked-in"
+	CheckinRejected = "rejected"
 )
+
+// NormalizeCheckinStatus standardizes on-site check-in statuses,
+// mapping spaces/hyphens to canonical values while preserving legacy compatibility.
+func NormalizeCheckinStatus(s string) string {
+	lower := strings.ToLower(strings.TrimSpace(s))
+	switch lower {
+	case "checked in", "checked-in", "checked_in":
+		return CheckinDone
+	case "rejected":
+		return CheckinRejected
+	case "pending", "":
+		return CheckinPending
+	default:
+		return lower
+	}
+}
 
 // RegistrationID is the document ID: "{eventId}_{userId}". Because it is
 // derived from the pair, a Create with a must-not-exist precondition is itself
@@ -89,5 +107,7 @@ func (r *Registration) Normalise() {
 	}
 	if r.CheckingStatus == "" {
 		r.CheckingStatus = CheckinPending
+	} else {
+		r.CheckingStatus = NormalizeCheckinStatus(r.CheckingStatus)
 	}
 }

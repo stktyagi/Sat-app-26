@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { Users } from "lucide-react-native";
 import { FirebaseEvent } from "@/types/models";
+import { isHostStudent } from "@/utils/paymentHelpers";
 import { UserEventRegistration } from "@/api/admin";
 import {
   getEventRegistrations,
@@ -135,9 +136,9 @@ export default function EventRegistrations({
 
     // Apply college filter
     if (selectedCollegeFilter === "thapar") {
-      filtered = filtered.filter((reg) => (reg.user?.collegeName || "").toLowerCase().includes("thapar"));
+      filtered = filtered.filter((reg) => isHostStudent(reg.user));
     } else if (selectedCollegeFilter === "outside") {
-      filtered = filtered.filter((reg) => !(reg.user?.collegeName || "").toLowerCase().includes("thapar"));
+      filtered = filtered.filter((reg) => !isHostStudent(reg.user));
     }
 
     return filtered;
@@ -166,17 +167,17 @@ export default function EventRegistrations({
       filtered = filtered.filter((team) => team.status === selectedStatus);
     }
 
-    // Apply college filter using first member's college name
+    // Apply college filter using first member's college affiliation
     if (selectedCollegeFilter === "thapar") {
-
       filtered = filtered.filter((team) => {
         const teamData = allTeamRegistrations.find((t) => t.teamId === team.teamId);
-        return teamData?.firstMemberCollegeName?.toLowerCase().includes("thapar");
+        return (teamData as any)?.firstMemberIsHost ?? isHostStudent((teamData as any)?.members?.[0]?.user);
       });
     } else if (selectedCollegeFilter === "outside") {
       filtered = filtered.filter((team) => {
         const teamData = allTeamRegistrations.find((t) => t.teamId === team.teamId);
-        return teamData?.firstMemberCollegeName && !teamData.firstMemberCollegeName.toLowerCase().includes("thapar");
+        const isHost = (teamData as any)?.firstMemberIsHost ?? isHostStudent((teamData as any)?.members?.[0]?.user);
+        return !isHost;
       });
     }
 

@@ -8,7 +8,7 @@ import { showAlert } from '..';
 import CustomFieldsForm from './CustomFieldRenderer'
 import { useUserStore } from '@/state/userStore';
 import { confirmTeam } from '@/api/events';
-import { isPerIndividualPayment } from '@/utils/paymentHelpers';
+import { isPerIndividualPayment, isHostStudent, calculateEventFee } from '@/utils/paymentHelpers';
 
 interface TeamSubmissionModalProps {
   visible: boolean;
@@ -40,35 +40,13 @@ const TeamSubmissionModal: React.FC<TeamSubmissionModalProps> = ({
   
   // Get user data to check if they are a host college student
   const userData = useUserStore((state) => state.userData);
-  const isHostStudent = !!(
-    userData?.isHostCollegeStudent ||
-    userData?.collegeName?.toLowerCase().includes("thapar") ||
-    userData?.email?.toLowerCase().endsWith("@thapar.edu")
-  );
-  const isNonHostStudent = !isHostStudent;
+  const isHost = isHostStudent(userData);
+  const isNonHostStudent = !isHost;
 
   if (!event || !teamData) return null;
 
   const handleFinalSubmit = async (formData: Record<string, any>) => {
-    let fee = 0;
-    const isPerInd = isPerIndividualPayment(event.paymentType);
-    if (event.paymentRequired) {
-      if (
-        event.eventType === 'team' &&
-        isPerInd &&
-        teamData.members?.length
-      ) {
-        const totalRosterFee = teamData.members.reduce((acc: number, m: any) => {
-          return acc + (m.isHostCollegeStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
-        }, 0);
-        fee = Math.max(0, totalRosterFee - (teamData.paidTill || 0));
-      } else if (event.eventType === 'team') {
-        const flatFee = isHostStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
-        fee = Math.max(0, flatFee - (teamData.paidTill || 0));
-      } else {
-        fee = isHostStudent ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
-      }
-    }
+    const fee = calculateEventFee(event, userData, teamData);
     const requiresPayment = !!event.paymentRequired && fee > 0;
     const isPaid = !requiresPayment;
 

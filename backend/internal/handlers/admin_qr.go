@@ -32,7 +32,7 @@ type hostelCheckInRequest struct {
 
 type eventCheckInRequest struct {
 	RegistrationID *string `json:"registrationId"`
-	Status         *string `json:"status"` // "checked in" | "rejected" | "pending"
+	Status         *string `json:"status"` // "checked-in" | "checked in" | "rejected" | "pending"
 }
 
 // AdminQRScan processes scanned QR code payloads for gate, hostel, and event check-ins.
@@ -81,27 +81,52 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 
 	var reg *models.Registration
 	var err error
+	var candidateRegs []*models.Registration
 
 	// 1. Try verifying as signed QR token
 	if regID, verifyErr := a.QR.Verify(rawData); verifyErr == nil && regID != "" {
 		reg, err = a.Store.GetRegistration(ctx, regID)
+		if reg != nil {
+			candidateRegs = []*models.Registration{reg}
+		}
 	}
 
 	// 2. Try rawData directly as registration ID
 	if reg == nil {
 		reg, err = a.Store.GetRegistration(ctx, rawData)
+		if reg != nil {
+			candidateRegs = []*models.Registration{reg}
+		}
 	}
 
 	// 3. If rawData has eventId_userId format, try directly
 	if reg == nil && strings.Contains(rawData, "_") {
 		reg, err = a.Store.GetRegistration(ctx, rawData)
+		if reg != nil {
+			candidateRegs = []*models.Registration{reg}
+		}
 	}
 
 	// 4. If rawData is a userId, check if user has registrations
 	if reg == nil {
 		if regs, listErr := a.Store.ListUserRegistrations(ctx, rawData); listErr == nil && len(regs) > 0 {
-			reg = regs[0]
-			err = nil
+			candidateRegs = regs
+			caller := middleware.CurrentUser(c)
+			// Prioritize coordinator's assigned event if applicable
+			if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) {
+				for _, r := range regs {
+					evt, _ := a.Cache.Get(ctx, r.EventID)
+					if isUserEventCoordinator(caller, evt) {
+						reg = r
+						err = nil
+						break
+					}
+				}
+			}
+			if reg == nil {
+				reg = regs[0]
+				err = nil
+			}
 		}
 	}
 
@@ -138,9 +163,25 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 		userPhone = u.PhoneNumber
 	}
 
-	chkStatus := reg.CheckingStatus
-	if chkStatus == "" {
-		chkStatus = "pending"
+	chkStatus := models.NormalizeCheckinStatus(reg.CheckingStatus)
+
+	// Build full candidate registrations list for multi-event attendee support
+	allRegsData := make([]gin.H, 0, len(candidateRegs))
+	for _, cr := range candidateRegs {
+		crTitle := "Event"
+		if crEvt, _ := a.Cache.Get(ctx, cr.EventID); crEvt != nil && crEvt.Title != "" {
+			crTitle = crEvt.Title
+		}
+		crStatus := models.NormalizeCheckinStatus(cr.CheckingStatus)
+		allRegsData = append(allRegsData, gin.H{
+			"registrationId": cr.ID,
+			"eventId":        cr.EventID,
+			"eventName":      crTitle,
+			"status":         cr.Status,
+			"checkingStatus": crStatus,
+			"paymentStatus":  cr.PaymentStatus,
+			"teamId":         cr.TeamID,
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -160,6 +201,8 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 			"paymentStatus":  reg.PaymentStatus,
 			"teamId":         reg.TeamID,
 		},
+		"hasMultiple":      len(candidateRegs) > 1,
+		"allRegistrations": allRegsData,
 	})
 }
 
@@ -216,7 +259,7 @@ func (a *API) handleUserQRScan(c *gin.Context, rawData, category string) {
 			"eventId":        r.EventID,
 			"eventName":      evtTitle,
 			"status":         status,
-			"checkingStatus": r.CheckingStatus,
+			"checkingStatus": models.NormalizeCheckinStatus(r.CheckingStatus),
 		})
 	}
 
@@ -393,7 +436,7 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 	})
 }
 
-// AdminEventCheckIn updates checkingStatus ("checked in", "rejected", "pending") on an event registration.
+// AdminEventCheckIn updates checkingStatus ("checked-in", "checked in", "rejected", "pending") on an event registration.
 func (a *API) AdminEventCheckIn(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -414,9 +457,9 @@ func (a *API) AdminEventCheckIn(c *gin.Context) {
 		return
 	}
 
-	status := "checked in"
+	status := models.CheckinDone
 	if req.Status != nil && strings.TrimSpace(*req.Status) != "" {
-		status = strings.ToLower(strings.TrimSpace(*req.Status))
+		status = models.NormalizeCheckinStatus(*req.Status)
 	}
 
 	reg, err := a.Store.GetRegistration(ctx, regID)
@@ -478,7 +521,7 @@ func (a *API) AdminGetUserEventsByID(c *gin.Context) {
 			"eventId":        reg.EventID,
 			"eventName":      evtTitle,
 			"status":         reg.Status,
-			"checkingStatus": reg.CheckingStatus,
+			"checkingStatus": models.NormalizeCheckinStatus(reg.CheckingStatus),
 		})
 	}
 

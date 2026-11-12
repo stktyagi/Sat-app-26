@@ -33,15 +33,13 @@ import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TeamDetailsCard from "@/components/registration/TeamDetailsCard";
-import TeamSubmissionModal from "@/components/registration/TeamSubmissionModal";
 import { useEventDetail } from "@/hooks/useEventDetail";
 import {
   useDeleteTeam,
   useRemoveTeamMember,
   useUnregisterForEvent,
-  useConfirmTeam,
 } from "@/hooks/useEventMutations";
-import { isPerIndividualPayment, isEventPaymentDue } from "@/utils/paymentHelpers";
+import { isPerIndividualPayment, isEventPaymentDue, isHostStudent, calculateEventFee } from "@/utils/paymentHelpers";
 
 const MyEventDetailsScreen: React.FC = () => {
   const router = useRouter();
@@ -71,48 +69,18 @@ const MyEventDetailsScreen: React.FC = () => {
     }, [refresh])
   );
 
-  const [submittingTeam, setSubmittingTeam] = useState(false);
-  const [isSubmissionModalVisible, setIsSubmissionModalVisible] = useState(false);
 
   const deleteTeamMutation = useDeleteTeam();
   const removeTeamMemberMutation = useRemoveTeamMember();
   const unregisterMutation = useUnregisterForEvent();
-  const confirmTeamMutation = useConfirmTeam();
 
   const isLeader = teamData?.leaderUserId === userId;
   const hasAccommodation =
     Object.values(userProfile?.accommodation || {}).some(Boolean) ||
     Object.values(userProfile?.food || {}).some(Boolean);
 
-  const isHost = !!(
-    userProfile?.isHostCollegeStudent ||
-    userProfile?.collegeName?.toLowerCase().includes("thapar") ||
-    userProfile?.email?.toLowerCase().endsWith("@thapar.edu")
-  );
-
-  let eventRegistrationFee = 0;
-  if (eventData?.paymentRequired) {
-    if (
-      eventData.eventType === 'team' &&
-      isPerIndividualPayment(eventData.paymentType) &&
-      teamData?.members?.length
-    ) {
-      const totalRosterFee = teamData.members.reduce((acc: number, m: any) => {
-        return acc + (m.isHostCollegeStudent ? (eventData.registrationFee?.host || 0) : (eventData.registrationFee?.other || 0));
-      }, 0);
-      eventRegistrationFee = Math.max(0, totalRosterFee - (teamData.paidTill || 0));
-    } else if (eventData.eventType === 'team') {
-      const flatFee = isHost
-        ? (eventData.registrationFee?.host || 0)
-        : (eventData.registrationFee?.other || 0);
-      eventRegistrationFee = Math.max(0, flatFee - (teamData?.paidTill || 0));
-    } else {
-      eventRegistrationFee = isHost
-        ? (eventData.registrationFee?.host || 0)
-        : (eventData.registrationFee?.other || 0);
-    }
-  }
-
+  const isHost = isHostStudent(userProfile);
+  const eventRegistrationFee = calculateEventFee(eventData, userProfile, teamData);
   const requiresPayment = !!eventData?.paymentRequired && eventRegistrationFee > 0;
 
   const isPaymentDue = isEventPaymentDue({
@@ -195,73 +163,6 @@ const MyEventDetailsScreen: React.FC = () => {
               onSuccess: () => router.back(),
               onError: (error: any) =>
                 showAlert("Error", error.message || "Failed to cancel registration"),
-            });
-          },
-        },
-      ]
-    );
-  };
-
-  const handleCompleteRegistration = async () => {
-    if (!eventData || !teamData) return;
-
-    if (isPaymentDue) {
-      showAlert(
-        "Payment Required",
-        "Payment is pending or due for this event. Please complete the registration payment before finalizing your registration.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Pay Now",
-            onPress: () => {
-              router.push({
-                pathname: "/events/Payment",
-                params: {
-                  eventId,
-                  ...(teamData?.teamId ? { teamId: teamData.teamId } : {}),
-                },
-              });
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    if (
-      eventData.minTeamSize &&
-      (teamData.members?.length ?? 0) < eventData.minTeamSize
-    ) {
-      showAlert(
-        "Insufficient Team Size",
-        `Your team needs at least ${eventData.minTeamSize} members before registration can be finalized. Currently you have ${
-          teamData.members?.length ?? 0
-        } member(s).\n\nPlease share the invite code with your teammates.`
-      );
-      return;
-    }
-
-    showAlert(
-      "Finalize Team Registration",
-      "Are you satisfied with your team? Once confirmed, your team registration will be submitted.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm Registration",
-          onPress: () => {
-            if (!teamData?.teamId) return;
-            setSubmittingTeam(true);
-            confirmTeamMutation.mutate(teamData.teamId, {
-              onSuccess: () => {
-                showAlert("Success", "Team registration has been successfully confirmed!");
-                refresh();
-              },
-              onError: (err: any) => {
-                showAlert("Error", err.message || "Failed to complete team registration");
-              },
-              onSettled: () => {
-                setSubmittingTeam(false);
-              },
             });
           },
         },
@@ -1119,7 +1020,6 @@ const MyEventDetailsScreen: React.FC = () => {
             eventData={eventData}
             userId={userId}
             isLeader={isLeader}
-            submittingTeam={submittingTeam}
             isPaymentDue={isPaymentDue}
             onPay={() =>
               router.push({
@@ -1131,7 +1031,6 @@ const MyEventDetailsScreen: React.FC = () => {
               })
             }
             onRemoveMember={handleRemoveMember}
-            onSubmitTeam={handleCompleteRegistration}
           />
         )}
 
@@ -1318,16 +1217,6 @@ const MyEventDetailsScreen: React.FC = () => {
         )}
       </ScrollView>
 
-      <TeamSubmissionModal
-        visible={isSubmissionModalVisible}
-        onClose={() => setIsSubmissionModalVisible(false)}
-        event={eventData}
-        teamData={teamData}
-        onSubmitSuccess={() => {
-          setIsSubmissionModalVisible(false);
-          refresh();
-        }}
-      />
     </View>
   );
 };

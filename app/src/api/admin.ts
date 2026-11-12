@@ -9,6 +9,7 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { apiFetch, getIdTokenIfSignedIn, readError } from './client';
+import { isHostStudent } from '@/utils/paymentHelpers';
 import { API_BASE_URL } from '@/config/api';
 import {
   adminListBanners,
@@ -656,6 +657,7 @@ export const getEventTeamSummaries = async (eventId: string): Promise<TeamSummar
       createdAt: first?.registeredAt ?? '',
       inviteCode: first?.teamInviteCode || '',
       firstMemberCollegeName: first?.user?.collegeName,
+      firstMemberIsHost: isHostStudent(first?.user),
     };
   });
 };
@@ -691,6 +693,7 @@ export const getAllTeamRegistrationsWithMembers = async (eventId: string) => {
       createdAt: first?.registeredAt ?? '',
       inviteCode: first?.teamInviteCode || '',
       firstMemberCollegeName: first?.user?.collegeName,
+      firstMemberIsHost: isHostStudent(first?.user),
       members,
     };
   });
@@ -924,6 +927,14 @@ export const updateOrderStatus = async (_id: string, _status: string) => ({ succ
 export const getAllOrders = async () => [] as any[];
 export type UserOrder = any;
 
+export const normalizeCheckinStatus = (status?: string): 'pending' | 'checked-in' | 'rejected' => {
+  if (!status) return 'pending';
+  const s = status.toLowerCase().trim();
+  if (s === 'checked-in' || s === 'checked in' || s === 'checked_in') return 'checked-in';
+  if (s === 'rejected' || s === 'reject') return 'rejected';
+  return 'pending';
+};
+
 export interface UserRegistrationData {
   registrationId: string;
   userId: string;
@@ -937,6 +948,16 @@ export interface UserRegistrationData {
   checkingStatus: string;
   paymentStatus?: string;
   teamId?: string;
+  hasMultiple?: boolean;
+  allRegistrations?: Array<{
+    registrationId: string;
+    eventId: string;
+    eventName: string;
+    status: string;
+    checkingStatus: string;
+    paymentStatus?: string;
+    teamId?: string;
+  }>;
 }
 
 export interface UserGateData {
@@ -994,9 +1015,10 @@ export const updateUserCheckingStatus = async (
   status: string
 ): Promise<{ success: boolean; error?: string; message?: string }> => {
   try {
+    const normalizedStatus = normalizeCheckinStatus(status);
     const res = await apiFetch('/admin/qr/event-checkin', {
       method: 'POST',
-      body: JSON.stringify({ registrationId, status }),
+      body: JSON.stringify({ registrationId, status: normalizedStatus }),
     }, 'required');
 
     if (!res.ok) {

@@ -3,22 +3,16 @@ import { showAlert } from '@/components';
 import { uploadProfilePhoto, uploadCollegeId } from '@/api/auth';
 import { useUserStore } from '@/state/userStore';
 import type { UserProfile } from '@/types/models';
+import { isHostStudent } from './paymentHelpers';
 
 /**
  * Checks if the user is considered an outside (non-host) college student.
- * Host students (e.g. Thapar students) and admins are exempt from identity requirements.
+ * Host students (e.g. Thapar students with @thapar.edu) and admins are exempt from identity requirements.
  */
 export function isOutsideCollegeStudent(user?: UserProfile | null): boolean {
   if (!user) return false;
   if (user.roles?.includes('admin')) return false;
-
-  const isHost = Boolean(
-    user.isHostCollegeStudent ||
-    user.collegeName?.toLowerCase().includes('thapar') ||
-    user.email?.toLowerCase().endsWith('@thapar.edu')
-  );
-
-  return !isHost;
+  return !isHostStudent(user);
 }
 
 /**

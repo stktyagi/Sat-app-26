@@ -29,6 +29,7 @@ import {
   responsesFromFields,
 } from "@/api/events";
 import { isIdentityVerificationComplete, getMissingIdentityRequirements } from "@/utils/identityUpload";
+import { isHostStudent, calculateEventFee } from "@/utils/paymentHelpers";
 
 interface RegistrationModalProps {
   visible: boolean;
@@ -41,7 +42,8 @@ type RegistrationStep =
   | "choice"
   | "create-team"
   | "join-team"
-  | "custom-fields";
+  | "custom-fields"
+  | "invite-code";
 
 const showModalAlert = (title?: string, message?: string) => {
   if (Platform.OS === "ios") {
@@ -64,14 +66,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     useState<RegistrationStep>("choice");
   const insets = useSafeAreaInsets();
 
-  const isHost =
-    userData?.isHostCollegeStudent ||
-    userData?.collegeName?.toLowerCase().includes("thapar") ||
-    userData?.email?.toLowerCase().endsWith("@thapar.edu") ||
-    false;
-  const eventFee = event.paymentRequired
-    ? (isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0))
-    : 0;
+  const isHost = isHostStudent(userData);
+  const eventFee = calculateEventFee(event, userData);
   const requiresPayment = event.paymentRequired && eventFee > 0;
   const [teamName, setTeamName] = useState("");
   const [teamInviteCode, setTeamInviteCode] = useState("");
@@ -120,7 +116,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     event.eventType === "team" &&
     (registrationStep === "create-team" ||
       registrationStep === "join-team" ||
-      (registrationStep === "custom-fields" && !createdInviteCode));
+      registrationStep === "custom-fields");
 
   const handleBack = () => {
     if (registrationStep === "create-team" || registrationStep === "join-team") {
@@ -162,8 +158,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setCreatedTeamId(result.team?.teamId || "");
       setCurrentTeamSize(1);
       setIsCreateTeamFlow(true);
-      showModalAlert("Team Created!", "Share the invite code with your teammates.");
-      setRegistrationStep("custom-fields");
+      setRegistrationStep("invite-code");
       onSuccess();
     } catch (error: any) {
       showModalAlert("Error", error.message || "Failed to create team");
@@ -279,10 +274,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
           setCreatedInviteCode(result.inviteCode || result.team?.inviteCode);
           setCreatedTeamId(result.team?.teamId || "");
           setCurrentTeamSize(1);
-          showModalAlert("Team Created!", "Share the invite code with your teammates.");
+          setRegistrationStep("invite-code");
           onSuccess();
-          onClose();
-          router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
           return;
         } else {
           await joinEventTeam(event.eventId, teamInviteCode.trim(), registrationData);
@@ -1295,6 +1288,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
             {/* Custom Fields */}
             {registrationStep === "custom-fields" && renderCustomFields()}
+            {registrationStep === "invite-code" && renderCustomFields()}
           </ScrollView>
         </KeyboardAvoidingView>
       </View>

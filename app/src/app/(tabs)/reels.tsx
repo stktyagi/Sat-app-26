@@ -151,15 +151,6 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
     }, [player]);
 
     useEffect(() => {
-      const shouldBePaused = !isActive || !isScreenFocused;
-      if (showPauseIcon !== shouldBePaused) {
-        if (paused) {
-          setShowPauseIcon(true);
-        } else {
-          setShowPauseIcon(shouldBePaused);
-        }
-      }
-
       if (isActive && isScreenFocused && !showInitialHint && index === 0) {
         setShowInitialHint(true);
         Animated.sequence([
@@ -177,16 +168,7 @@ const ReelItem: React.FC<ReelItemProps> = React.memo(
           }),
         ]).start();
       }
-    }, [
-      isActive,
-      isScreenFocused,
-      showPauseIcon,
-      paused,
-      reel.id,
-      showInitialHint,
-      initialHintOpacity,
-      index,
-    ]); 
+    }, [isActive, isScreenFocused, showInitialHint, index, initialHintOpacity]); 
 
     const showMuteAnimation = useCallback(() => {
       muteIconOpacity.setValue(1);

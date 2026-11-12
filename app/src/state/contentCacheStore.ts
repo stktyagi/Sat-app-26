@@ -48,6 +48,11 @@ interface ContentCacheState {
   invalidateAll: () => void;
 }
 
+let bannersInFlight: Promise<BannerItem[]> | null = null;
+let reelsInFlight: Promise<Reel[]> | null = null;
+let storiesInFlight: Promise<UserStory[]> | null = null;
+let venuesInFlight: Promise<Venue[]> | null = null;
+
 export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
   banners: DEMO_BANNERS,
   rawBanners: [],
@@ -73,12 +78,15 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
 
   getBanners: async (forceRefresh = false) => {
     const state = get();
-    // Cache hit: return immediately without network call
     if (state.bannersFetched && !forceRefresh) {
       return state.banners;
     }
+    if (bannersInFlight && !forceRefresh) {
+      return bannersInFlight;
+    }
 
     set({ bannersLoading: true, bannersError: null });
+    const run = async () => {
     try {
       const items = await fetchBanners();
       if (items && items.length > 0) {
@@ -117,17 +125,25 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
         bannersLoading: false,
       });
       return state.banners.length > 0 ? state.banners : DEMO_BANNERS;
+    } finally {
+      bannersInFlight = null;
     }
+    };
+    bannersInFlight = run();
+    return bannersInFlight;
   },
 
   getReels: async (forceRefresh = false) => {
     const state = get();
-    // Cache hit: return immediately without network call
     if (state.reelsFetched && !forceRefresh) {
       return state.reels;
     }
+    if (reelsInFlight && !forceRefresh) {
+      return reelsInFlight;
+    }
 
     set({ reelsLoading: true, reelsError: null });
+    const run = async () => {
     try {
       const items = await fetchReels();
       if (items && items.length > 0) {
@@ -163,17 +179,25 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
         reelsLoading: false,
       });
       return state.reels.length > 0 ? state.reels : [];
+    } finally {
+      reelsInFlight = null;
     }
+    };
+    reelsInFlight = run();
+    return reelsInFlight;
   },
 
   getStories: async (forceRefresh = false) => {
     const state = get();
-    // Cache hit: return immediately without network call
     if (state.storiesFetched && !forceRefresh) {
       return state.stories;
     }
+    if (storiesInFlight && !forceRefresh) {
+      return storiesInFlight;
+    }
 
     set({ storiesLoading: true, storiesError: null });
+    const run = async () => {
     try {
       const items: BackendStory[] = await listStories();
       if (items && items.length > 0) {
@@ -228,17 +252,25 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
         storiesLoading: false,
       });
       return state.stories.length > 0 ? state.stories : [];
+    } finally {
+      storiesInFlight = null;
     }
+    };
+    storiesInFlight = run();
+    return storiesInFlight;
   },
 
   getVenues: async (forceRefresh = false) => {
     const state = get();
-    // Cache hit: return immediately without network call
     if (state.venuesFetched && !forceRefresh && state.venues.length > 0) {
       return state.venues;
     }
+    if (venuesInFlight && !forceRefresh) {
+      return venuesInFlight;
+    }
 
     set({ venuesLoading: true, venuesError: null });
+    const run = async () => {
     try {
       const items = await listVenues();
       set({
@@ -255,7 +287,12 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
         venuesLoading: false,
       });
       return state.venues;
+    } finally {
+      venuesInFlight = null;
     }
+    };
+    venuesInFlight = run();
+    return venuesInFlight;
   },
 
   invalidateBanners: () => set({ bannersFetched: false }),

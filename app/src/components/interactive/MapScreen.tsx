@@ -19,6 +19,7 @@ import {
   Keyboard,
 } from "react-native";
 import { showAlert } from "../index";
+import { getOptimizedImageUrl } from "@/utils/image";
 import Mapbox, {
   Camera,
   MapView,
@@ -1024,7 +1025,7 @@ export default function MapScreen() {
                   <View style={styles.carouselCardImageContainer}>
                     {event.coverImage ? (
                       <Image
-                        source={{ uri: event.coverImage }}
+                        source={{ uri: getOptimizedImageUrl(event.coverImage, 350) }}
                         style={styles.carouselCardImage}
                         resizeMode="cover"
                       />

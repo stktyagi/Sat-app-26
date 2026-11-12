@@ -57,9 +57,7 @@ export default function QRScanner({
   const [scanned, setScanned] = useState(false);
   const [cameraKey, setCameraKey] = useState(Date.now());
   const [cameraReady, setCameraReady] = useState(false);
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [showGateModal, setShowGateModal] = useState(false);
-  const [showHostelModal, setShowHostelModal] = useState(false);
+  const [activeModal, setActiveModal] = useState<'none' | 'gate' | 'hostel' | 'event'>('none');
   const [userData, setUserData] = useState<UserRegistrationData | null>(null);
   const [gateUserData, setGateUserData] = useState<UserGateData | null>(null);
   const [hostelUserData, setHostelUserData] = useState<UserGateData | null>(
@@ -125,15 +123,9 @@ export default function QRScanner({
   // Initialize camera when category is selected
   useEffect(() => {
     if (!showCategorySelection && selectedCategory) {
+      setCameraReady(true);
+    } else {
       setCameraReady(false);
-      const timer = setTimeout(() => {
-        setCameraKey(Date.now());
-        setTimeout(() => {
-          setCameraReady(true);
-        }, 200);
-      }, 100);
-
-      return () => clearTimeout(timer);
     }
   }, [showCategorySelection, selectedCategory]);
 
@@ -243,9 +235,7 @@ export default function QRScanner({
   };
 
   const closeModal = () => {
-    setShowUserModal(false);
-    setShowGateModal(false);
-    setShowHostelModal(false);
+    setActiveModal('none');
     setUserData(null);
     setGateUserData(null);
     setHostelUserData(null);
@@ -264,13 +254,13 @@ export default function QRScanner({
       if (result.success && result.data) {
         if (selectedCategory === "gate") {
           setGateUserData(result.data as UserGateData);
-          setShowGateModal(true);
+          setActiveModal("gate");
         } else if (selectedCategory === "hostel") {
           setHostelUserData(result.data as UserGateData);
-          setShowHostelModal(true);
+          setActiveModal("hostel");
         } else {
           setUserData(result.data as UserRegistrationData);
-          setShowUserModal(true);
+          setActiveModal("event");
         }
       } else {
         showAlert(
@@ -684,7 +674,7 @@ export default function QRScanner({
 
       {/* User Information Modal (Event Verification) */}
       <Modal
-        visible={showUserModal}
+        visible={activeModal === "event"}
         transparent={true}
         animationType="fade"
         onRequestClose={closeModal}
@@ -1005,7 +995,7 @@ export default function QRScanner({
 
       {/* Gate User Information Modal */}
       <GateUserModal
-        visible={showGateModal}
+        visible={activeModal === "gate"}
         onClose={closeModal}
         userData={gateUserData}
         onUserDataUpdate={(updatedData) => setGateUserData(updatedData)}
@@ -1013,7 +1003,7 @@ export default function QRScanner({
 
       {/* Hostel User Information Modal */}
       <HostelUserModal
-        visible={showHostelModal}
+        visible={activeModal === "hostel"}
         onClose={closeModal}
         userData={hostelUserData}
         onUserDataUpdate={(updatedData) => setHostelUserData(updatedData)}

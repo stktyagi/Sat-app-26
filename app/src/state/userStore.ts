@@ -4,6 +4,7 @@ import { UserProfile } from '@/types/models';
 import { storage } from '@/utils/storage';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
+import { isHostStudent } from '@/utils/paymentHelpers';
 
 export type AppStatus =
   | 'loading'
@@ -11,11 +12,21 @@ export type AppStatus =
   | 'authenticated'
   | 'needs_profile';
 
+export type AuthState =
+  | { status: 'BOOTSTRAPPING' }
+  | { status: 'UNAUTHENTICATED' }
+  | { status: 'SIGNING_IN' }
+  | { status: 'SYNCING_BACKEND'; firebaseUser: FirebaseUser }
+  | { status: 'PROFILE_INCOMPLETE'; firebaseUser: FirebaseUser; profile: UserProfile | null }
+  | { status: 'AUTHENTICATED'; firebaseUser: FirebaseUser; profile: UserProfile };
+
 interface UserState {
   appStatus: AppStatus;
+  authState: AuthState;
   authUser: FirebaseUser | null;
   userData: UserProfile | null;
   isSigningIn: boolean;
+  isSyncing: boolean;
   isRehydrating: boolean;
   isAuthReady: boolean;
   isLoadingInitialData: boolean;
@@ -23,6 +34,7 @@ interface UserState {
   initializeAppState: () => void;
   rehydrateFromStorage: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
+  syncBackendSession: (user: FirebaseUser) => Promise<UserProfile | null>;
   setAppStatus: (status: AppStatus) => void;
   setAuthUser: (user: FirebaseUser | null) => void;
   setUserData: (profile: UserProfile | null) => void;
@@ -33,23 +45,63 @@ interface UserState {
   logout: () => void;
 }
 
+/**
+ * Validates if the user profile satisfies all onboarding requirements.
+ * - Host college students: requires rollNumber and collegeName.
+ * - Outside college students: requires rollNumber, collegeName, profile photo, AND college ID card.
+ */
+export const hasCompletedProfile = (p?: UserProfile | null): boolean => {
+  if (!p?.rollNumber || !p?.collegeName) return false;
+  if (!isHostStudent(p)) {
+    const hasPhoto = Boolean(p.photoUrl || (p as any).photoURL);
+    const hasCollegeId = Boolean(p.collegeIdUrl);
+    if (!hasPhoto || !hasCollegeId) return false;
+  }
+  return true;
+};
 
-
-// The onboarding form only asks for roll number + college. fullyRegistered also needs
-// a phone number, which is collected later in RegistrationModal, so it can't gate routing.
-export const hasCompletedProfile = (p?: UserProfile | null) => !!(p?.rollNumber && p?.collegeName);
+const resolveStatus = (
+  isRehydrating: boolean,
+  isAuthReady: boolean,
+  authUser: FirebaseUser | null,
+  profile: UserProfile | null
+): { appStatus: AppStatus; authState: AuthState } => {
+  if (isRehydrating || !isAuthReady) {
+    return { appStatus: 'loading', authState: { status: 'BOOTSTRAPPING' } };
+  }
+  if (!authUser) {
+    return { appStatus: 'unauthenticated', authState: { status: 'UNAUTHENTICATED' } };
+  }
+  if (hasCompletedProfile(profile)) {
+    return {
+      appStatus: 'authenticated',
+      authState: { status: 'AUTHENTICATED', firebaseUser: authUser, profile: profile as UserProfile },
+    };
+  }
+  return {
+    appStatus: 'needs_profile',
+    authState: { status: 'PROFILE_INCOMPLETE', firebaseUser: authUser, profile },
+  };
+};
 
 export const useUserStore = create<UserState>((set, get) => ({
   appStatus: 'loading',
+  authState: { status: 'BOOTSTRAPPING' },
   authUser: null,
   userData: null,
   isSigningIn: false,
+  isSyncing: false,
   isRehydrating: true,
   isAuthReady: false,
   isLoadingInitialData: true,
 
   initializeAppState: () => {
-    set({ appStatus: 'loading', isRehydrating: true, isAuthReady: false });
+    set({
+      appStatus: 'loading',
+      authState: { status: 'BOOTSTRAPPING' },
+      isRehydrating: true,
+      isAuthReady: false,
+    });
   },
 
   rehydrateFromStorage: async () => {
@@ -62,22 +114,12 @@ export const useUserStore = create<UserState>((set, get) => ({
     } catch (error) {
       console.error('Error rehydrating from storage:', error);
     } finally {
-      // After rehydration, resolve appStatus based on the current auth state.
-      // This handles the race where onAuthStateChanged fired while isRehydrating
-      // was still true (so setAuthUser/setUserData skipped updating appStatus).
-      const { authUser, userData } = get();
-      if (authUser) {
-        const profile = userData ?? get().userData; // pick up freshly stored profile
-        if (hasCompletedProfile(profile)) {
-          set({ appStatus: 'authenticated', isRehydrating: false });
-        } else {
-          set({ appStatus: 'needs_profile', isRehydrating: false });
-        }
-      } else {
-        // Auth listener hasn't fired yet or user is signed out; leave appStatus
-        // as 'loading' so the auth listener can set it when it resolves.
-        set({ isRehydrating: false });
-      }
+      const { authUser, userData, isAuthReady } = get();
+      const resolved = resolveStatus(false, isAuthReady, authUser, userData);
+      set({
+        isRehydrating: false,
+        ...resolved,
+      });
     }
   },
 
@@ -88,13 +130,26 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       const { fetchCurrentUser } = await import('@/api/auth');
       const userProfile = await fetchCurrentUser(firebaseUser);
-      set({ userData: userProfile });
-      if (userProfile) {
-        storage.setUserProfile(userProfile);
-      }
+      get().setUserData(userProfile);
     } catch (error) {
       console.error('Error refreshing user profile:', error);
       throw error;
+    }
+  },
+
+  syncBackendSession: async (user: FirebaseUser) => {
+    if (get().isSyncing) return get().userData;
+    set({
+      isSyncing: true,
+      authState: { status: 'SYNCING_BACKEND', firebaseUser: user },
+    });
+    try {
+      const { syncBackendSession } = await import('@/api/auth');
+      const session = await syncBackendSession(user);
+      get().setUserData(session.user);
+      return session.user;
+    } finally {
+      set({ isSyncing: false });
     }
   },
 
@@ -104,37 +159,43 @@ export const useUserStore = create<UserState>((set, get) => ({
     set({ authUser: user });
     storage.setAuthState(!!user);
 
-    const { userData, isRehydrating } = get();
+    const { userData, isRehydrating, isAuthReady } = get();
     if (isRehydrating) return;
 
-    if (!user) {
-      set({ appStatus: 'unauthenticated' });
-    } else if (hasCompletedProfile(userData)) {
-      set({ appStatus: 'authenticated' });
-    } else {
-      set({ appStatus: 'needs_profile' });
-    }
+    const resolved = resolveStatus(isRehydrating, isAuthReady, user, userData);
+    set(resolved);
   },
 
   setUserData: (profile) => {
     set({ userData: profile });
-    storage.setUserProfile(profile);
+    if (profile) {
+      storage.setUserProfile(profile);
+    }
 
-    const { authUser, isRehydrating } = get();
+    const { authUser, isRehydrating, isAuthReady } = get();
     if (isRehydrating) return;
 
-    if (authUser && hasCompletedProfile(profile)) {
-      set({ appStatus: 'authenticated' });
-    } else if (authUser && !hasCompletedProfile(profile)) {
-      set({ appStatus: 'needs_profile' });
-    }
+    const resolved = resolveStatus(isRehydrating, isAuthReady, authUser, profile);
+    set(resolved);
   },
 
-  setSigningIn: (isSigningIn) => set({ isSigningIn }),
+  setSigningIn: (isSigningIn) => {
+    set({
+      isSigningIn,
+      ...(isSigningIn ? { authState: { status: 'SIGNING_IN' } } : {}),
+    });
+  },
 
   setLoadingInitialData: (isLoading) => set({ isLoadingInitialData: isLoading }),
 
-  setAuthReady: (ready) => set({ isAuthReady: ready }),
+  setAuthReady: (ready) => {
+    set({ isAuthReady: ready });
+    const { authUser, userData, isRehydrating } = get();
+    if (!isRehydrating) {
+      const resolved = resolveStatus(false, ready, authUser, userData);
+      set(resolved);
+    }
+  },
 
   clearUserState: () => {
     storage.clearAllData();
@@ -142,7 +203,9 @@ export const useUserStore = create<UserState>((set, get) => ({
       authUser: null,
       userData: null,
       appStatus: 'unauthenticated',
+      authState: { status: 'UNAUTHENTICATED' },
       isSigningIn: false,
+      isSyncing: false,
     });
   },
 
@@ -152,7 +215,9 @@ export const useUserStore = create<UserState>((set, get) => ({
       authUser: null,
       userData: null,
       appStatus: 'unauthenticated',
+      authState: { status: 'UNAUTHENTICATED' },
       isSigningIn: false,
+      isSyncing: false,
     });
   },
 }));

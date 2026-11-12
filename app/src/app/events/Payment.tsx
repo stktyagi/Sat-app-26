@@ -12,7 +12,7 @@ import { useUserStore } from '@/state/userStore';
 import { useThemeStore } from '@/state/themeStore';
 import { getAppAccommodation, type AppAccommodation } from '@/api/appConfig';
 import { getMyEvents } from '@/api/events';
-import { isPerIndividualPayment, resolveStayPrices, calculateAccommodationUpgrade } from '@/utils/paymentHelpers';
+import { isPerIndividualPayment, resolveStayPrices, calculateAccommodationUpgrade, isHostStudent, calculateEventFee } from '@/utils/paymentHelpers';
 
 interface DayInfo {
   key: string;
@@ -37,11 +37,7 @@ const PaymentScreen: React.FC = () => {
   const { userData: user } = useUserStore();
   const { data: eventData, loading: eventLoading } = useEventDetail(eventId);
 
-  const isHost =
-    user?.isHostCollegeStudent ||
-    user?.collegeName?.toLowerCase().includes('thapar') ||
-    user?.email?.toLowerCase().endsWith('@thapar.edu') ||
-    false;
+  const isHost = isHostStudent(user);
 
   // Members other than the leader can't pay the team fee; they only buy their own stay & food.
   const isTeamMemberNotLeader =
@@ -177,25 +173,10 @@ const PaymentScreen: React.FC = () => {
   };
 
   const getBaseEventFee = () => {
-    let fee = 0;
-    if (eventData?.event?.paymentRequired && !isTeamMemberNotLeader) {
-      if (
-        eventData.event.eventType === 'team' &&
-        isPerIndividualPayment(eventData.event.paymentType) &&
-        eventData.myTeam?.members?.length
-      ) {
-        const totalRosterFee = eventData.myTeam.members.reduce((acc: number, m: any) => {
-          return acc + (m.isHostCollegeStudent ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0));
-        }, 0);
-        fee = Math.max(0, totalRosterFee - (eventData.myTeam.paidTill || 0));
-      } else if (eventData.event.eventType === 'team') {
-        const flatFee = isHost ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0);
-        fee = Math.max(0, flatFee - (eventData.myTeam?.paidTill || 0));
-      } else {
-        fee = isHost ? (eventData.event.registrationFee?.host || 0) : (eventData.event.registrationFee?.other || 0);
-      }
+    if (!eventData?.event?.paymentRequired || isTeamMemberNotLeader) {
+      return 0;
     }
-    return fee;
+    return calculateEventFee(eventData.event, user, eventData.myTeam);
   };
 
   const baseEventFee = getBaseEventFee();
