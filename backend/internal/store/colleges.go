@@ -19,12 +19,7 @@ var (
 )
 
 func (s *Store) collegesPath() string {
-	if s != nil && s.Cfg != nil && s.Cfg.CollegesFile != "" {
-		if _, err := os.Stat(s.Cfg.CollegesFile); err == nil {
-			return s.Cfg.CollegesFile
-		}
-	}
-	// Try standard candidate paths so it resolves properly in production, dev, or tests
+	// Standard candidate paths resolved in the code across prod, dev, and test environments
 	candidates := []string{
 		"colleges.json",
 		"backend/colleges.json",

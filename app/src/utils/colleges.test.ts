@@ -31,26 +31,25 @@ test('searchColleges: returns empty array for empty or whitespace query', () => 
 test('searchColleges: case-insensitive search finds matches', () => {
   const lowercaseResults = searchColleges('patel');
   const uppercaseResults = searchColleges('PATEL');
-  assert.ok(lowercaseResults.length > 0, 'Expected matches for "patel"');
-  assert.deepEqual(lowercaseResults, uppercaseResults, 'Search should be case-insensitive');
+  assert.ok(lowercaseResults.length > 0);
+  assert.deepEqual(lowercaseResults, uppercaseResults);
 });
 
 test('searchColleges: prioritizes prefix matches over substring matches', () => {
   const customList = [
-    'National Institute of Technology',
-    'Amrita School of Engineering',
+    'Sam Houston University',
+    'American University',
     'Amity University',
-    'Institute of Chemical Technology'
+    'Kalam College',
   ];
-
   const results = searchColleges('am', customList);
-  assert.equal(results[0], 'Amity University');
-  assert.equal(results[1], 'Amrita School of Engineering');
+  assert.equal(results[0], 'American University');
+  assert.equal(results[1], 'Amity University');
 });
 
 test('searchColleges: limits output to 15 results for UI responsiveness', () => {
   const results = searchColleges('college');
-  assert.ok(results.length <= 15, `Expected max 15 results, got ${results.length}`);
+  assert.ok(results.length <= 15, `Expected <= 15 results, got ${results.length}`);
 });
 
 test('searchColleges: returns empty array when no colleges match query', () => {

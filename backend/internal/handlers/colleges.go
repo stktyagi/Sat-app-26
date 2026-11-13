@@ -20,8 +20,6 @@ func (a *API) GetColleges(c *gin.Context) {
 	var err error
 
 	if query == "" {
-		// Cache full list for 24h with stale-while-revalidate for 7d
-		c.Header("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800")
 		list, err = a.Store.AllColleges(ctx)
 	} else {
 		list, err = a.Store.SearchColleges(ctx, query)

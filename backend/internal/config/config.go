@@ -50,7 +50,6 @@ type Config struct {
 	// still boots, and the upload endpoints answer storage_not_configured.
 	ImageKitAccountsFile string
 	AppConfigFile        string
-	CollegesFile         string
 
 	// AWS S3 credentials for dedicated reel storage.
 	AWSRegion          string
@@ -83,7 +82,6 @@ func Load() (*Config, error) {
 		RedisNamespace:       env("REDIS_NAMESPACE", "sat26"),
 		ImageKitAccountsFile: os.Getenv("IMAGEKIT_ACCOUNTS_FILE"),
 		AppConfigFile:        env("APP_CONFIG_FILE", "app_config.json"),
-		CollegesFile:         env("COLLEGES_FILE", "colleges.json"),
 		AWSRegion:            env("AWS_REGION", "ap-south-1"),
 		AWSS3Bucket:          os.Getenv("AWS_S3_BUCKET"),
 		AWSAccessKeyID:       os.Getenv("AWS_ACCESS_KEY_ID"),

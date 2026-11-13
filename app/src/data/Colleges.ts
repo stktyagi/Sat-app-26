@@ -1,5 +1,4 @@
-const STORAGE_KEY = "@saturnalia_colleges_cache";
-
+// Pure catalog and in-memory search (zero external dependencies)
 export const defaultColleges = [
     "A. D. Patel Institute of Technology",
     "A.K.G. Engineering College",
@@ -1416,14 +1415,13 @@ export const defaultColleges = [
     "Zakir Hussain College of Engg &amp; Technology"
 ];
 
+
 // Active in-memory college names array (mutable reference so direct imports stay in sync)
 export const collegeNames: string[] = [...defaultColleges];
 
-let isLoaded = false;
-let inFlightPromise: Promise<string[]> | null = null;
 const listeners = new Set<(colleges: string[]) => void>();
 
-function notifyListeners() {
+export function notifyCollegeListeners() {
   listeners.forEach((fn) => {
     try {
       fn(collegeNames);
@@ -1444,95 +1442,6 @@ export const getColleges = (): string[] => {
   return collegeNames;
 };
 
-/**
- * Loads colleges from AsyncStorage cache immediately, then syncs with the server in the background.
- * Guarantees zero latency on search because searchColleges reads collegeNames synchronously in memory.
- */
-let asyncStorageInstance: any = null;
-async function getAsyncStorage(): Promise<any> {
-  if (asyncStorageInstance) return asyncStorageInstance;
-  try {
-    const mod = await import("@react-native-async-storage/async-storage");
-    asyncStorageInstance = mod.default || mod;
-    return asyncStorageInstance;
-  } catch {
-    return null;
-  }
-}
-
-let fetchCollegesFn: (() => Promise<string[]>) | null = null;
-async function getFetchColleges(): Promise<(() => Promise<string[]>) | null> {
-  if (fetchCollegesFn) return fetchCollegesFn;
-  try {
-    const mod = await import("@/api/colleges");
-    fetchCollegesFn = mod.fetchColleges;
-    return fetchCollegesFn;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Loads colleges from AsyncStorage cache immediately, then syncs with the server in the background.
- * Guarantees zero latency on search because searchColleges reads collegeNames synchronously in memory.
- */
-export const loadCollegesAsync = async (forceRefresh = false): Promise<string[]> => {
-  if (inFlightPromise) {
-    return inFlightPromise;
-  }
-
-  inFlightPromise = (async () => {
-    try {
-      const storage = await getAsyncStorage();
-
-      // 1. Read from AsyncStorage on first load if not yet initialized
-      if ((!isLoaded || forceRefresh) && storage) {
-        try {
-          const cached = await storage.getItem(STORAGE_KEY);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              collegeNames.length = 0;
-              collegeNames.push(...parsed);
-              isLoaded = true;
-              notifyListeners();
-            }
-          }
-        } catch (e) {
-          console.warn("[Colleges] failed loading from local storage:", e);
-        }
-      }
-
-      // 2. Fetch fresh list from server in background
-      try {
-        const fetchFn = await getFetchColleges();
-        if (fetchFn) {
-          const serverColleges = await fetchFn();
-          if (serverColleges && serverColleges.length > 0) {
-            collegeNames.length = 0;
-            collegeNames.push(...serverColleges);
-            isLoaded = true;
-            notifyListeners();
-            if (storage) {
-              storage.setItem(STORAGE_KEY, JSON.stringify(serverColleges)).catch((err: any) => {
-                console.warn("[Colleges] failed caching colleges to storage:", err);
-              });
-            }
-          }
-        }
-      } catch {
-        // Fallback to existing memory / cache (offline resilience)
-      }
-
-      return collegeNames;
-    } finally {
-      inFlightPromise = null;
-    }
-  })();
-
-  return inFlightPromise;
-};
-
 export const searchColleges = (query: string, sourceList?: string[]): string[] => {
   if (!query || query.length < 1) {
     return [];
@@ -1540,7 +1449,7 @@ export const searchColleges = (query: string, sourceList?: string[]): string[] =
 
   const lowercaseQuery = query.toLowerCase();
   const pool = sourceList && sourceList.length > 0 ? sourceList : collegeNames;
-  
+
   // Filter colleges that contain the search query
   const filteredColleges = pool.filter((college) =>
     college.toLowerCase().includes(lowercaseQuery)
@@ -1550,13 +1459,13 @@ export const searchColleges = (query: string, sourceList?: string[]): string[] =
   const sortedResults = filteredColleges.sort((a, b) => {
     const aLower = a.toLowerCase();
     const bLower = b.toLowerCase();
-    
+
     // Exact match at start
     const aStarts = aLower.startsWith(lowercaseQuery);
     const bStarts = bLower.startsWith(lowercaseQuery);
     if (aStarts && !bStarts) return -1;
     if (!aStarts && bStarts) return 1;
-    
+
     // Alphabetical order for same priority
     return a.localeCompare(b);
   });
@@ -1567,9 +1476,68 @@ export const searchColleges = (query: string, sourceList?: string[]): string[] =
 
 export type Banner = {
   bannerId: string;
-  imageUrl: any; // require(...) result for RN
+  imageUrl: any;
   link: string;
   title: string;
   isActive: boolean;
   priority: number;
+};
+
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { fetchColleges } from "@/api/colleges";
+
+const STORAGE_KEY = "@saturnalia_colleges_cache";
+
+let inFlightPromise: Promise<string[]> | null = null;
+
+/**
+ * Loads colleges by ALWAYS fetching from the backend, regardless of cache status.
+ * Immediately hydrates from local cache on startup so the UI is responsive,
+ * and updates memory as soon as the backend response arrives.
+ */
+export const loadCollegesAsync = async (forceRefresh = false): Promise<string[]> => {
+  if (inFlightPromise) {
+    return inFlightPromise;
+  }
+
+  inFlightPromise = (async () => {
+    try {
+      // 1. Prime memory from local cache on startup if empty, so the UI is immediately usable
+      try {
+        const cached = await AsyncStorage.getItem(STORAGE_KEY);
+        if (cached && collegeNames.length <= defaultColleges.length) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            collegeNames.length = 0;
+            collegeNames.push(...parsed);
+            notifyCollegeListeners();
+          }
+        }
+      } catch (storageErr) {
+        console.warn("[Colleges] Failed reading local storage:", storageErr);
+      }
+
+      // 2. ALWAYS fetch fresh colleges from backend unconditionally
+      try {
+        console.log("[Colleges] Fetching fresh colleges from server (unconditional)...");
+        const serverColleges = await fetchColleges();
+        if (serverColleges && serverColleges.length > 0) {
+          collegeNames.length = 0;
+          collegeNames.push(...serverColleges);
+          notifyCollegeListeners();
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(serverColleges));
+          console.log(`[Colleges] Successfully synced ${serverColleges.length} colleges from server`);
+        }
+      } catch (fetchErr) {
+        console.warn("[Colleges] Server sync warning (using cached/bundled):", fetchErr);
+      }
+
+      return collegeNames;
+    } finally {
+      inFlightPromise = null;
+    }
+  })();
+
+  return inFlightPromise;
 };
