@@ -1492,18 +1492,17 @@ const STORAGE_KEY = "@saturnalia_colleges_cache";
 let inFlightPromise: Promise<string[]> | null = null;
 
 /**
- * Loads colleges by ALWAYS fetching from the backend, regardless of cache status.
- * Immediately hydrates from local cache on startup so the UI is responsive,
- * and updates memory as soon as the backend response arrives.
+ * Loads colleges by fetching from the backend.
+ * Hydrates from local cache on startup and updates memory when the response arrives.
  */
-export const loadCollegesAsync = async (forceRefresh = false): Promise<string[]> => {
+export const loadCollegesAsync = async (): Promise<string[]> => {
   if (inFlightPromise) {
     return inFlightPromise;
   }
 
   inFlightPromise = (async () => {
     try {
-      // 1. Prime memory from local cache on startup if empty, so the UI is immediately usable
+      // 1. Prime memory from local cache on startup
       try {
         const cached = await AsyncStorage.getItem(STORAGE_KEY);
         if (cached && collegeNames.length <= defaultColleges.length) {
@@ -1518,9 +1517,9 @@ export const loadCollegesAsync = async (forceRefresh = false): Promise<string[]>
         console.warn("[Colleges] Failed reading local storage:", storageErr);
       }
 
-      // 2. ALWAYS fetch fresh colleges from backend unconditionally
+      // 2. Fetch fresh colleges from backend
       try {
-        console.log("[Colleges] Fetching fresh colleges from server (unconditional)...");
+        console.log("[Colleges] Fetching fresh colleges from server...");
         const serverColleges = await fetchColleges();
         if (serverColleges && serverColleges.length > 0) {
           collegeNames.length = 0;

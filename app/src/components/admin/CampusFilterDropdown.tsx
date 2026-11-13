@@ -43,12 +43,6 @@ const CampusFilterDropdown: React.FC<CampusFilterDropdownProps> = ({
   }, [searchQuery]);
 
   useEffect(() => {
-    if (showDropdown) {
-      loadCollegesAsync(true).catch(() => {});
-    }
-  }, [showDropdown]);
-
-  useEffect(() => {
     if (searchQuery.trim().length > 0) {
       const results = searchColleges(searchQuery);
       setFilteredColleges(results);

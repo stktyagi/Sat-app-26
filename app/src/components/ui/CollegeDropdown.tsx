@@ -35,20 +35,13 @@ export const CollegeDropdown: React.FC<CollegeDropdownProps> = ({
   const [collegeVersion, setCollegeVersion] = useState(0);
 
   useEffect(() => {
-    // Preload / sync colleges from backend on mount
+    // Preload / sync colleges from backend on mount if not yet loaded
     loadCollegesAsync().catch(() => {});
     const unsubscribe = subscribeToColleges(() => {
       setCollegeVersion((v) => v + 1);
     });
     return () => unsubscribe();
   }, []);
-
-  // Whenever the dropdown opens, trigger a fresh fetch to ensure up-to-date data
-  useEffect(() => {
-    if (showDropdown) {
-      loadCollegesAsync(true).catch(() => {});
-    }
-  }, [showDropdown]);
 
   const bg = isDark ? "#1C1C20" : "#FFFFFF";
   const cardBorder = isDark ? "rgba(255, 255, 255, 0.14)" : "#D1D5DB";
