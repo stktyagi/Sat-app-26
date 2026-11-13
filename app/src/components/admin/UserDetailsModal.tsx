@@ -117,13 +117,19 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
     try {
       const regsResponse = await adminGetUserRegistrations(user.email);
       
-      const mappedRegs = regsResponse.map((item: any) => ({
-        eventName: item.event?.title || 'Unknown Event',
-        eventType: item.event?.eventType || item.event?.category || 'Unknown',
-        status: item.registration?.status || 'pending',
-        teamId: item.registration?.teamId || null,
-        registeredAt: item.registration?.createdAt || new Date().toISOString()
-      }));
+      const mappedRegs = regsResponse.map((item: any) => {
+        const isPaymentPending =
+          (item.registration?.paymentStatus === 'pending' || item.registration?.status === 'payment_pending') &&
+          item.registration?.status !== 'rejected';
+        const effectiveStatus = isPaymentPending ? 'payment_pending' : (item.registration?.status || 'pending');
+        return {
+          eventName: item.event?.title || 'Unknown Event',
+          eventType: item.event?.eventType || item.event?.category || 'Unknown',
+          status: effectiveStatus,
+          teamId: item.registration?.teamId || null,
+          registeredAt: item.registration?.createdAt || new Date().toISOString()
+        };
+      });
       setRegistrations(mappedRegs);
     } catch (error) {
       console.error("Error fetching user registrations:", error);

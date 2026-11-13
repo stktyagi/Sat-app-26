@@ -1,3 +1,4 @@
+import { PaymentTransaction } from '@/types/adminTypes';
 /**
  * src/api/admin.ts
  *
@@ -578,17 +579,21 @@ const mapReg = (item: any): UserEventRegistration => {
   const reg = item?.registration ?? item ?? {};
   const user = item?.user ?? item?.registration?.user ?? item ?? {};
   const team = item?.team;
+  const paymentStatus = reg.paymentStatus ?? item.paymentStatus;
+  const rawStatus = reg.status ?? item.status ?? 'confirmed';
+  const isPaymentPending = paymentStatus === 'pending' && rawStatus !== 'rejected';
+  const status = isPaymentPending ? 'payment_pending' : rawStatus;
   return {
     userId: reg.userId ?? item.userId ?? '',
     eventId: reg.eventId ?? item.eventId ?? '',
     registeredAt: reg.registeredAt ?? reg.createdAt ?? item.registeredAt ?? '',
-    status: reg.status ?? item.status ?? 'confirmed',
+    status: status,
     teamId: reg.teamId ?? item.teamId ?? '',
     teamName: team?.teamName ?? team?.name ?? reg.teamName ?? item.teamName ?? '',
     teamInviteCode: team?.inviteCode ?? reg.teamInviteCode ?? item.teamInviteCode ?? '',
     eventType: reg.eventType ?? item.eventType,
     responses: reg.responses ?? item.responses,
-    paymentStatus: reg.paymentStatus ?? item.paymentStatus,
+    paymentStatus: paymentStatus,
     user: {
       email: user?.email ?? item.email ?? '',
       name: user?.name ?? user?.displayName ?? item.name ?? item.displayName ?? '',
@@ -634,6 +639,8 @@ export interface TeamSummary {
   createdAt: string;
   inviteCode: string;
   firstMemberCollegeName?: string;
+  firstMemberIsHost?: boolean;
+  paymentStatus?: string;
   members?: UserEventRegistration[];
 }
 
@@ -653,17 +660,27 @@ export const getEventTeamSummaries = async (eventId: string): Promise<TeamSummar
       ? first?.user?.name || first?.user?.displayName || 'Individual Participant'
       : first?.teamName || `Team ${teamId.slice(0, 6)}`;
 
+    const isTeamPaymentPending = members.some(
+      (m) => m.paymentStatus === 'pending' || m.status === 'payment_pending'
+    );
+    const rawTeamStatus = (first?.status as TeamSummary['status']) || 'confirmed';
+    const status = (isTeamPaymentPending && rawTeamStatus !== 'rejected')
+      ? 'payment_pending'
+      : rawTeamStatus;
+
     return {
       teamId,
       teamName: computedName,
       leaderId: first?.userId ?? '',
       memberCount: members.length,
       maxSize: members.length,
-      status: (first?.status as TeamSummary['status']) || 'confirmed',
+      status,
       createdAt: first?.registeredAt ?? '',
       inviteCode: first?.teamInviteCode || '',
       firstMemberCollegeName: first?.user?.collegeName,
       firstMemberIsHost: isHostStudent(first?.user),
+      paymentStatus: isTeamPaymentPending ? 'pending' : (first?.paymentStatus || 'completed'),
+      members,
     };
   });
 };
@@ -729,7 +746,71 @@ export const updateTeamRegistrationStatus = async (
 
 
 
-export const getRegistrationTransaction = async (..._args: any[]) => null;
+export const getRegistrationTransaction = async (
+  eventId?: string,
+  userId?: string,
+  teamId?: string,
+): Promise<PaymentTransaction | null> => {
+  try {
+    const { transactions } = await fetchTransactions();
+    if (!transactions || transactions.length === 0) return null;
+
+    const found = transactions.find((p: any) => {
+      const pEventId = p.eventId || p.processedIntentions?.eventRegistration?.eventId;
+      const pTeamId = p.teamId || p.processedIntentions?.eventRegistration?.teamId;
+      const pUserId = p.userId;
+      const coveredUsers: string[] = p.processedIntentions?.eventRegistration?.coveredUserIds || [];
+
+      // If teamId is specified and not solo, match by team
+      if (teamId && !teamId.startsWith('solo-')) {
+        if (pTeamId === teamId && (!eventId || pEventId === eventId)) {
+          return true;
+        }
+      }
+
+      // Match by event and user (either payer or covered user)
+      const eventMatches = !eventId || pEventId === eventId;
+      const userMatches = pUserId === userId || coveredUsers.includes(userId || '');
+      return eventMatches && userMatches;
+    });
+
+    if (!found) return null;
+
+    return {
+      id: found.id || found.merchantOrderId,
+      merchantOrderId: found.merchantOrderId || found.id,
+      userId: found.userId || userId || '',
+      eventId: found.eventId || eventId || '',
+      teamId: found.teamId || teamId,
+      status: found.status || 'success',
+      originalAmount: found.originalAmount ?? found.amount ?? 0,
+      finalAmount: found.finalAmount ?? found.amount ?? 0,
+      discountAmount: found.discountAmount ?? 0,
+      transactionFees: found.transactionFees ?? 0,
+      paymentType: found.paymentType || (found.processedIntentions?.eventRegistration ? 'event' : 'other'),
+      createdAt: found.createdAt || new Date().toISOString(),
+      completedAt: found.completedAt || found.paidAt || found.createdAt || new Date().toISOString(),
+      couponCode: found.couponCode,
+      couponDetails: found.couponDetails,
+      processedIntentions: found.processedIntentions || {
+        eventRegistration: {
+          eventId: found.eventId || eventId || '',
+          eventType: found.teamId ? 'team' : 'individual',
+          teamId: found.teamId || '',
+          teamName: '',
+          amount: found.finalAmount ?? found.amount ?? 0,
+          coveredUserIds: userId ? [userId] : [],
+        },
+        accommodation: {},
+        food: {},
+      },
+      bill: found.bill,
+    };
+  } catch (err) {
+    console.error('Failed to get registration transaction:', err);
+    return null;
+  }
+};
 
 export const getFAQs = listFAQs;
 

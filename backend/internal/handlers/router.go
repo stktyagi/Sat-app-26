@@ -166,10 +166,12 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	mediaContent.PATCH("/admin/stories/:id", api.UpdateStory)
 	mediaContent.DELETE("/admin/stories/:id", api.DeleteStory)
 
-	// Payments: Admin, EB_Outreach, EB_Finance
-	payments := staff.Group("", middleware.RequireAnyRole(models.RoleEBOutreach, models.RoleEBFinance))
-	payments.GET("/admin/payments", api.AdminListPayments)
-	payments.PATCH("/admin/payments/:id", api.AdminUpdatePaymentStatus)
+	// Payments: Admin, EB_Outreach, EB_Finance, EB_Events, Event_POC
+	paymentsRead := staff.Group("", middleware.RequireAnyRole(models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBEvents, models.RoleEventPOC))
+	paymentsRead.GET("/admin/payments", api.AdminListPayments)
+
+	paymentsWrite := staff.Group("", middleware.RequireAnyRole(models.RoleEBOutreach, models.RoleEBFinance))
+	paymentsWrite.PATCH("/admin/payments/:id", api.AdminUpdatePaymentStatus)
 
 	// Users Management: Admin, EB_Events, EB_Outreach, EB_Finance, EB_Hospitality
 	users := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBHospitality))

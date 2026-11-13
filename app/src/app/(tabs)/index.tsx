@@ -12,7 +12,7 @@ import FeaturedEventCard from '@/components/display/FeaturedEventCard';
 import MiniMap from '@/components/display/MiniMap';
 import { useEvents } from '@/hooks/useEvents';
 import ChatBot from '@/components/interactive/ChatBot';
-import { Bell, Bot, Menu, Plus, BookOpen, Briefcase, ChevronRight, Code2, LayoutGrid, Music, Sparkles, X } from 'lucide-react-native';
+import { Bell, Bot, Menu, Plus, Briefcase, ChevronRight, Code2, LayoutGrid, Music, X } from 'lucide-react-native';
 import { useStories } from '@/hooks/useStories';
 import { useBanners } from '@/hooks/useBanners';
 import StoryUploadButton from '@/components/story/StoryUploadButton';
@@ -37,8 +37,6 @@ const FEATURED_FILTERS = [
   'Technical',
   'Cultural',
   'Business',
-  'Workshops',
-  'Centerstage',
   'All',
 ];
 
@@ -52,10 +50,6 @@ const getCategoryIcon = (cat: string) => {
       return <Music size={size} color={iconColor} />;
     case 'business':
       return <Briefcase size={size} color={iconColor} />;
-    case 'workshops':
-      return <BookOpen size={size} color={iconColor} />;
-    case 'centerstage':
-      return <Sparkles size={size} color={iconColor} />;
     default:
       return <LayoutGrid size={size} color={iconColor} />;
   }

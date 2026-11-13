@@ -129,9 +129,14 @@ export default function EventRegistrations({
       });
     }
 
-    // Apply status filter
+    // Apply status filter (check payment pending before registration status)
     if (selectedStatus !== "all") {
-      filtered = filtered.filter((reg) => reg.status === selectedStatus);
+      filtered = filtered.filter((reg) => {
+        const isPaymentPending =
+          (reg.paymentStatus === "pending" || reg.status === "payment_pending") && reg.status !== "rejected";
+        const effectiveStatus = isPaymentPending ? "payment_pending" : (reg.status || "confirmed");
+        return effectiveStatus === selectedStatus;
+      });
     }
 
     // Apply college filter
@@ -145,16 +150,26 @@ export default function EventRegistrations({
   }, [allRegistrations, searchQuery, selectedStatus, selectedCollegeFilter]);
 
   const filteredTeamRegistrations = useMemo(() => {
-    let filtered: TeamRegistrationView[] = allTeamRegistrations.map((team) => ({
-      teamId: team.teamId,
-      teamName: team.teamName,
-      leaderId: team.leaderId,
-      memberCount: team.memberCount,
-      maxSize: team.maxSize,
-      status: team.status,
-      createdAt: team.createdAt,
-      inviteCode: team.inviteCode,
-    }));
+    let filtered: TeamRegistrationView[] = allTeamRegistrations.map((team) => {
+      const isPaymentPending =
+        (team.paymentStatus === "pending" ||
+          team.status === "payment_pending" ||
+          (team.members && team.members.some((m: any) => m.paymentStatus === "pending" || m.status === "payment_pending"))) &&
+        team.status !== "rejected";
+      const effectiveStatus = isPaymentPending ? "payment_pending" : (team.status || "confirmed");
+
+      return {
+        teamId: team.teamId,
+        teamName: team.teamName,
+        leaderId: team.leaderId,
+        memberCount: team.memberCount,
+        maxSize: team.maxSize,
+        status: effectiveStatus,
+        createdAt: team.createdAt,
+        inviteCode: team.inviteCode,
+        members: team.members,
+      };
+    });
 
     // Apply search filter (search by team name)
     if (searchQuery.trim()) {

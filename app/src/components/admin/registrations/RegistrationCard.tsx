@@ -64,7 +64,13 @@ export default function RegistrationCard({ registration, onViewPayment }: Regist
   const textPrimary = isDark ? "#FFFFFF" : "#111827";
   const textSecondary = isDark ? "#A0A0A0" : "#6B7280";
 
-  const hasPaymentStatus = registration?.paymentStatus === "completed";
+  // Check payment pending before registration status
+  const isPaymentPending =
+    (registration.paymentStatus === "pending" || registration.status === "payment_pending") &&
+    registration.status !== "rejected";
+  const displayStatus = isPaymentPending ? "payment_pending" : (registration.status || "confirmed");
+  const hasPaymentStatus =
+    !isPaymentPending && (registration?.paymentStatus === "completed" || registration?.paymentStatus === "success");
 
   return (
     <View
@@ -96,12 +102,12 @@ export default function RegistrationCard({ registration, onViewPayment }: Regist
           )}
           <View
             className="px-3 py-1 rounded-full"
-            style={{ backgroundColor: getStatusColor(registration.status || "") + "20" }}
+            style={{ backgroundColor: getStatusColor(displayStatus) + "20" }}
           >
             <Text
-              style={{ color: getStatusColor(registration.status || ""), fontFamily: "Poppins_600SemiBold", fontSize: 11 }}
+              style={{ color: getStatusColor(displayStatus), fontFamily: "Poppins_600SemiBold", fontSize: 11 }}
             >
-              {getStatusText(registration.status || "")}
+              {getStatusText(displayStatus)}
             </Text>
           </View>
         </View>

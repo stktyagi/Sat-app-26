@@ -334,11 +334,18 @@ export default function TeamDetailsModal({
                           {member.user.name || (member.user as any).displayName || "Unknown User"}
                         </Text>
                       </View>
-                      {!isSolo && member.userId === team.leaderId && (
-                        <View className="bg-[#41B8F0]/20 border border-[#41B8F0]/30 px-2.5 py-0.5 rounded-full">
-                          <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 10 }}>LEADER</Text>
-                        </View>
-                      )}
+                      <View className="flex-row items-center gap-1.5">
+                        {(member.paymentStatus === 'pending' || member.status === 'payment_pending') && (
+                          <View className="bg-blue-500/20 border border-blue-500/30 px-2 py-0.5 rounded-full">
+                            <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#3B82F6", fontSize: 10 }}>UNPAID</Text>
+                          </View>
+                        )}
+                        {!isSolo && member.userId === team.leaderId && (
+                          <View className="bg-[#41B8F0]/20 border border-[#41B8F0]/30 px-2.5 py-0.5 rounded-full">
+                            <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 10 }}>LEADER</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
 
                     <View className="space-y-2">

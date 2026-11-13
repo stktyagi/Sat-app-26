@@ -77,7 +77,16 @@ export default function TeamRegistrationCard({ team, onPress, onViewPayment }: T
   const textPrimary = isDark ? "#FFFFFF" : "#111827";
   const textSecondary = isDark ? "#A0A0A0" : "#6B7280";
 
-  const hasPaymentStatus = team.status === "confirmed" || team.paymentStatus === "completed";
+  // Check payment pending before team registration status
+  const isPaymentPending =
+    (team.paymentStatus === "pending" ||
+      team.status === "payment_pending" ||
+      (team.members && team.members.some((m: any) => m.paymentStatus === "pending" || m.status === "payment_pending"))) &&
+    team.status !== "rejected";
+  const displayStatus = isPaymentPending ? "payment_pending" : (team.status || "confirmed");
+  const hasPaymentStatus =
+    !isPaymentPending &&
+    (team.status === "confirmed" || team.paymentStatus === "completed" || team.paymentStatus === "success");
 
   return (
     <View
@@ -117,12 +126,12 @@ export default function TeamRegistrationCard({ team, onPress, onViewPayment }: T
           )}
           <View
             className="px-3 py-1 rounded-full"
-            style={{ backgroundColor: getStatusColor(team.status) + "20" }}
+            style={{ backgroundColor: getStatusColor(displayStatus) + "20" }}
           >
             <Text
-              style={{ color: getStatusColor(team.status), fontFamily: "Poppins_600SemiBold", fontSize: 11 }}
+              style={{ color: getStatusColor(displayStatus), fontFamily: "Poppins_600SemiBold", fontSize: 11 }}
             >
-              {getStatusText(team.status)}
+              {getStatusText(displayStatus)}
             </Text>
           </View>
         </View>
