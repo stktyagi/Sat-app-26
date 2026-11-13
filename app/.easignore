@@ -7,17 +7,9 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native build artifacts & local caches
-android/**/build/
-android/**/.gradle/
-android/**/.cxx/
-android/**/.idea/
-android/**/local.properties
-android/app/build/
-android/.gradle/
-android/build/
-ios/build/
-ios/Pods/
+# Generated native folders (EAS will run "expo prebuild" fresh on the cloud)
+android/
+ios/
 
 # Native keys / credentials
 .kotlin/
