@@ -29,6 +29,7 @@ func (a *API) checkCoupon(ctx context.Context, coupon *models.Coupon, user *mode
 		return apierr.BadRequest("inactive_coupon", "This coupon is no longer active")
 	}
 
+
 	now := time.Now()
 	from, fromOK := couponDate(coupon.ValidFrom, false)
 	until, untilOK := couponDate(coupon.ValidUntil, true)
