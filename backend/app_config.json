@@ -1,7 +1,7 @@
 {
   "links": {
     "appleStore": "https://apps.apple.com/app/saturnalia/id6738927814",
-    "playStore": "https://play.google.com/store/apps/details?id=com.gauransh.saturnaliaapp2026"
+    "playStore": "https://apps.apple.com/us/app/saturnalia-26/id6781696325"
   },
   "maintenance": {
     "android": false,
@@ -9,7 +9,7 @@
     "web": false
   },
   "versions": {
-    "android": "1.0.1",
+    "android": "1.1.0",
     "ios": "1.0.0"
   },
   "accommodation": {
