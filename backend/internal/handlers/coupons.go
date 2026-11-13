@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strings"
 	"context"
 	"net/http"
 	"time"
@@ -28,7 +29,6 @@ func (a *API) checkCoupon(ctx context.Context, coupon *models.Coupon, user *mode
 	if !coupon.IsActive {
 		return apierr.BadRequest("inactive_coupon", "This coupon is no longer active")
 	}
-
 
 	now := time.Now()
 	from, fromOK := couponDate(coupon.ValidFrom, false)
@@ -80,20 +80,21 @@ func (a *API) checkCoupon(ctx context.Context, coupon *models.Coupon, user *mode
 // to the end of the day. An unparseable value is reported so the caller can
 // reject the coupon instead of silently skipping its dates.
 func couponDate(s string, endOfDay bool) (time.Time, bool) {
-	loc, err := time.LoadLocation("Asia/Kolkata")
-	if err != nil {
-		return time.Time{}, false
-	}
+	loc := time.FixedZone("IST", 5*60*60+30*60)
 
-	if t, err := time.ParseInLocation("2006-01-02T15:04", s, loc); err == nil {
-		return t, true
-	}
+	s = strings.TrimSpace(s)
 
-	if t, err := time.ParseInLocation("2006-01-02", s, loc); err == nil {
-		if endOfDay {
-			t = t.Add(24*time.Hour - time.Millisecond)
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		"2006-01-02T15:04",
+		"2006-01-02",
+	} {
+		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
+			if layout == "2006-01-02" && endOfDay {
+				t = t.Add(24*time.Hour - time.Millisecond)
+			}
+			return t, true
 		}
-		return t, true
 	}
 
 	return time.Time{}, false
