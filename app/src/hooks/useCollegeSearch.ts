@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collegeNames } from '@/data/Colleges';
+import {
+  collegeNames,
+  searchColleges,
+  loadCollegesAsync,
+  subscribeToColleges,
+} from "@/data/Colleges";
 
 export interface College {
   id: string;
@@ -12,38 +17,43 @@ export interface College {
 }
 
 export function useCollegeSearch() {
-  const [colleges, setColleges] = useState<College[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [colleges, setColleges] = useState<College[]>(() =>
+    collegeNames.map((collegeName, index) => ({
+      id: `college-${index}`,
+      name: collegeName,
+    }))
+  );
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load all colleges on mount
   useEffect(() => {
-    try {
-      setLoading(true);
-      setError(null);
+    // 1. Subscribe to updates when cache/server resolves
+    const unsubscribe = subscribeToColleges((updatedList) => {
+      setColleges(
+        updatedList.map((collegeName, index) => ({
+          id: `college-${index}`,
+          name: collegeName,
+        }))
+      );
+    });
 
-      // Convert college names to College objects
-      const collegeList: College[] = collegeNames.map((collegeName, index) => ({
-        id: `college-${index}`,
-        name: collegeName,
-        location: "", 
-        state: "", 
-        type: "", 
-      }));
+    // 2. Fetch/sync colleges in the background
+    loadCollegesAsync().catch((err) => {
+      console.warn("[useCollegeSearch] Error loading colleges:", err);
+    });
 
-      setColleges(collegeList);
-    } catch (err) {
-      console.error("Error loading colleges:", err);
-      setError("Failed to load colleges. Please try again.");
-      setColleges([]);
-    } finally {
-      setLoading(false);
-    }
+    return () => unsubscribe();
   }, []);
 
-  // Dummy search function for compatibility (not used anymore)
-  const searchCollegesHandler = async () => {
-    // No-op since all colleges are loaded upfront
+  const searchCollegesHandler = async (query?: string): Promise<College[]> => {
+    if (!query || query.trim().length === 0) {
+      return colleges;
+    }
+    const matches = searchColleges(query);
+    return matches.map((name, index) => ({
+      id: `match-${index}`,
+      name,
+    }));
   };
 
   return { colleges, loading, error, searchColleges: searchCollegesHandler };

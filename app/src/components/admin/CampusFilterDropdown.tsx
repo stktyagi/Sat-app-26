@@ -8,7 +8,7 @@ import {
 } from "react-native-gesture-handler";
 import { GestureDetector } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
-import { searchColleges } from '@/data/Colleges';
+import { searchColleges, loadCollegesAsync, subscribeToColleges } from "@/data/Colleges";
 
 interface CampusFilterDropdownProps {
   value: string;
@@ -31,6 +31,16 @@ const CampusFilterDropdown: React.FC<CampusFilterDropdownProps> = ({
     { value: "host", label: "Host College" },
     { value: "external", label: "External Colleges" },
   ];
+
+  useEffect(() => {
+    loadCollegesAsync().catch(() => {});
+    const unsubscribe = subscribeToColleges(() => {
+      if (searchQuery.trim().length > 0) {
+        setFilteredColleges(searchColleges(searchQuery));
+      }
+    });
+    return () => unsubscribe();
+  }, [searchQuery]);
 
   useEffect(() => {
     if (searchQuery.trim().length > 0) {

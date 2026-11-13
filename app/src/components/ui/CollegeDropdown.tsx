@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { searchColleges } from "@/data/Colleges";
+import { searchColleges, loadCollegesAsync, subscribeToColleges } from "@/data/Colleges";
 import { useThemeStore } from "@/state/themeStore";
 
 interface CollegeDropdownProps {
@@ -32,6 +32,16 @@ export const CollegeDropdown: React.FC<CollegeDropdownProps> = ({
   const { isDark } = useThemeStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [collegeVersion, setCollegeVersion] = useState(0);
+
+  useEffect(() => {
+    // Preload / sync colleges in background without blocking
+    loadCollegesAsync().catch(() => {});
+    const unsubscribe = subscribeToColleges(() => {
+      setCollegeVersion((v) => v + 1);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const bg = isDark ? "#1C1C20" : "#FFFFFF";
   const cardBorder = isDark ? "rgba(255, 255, 255, 0.14)" : "#D1D5DB";
@@ -42,7 +52,7 @@ export const CollegeDropdown: React.FC<CollegeDropdownProps> = ({
 
   const filteredColleges = useMemo(
     () => (searchQuery.trim().length > 0 ? searchColleges(searchQuery) : []),
-    [searchQuery]
+    [searchQuery, collegeVersion]
   );
 
   const close = () => {

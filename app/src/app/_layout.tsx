@@ -33,6 +33,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SplashScreen from '@/components/SplashScreen';
 import { useThemeStore } from '@/state/themeStore';
+import { loadCollegesAsync } from '@/data/Colleges';
 import ConnectivityWrapper from '@/components/system/ConnectivityWrapper';
 import Constants from 'expo-constants';
 import Sentry from '@/config/sentry';
@@ -86,6 +87,7 @@ function RootLayout() {
   useEffect(() => {
     rehydrateFromStorage();
     loadTheme();
+    loadCollegesAsync().catch(() => {});
   }, []);
 
   // Native chrome (tab bar, alerts, pickers) follows the in-app theme, not the system one.

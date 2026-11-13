@@ -67,6 +67,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	open.GET("/store", api.ListStoreItems)
 	open.GET("/store/:id", api.GetStoreItem)
 	open.POST("/chatbot/ask", api.Chat)
+	open.GET("/colleges", api.GetColleges)
 
 	// App status, links, maintenance, versions
 	open.GET("/app/status", api.GetAppConfig)
