@@ -118,6 +118,7 @@ const EventDetailsScreen: React.FC = () => {
     team: myTeam,
     registration: existingRegistration,
     userId,
+    user: userProfile,
   });
   const isPaid = !isPaymentDue;
   const isIdentityComplete = isIdentityVerificationComplete(userProfile);

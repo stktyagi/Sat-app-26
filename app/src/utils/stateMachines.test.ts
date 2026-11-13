@@ -1,3 +1,4 @@
+import { isEventPaymentDue, calculateEventFee } from './paymentHelpers.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -19,28 +20,7 @@ function isPerIndividualPayment(paymentType?: string | null): boolean {
   return pt === 'per_individual' || pt === 'perhead' || pt === 'per_head' || pt === 'individual';
 }
 
-function calculateEventFee(
-  event?: any,
-  user?: { isHostCollegeStudent?: boolean; email?: string } | null,
-  team?: any
-): number {
-  if (!event || !event.paymentRequired) return 0;
-  const isHost = isHostStudent(user);
 
-  if (event.eventType === 'team' && team) {
-    if (isPerIndividualPayment(event.paymentType) && team.members?.length) {
-      const totalRosterFee = team.members.reduce((acc: number, m: any) => {
-        const memberIsHost = isHostStudent(m);
-        return acc + (memberIsHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
-      }, 0);
-      return Math.max(0, totalRosterFee - (team.paidTill || 0));
-    }
-    const flatFee = isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
-    return Math.max(0, flatFee - (team.paidTill || 0));
-  }
-
-  return isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
-}
 
 function hasCompletedProfile(p?: any | null): boolean {
   if (!p?.rollNumber || !p?.collegeName || !p?.phoneNumber) return false;
@@ -215,4 +195,268 @@ test('getOptimizedImageUrl: sanitizes DB URLs and appends responsive tr paramete
   // Non-ImageKit URL (e.g. Unsplash or Cloud Storage) is safely returned unchanged:
   const externalUrl = 'https://images.unsplash.com/photo-123';
   assert.equal(getOptimizedImageUrl(externalUrl, 400), externalUrl);
+});
+
+test('isEventPaymentDue: returns false when registration fee is 0', () => {
+  const hostUser = { userId: 'u1', isHostCollegeStudent: true, email: 'host@thapar.edu' };
+  const otherUser = { userId: 'u2', isHostCollegeStudent: false, email: 'other@gmail.com' };
+
+  // 1. Zero-fee event for all
+  const zeroFeeEvent = {
+    paymentRequired: true,
+    registrationFee: { host: 0, other: 0 },
+    eventType: 'individual',
+  };
+  assert.equal(
+    isEventPaymentDue({ event: zeroFeeEvent, user: hostUser, registration: { paymentStatus: 'pending' } }),
+    false
+  );
+  assert.equal(
+    isEventPaymentDue({ event: zeroFeeEvent, user: otherUser, registration: { paymentStatus: 'pending' } }),
+    false
+  );
+
+  // 2. Free for host college, paid for other
+  const hostFreeEvent = {
+    paymentRequired: true,
+    registrationFee: { host: 0, other: 150 },
+    eventType: 'individual',
+  };
+  assert.equal(
+    isEventPaymentDue({ event: hostFreeEvent, user: hostUser, registration: { paymentStatus: 'pending' } }),
+    false
+  );
+  assert.equal(
+    isEventPaymentDue({ event: hostFreeEvent, user: otherUser, registration: { paymentStatus: 'pending' } }),
+    true
+  );
+
+  // 3. Team event flat fee where host is free
+  const teamFlatEvent = {
+    paymentRequired: true,
+    eventType: 'team',
+    paymentType: 'team',
+    registrationFee: { host: 0, other: 300 },
+  };
+  const hostTeam = {
+    teamId: 't1',
+    leaderUserId: 'u1',
+    paid: false,
+    members: [hostUser],
+  };
+  assert.equal(
+    isEventPaymentDue({ event: teamFlatEvent, team: hostTeam, user: hostUser, userId: 'u1' }),
+    false
+  );
+
+  // 4. Team event per-individual fee where all members are host (fee = 0)
+  const teamPerIndEvent = {
+    paymentRequired: true,
+    eventType: 'team',
+    paymentType: 'per_individual',
+    registrationFee: { host: 0, other: 100 },
+  };
+  const hostOnlyTeam = {
+    teamId: 't2',
+    leaderUserId: 'u1',
+    paid: false,
+    members: [hostUser, { userId: 'u3', isHostCollegeStudent: true, email: 'host2@thapar.edu' }],
+  };
+  assert.equal(
+    isEventPaymentDue({ event: teamPerIndEvent, team: hostOnlyTeam, user: hostUser, userId: 'u1' }),
+    false
+  );
+  assert.equal(
+    isEventPaymentDue({ event: teamPerIndEvent, team: hostOnlyTeam, user: hostOnlyTeam.members[1], userId: 'u3', registration: { paymentStatus: 'pending' } }),
+    false
+  );
+
+  // 5. Mixed team: 1 host user (fee = 0) and 1 outside user (fee = 100)
+  const mixedTeam = {
+    teamId: 't3',
+    leaderUserId: 'u1',
+    paid: false,
+    members: [
+      { userId: 'u1', isHostCollegeStudent: true, email: 'host@thapar.edu', paymentStatus: 'pending' },
+      { userId: 'u2', isHostCollegeStudent: false, email: 'other@gmail.com', paymentStatus: 'pending' },
+    ],
+  };
+
+  // Leader must pay for the unpaid non-host member (fee 100)
+  assert.equal(
+    isEventPaymentDue({ event: teamPerIndEvent, team: mixedTeam, user: hostUser, userId: 'u1' }),
+    true
+  );
+
+  // Host member itself owes 0, so host member does NOT have personal payment pending
+  assert.equal(
+    isEventPaymentDue({ event: teamPerIndEvent, team: mixedTeam, user: hostUser, userId: 'u1', registration: { paymentStatus: 'pending' } }),
+    // Note: for leader it was true above because leader pays the roster.
+    true
+  );
+
+  // Non-leader host member:
+  const mixedTeamOtherLeader = {
+    teamId: 't4',
+    leaderUserId: 'u2',
+    paid: false,
+    members: [
+      { userId: 'u2', isHostCollegeStudent: false, email: 'other@gmail.com', paymentStatus: 'pending' },
+      { userId: 'u1', isHostCollegeStudent: true, email: 'host@thapar.edu', paymentStatus: 'pending' },
+    ],
+  };
+  // Host member (non-leader) has fee 0, so no personal payment due
+  assert.equal(
+    isEventPaymentDue({ event: teamPerIndEvent, team: mixedTeamOtherLeader, user: hostUser, userId: 'u1', registration: { paymentStatus: 'pending' } }),
+    false
+  );
+  // Outside member (leader or non-leader) has fee 100, so payment IS due
+  assert.equal(
+    isEventPaymentDue({ event: teamPerIndEvent, team: mixedTeamOtherLeader, user: otherUser, userId: 'u2', registration: { paymentStatus: 'pending' } }),
+    true
+  );
+
+  // Once paid (team.paidTill >= 100 or team.paid):
+  const mixedTeamPaid = {
+    ...mixedTeamOtherLeader,
+    paidTill: 100,
+    paid: true,
+  };
+  assert.equal(
+    isEventPaymentDue({ event: teamPerIndEvent, team: mixedTeamPaid, user: otherUser, userId: 'u2' }),
+    false
+  );
+  assert.equal(
+    isEventPaymentDue({ event: teamPerIndEvent, team: mixedTeamPaid, user: hostUser, userId: 'u1' }),
+    false
+  );
+
+  // 6. Event where host students are NOT free (e.g. host: 100, other: 300)
+  const paidForHostEvent = {
+    paymentRequired: true,
+    registrationFee: { host: 100, other: 300 },
+    eventType: 'individual',
+  };
+  // Host student MUST pay ₹100 because the database says fee is 100
+  assert.equal(
+    calculateEventFee(paidForHostEvent, hostUser),
+    100
+  );
+  assert.equal(
+    isEventPaymentDue({ event: paidForHostEvent, user: hostUser, registration: { paymentStatus: 'pending' } }),
+    true
+  );
+  // Once paid:
+  assert.equal(
+    isEventPaymentDue({ event: paidForHostEvent, user: hostUser, registration: { paymentStatus: 'success' } }),
+    false
+  );
+
+  // 7. Flat team fee event where host is free (0) and other is 300:
+  // When an outsider joins a host team, the team MUST pay the outsider fee (300)!
+  const flatMixedTeam = {
+    teamId: 't5',
+    leaderUserId: 'u1',
+    paid: false,
+    members: [hostUser, otherUser],
+  };
+  assert.equal(
+    calculateEventFee(teamFlatEvent, hostUser, flatMixedTeam),
+    300
+  );
+  assert.equal(
+    isEventPaymentDue({ event: teamFlatEvent, team: flatMixedTeam, user: hostUser, userId: 'u1' }),
+    true
+  );
+
+  // Once settled with 300 paidTill:
+  const flatMixedTeamPaid = {
+    ...flatMixedTeam,
+    paidTill: 300,
+    paid: true,
+  };
+  assert.equal(
+    calculateEventFee(teamFlatEvent, hostUser, flatMixedTeamPaid),
+    0
+  );
+  assert.equal(
+    isEventPaymentDue({ event: teamFlatEvent, team: flatMixedTeamPaid, user: hostUser, userId: 'u1' }),
+    false
+  );
+
+  // 8. Flat team fee event where host is 100 and other is 300:
+  const flatBothPaidEvent = {
+    paymentRequired: true,
+    eventType: 'team',
+    paymentType: 'team',
+    registrationFee: { host: 100, other: 300 },
+  };
+  // Host-only team pays 100 initially:
+  const hostTeamInitial = {
+    teamId: 't6',
+    leaderUserId: 'u1',
+    paid: false,
+    paidTill: 0,
+    members: [hostUser],
+  };
+  assert.equal(calculateEventFee(flatBothPaidEvent, hostUser, hostTeamInitial), 100);
+  assert.equal(isEventPaymentDue({ event: flatBothPaidEvent, team: hostTeamInitial, user: hostUser, userId: 'u1' }), true);
+
+  // Leader pays the initial 100:
+  const hostTeamPaidInitial = {
+    ...hostTeamInitial,
+    paidTill: 100,
+    paid: true,
+  };
+  assert.equal(calculateEventFee(flatBothPaidEvent, hostUser, hostTeamPaidInitial), 0);
+  assert.equal(isEventPaymentDue({ event: flatBothPaidEvent, team: hostTeamPaidInitial, user: hostUser, userId: 'u1' }), false);
+
+  // Now an outsider joins! Team fee becomes 300, remaining due is 300 - 100 = 200:
+  const teamAfterOutsiderJoins = {
+    ...hostTeamPaidInitial,
+    paid: false,
+    members: [hostUser, otherUser],
+  };
+  assert.equal(calculateEventFee(flatBothPaidEvent, hostUser, teamAfterOutsiderJoins), 200);
+  assert.equal(isEventPaymentDue({ event: flatBothPaidEvent, team: teamAfterOutsiderJoins, user: hostUser, userId: 'u1' }), true);
+
+  // Leader settles the remaining 200 (paidTill = 300):
+  const teamFullySettled = {
+    ...teamAfterOutsiderJoins,
+    paidTill: 300,
+    paid: true,
+  };
+  assert.equal(calculateEventFee(flatBothPaidEvent, hostUser, teamFullySettled), 0);
+  assert.equal(isEventPaymentDue({ event: flatBothPaidEvent, team: teamFullySettled, user: hostUser, userId: 'u1' }), false);
+
+  // 9. Free event (paymentRequired = false) is always 0 even with dummy numbers
+  const freeEvent = {
+    paymentRequired: false,
+    registrationFee: { host: 500, other: 1000 },
+    eventType: 'team',
+  };
+  assert.equal(calculateEventFee(freeEvent, otherUser, teamAfterOutsiderJoins), 0);
+  assert.equal(isEventPaymentDue({ event: freeEvent, team: teamAfterOutsiderJoins, user: otherUser, userId: 'u2' }), false);
+
+  // 10. Missing registrationFee fields default safely to 0
+  const missingFeeEvent = {
+    paymentRequired: true,
+    eventType: 'individual',
+  };
+  assert.equal(calculateEventFee(missingFeeEvent, hostUser), 0);
+  assert.equal(calculateEventFee(missingFeeEvent, otherUser), 0);
+  assert.equal(isEventPaymentDue({ event: missingFeeEvent, user: hostUser }), false);
+  assert.equal(isEventPaymentDue({ event: missingFeeEvent, user: otherUser }), false);
+
+  // 11. Outside leader with host member in flat team:
+  // Starts with outsider rate (300), stays 300 when host joins
+  const outsideLeaderTeam = {
+    teamId: 't7',
+    leaderUserId: 'u2',
+    paid: false,
+    paidTill: 0,
+    members: [otherUser, hostUser],
+  };
+  assert.equal(calculateEventFee(teamFlatEvent, otherUser, outsideLeaderTeam), 300);
+  assert.equal(isEventPaymentDue({ event: teamFlatEvent, team: outsideLeaderTeam, user: otherUser, userId: 'u2' }), true);
 });

@@ -38,6 +38,7 @@ var campusLocations = []CampusItem{
 	{ID: "health_center", Name: "Health Center", Lat: 30.35595006947753, Lng: 76.36855108259431, Keywords: []string{"hospital", "dispensary", "medical", "health center"}},
 
 	// Grounds & Outdoors
+	{ID: "auxi_stage", Name: "Auxi Stage", Lat: 30.35419508040202, Lng: 76.37001631796676, Keywords: []string{"auxi", "auxi stage", "stage auxi", "stage", "aux", "aux stage", "auxi-stage", "auxistage"}},
 	{ID: "fete", Name: "Fete Area", Lat: 30.35396214206167, Lng: 76.36481001844584, Keywords: []string{"fete area main stage", "fete stage", "fete area"}},
 	{ID: "cos", Name: "COS", Lat: 30.353964101317814, Lng: 76.36265569607752, Keywords: []string{"cos", "cos complex"}},
 	{ID: "oat", Name: "OAT (Open Air Theatre)", Lat: 30.354405138715784, Lng: 76.36252602522457, Keywords: []string{"cos oat", "oat", "open air theatre"}},
@@ -154,6 +155,7 @@ func main() {
 			"tan":            {"tan", "tanauditorium"},
 			"c_hall":         {"chall"},
 			"library":        {"centrallibrary", "librarystairs"},
+			"auxi_stage":     {"auxistage", "auxi", "stageauxi", "auxi stage", "aux"},
 			"fete":           {"fetearea"},
 			"oat":            {"oat"},
 			"athletic_track": {"synthetictrack"},

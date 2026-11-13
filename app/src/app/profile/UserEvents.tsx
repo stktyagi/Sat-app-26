@@ -33,12 +33,12 @@ const UserEventsScreen: React.FC = () => {
   const events = rows.map((row: any) => {
     let displayStatus = row.registration?.status || 'confirmed';
     if (
-      row.registration?.paymentStatus === 'pending' ||
       isEventPaymentDue({
         event: row.event,
         team: row.team,
         registration: row.registration,
         userId,
+        user: userProfile,
       })
     ) {
       displayStatus = 'payment_pending';

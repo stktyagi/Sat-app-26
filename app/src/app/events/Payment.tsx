@@ -413,24 +413,28 @@ const PaymentScreen: React.FC = () => {
   const isLeader = eventData?.myTeam ? eventData.myTeam.leaderUserId === user?.userId : true;
 
   let isAlreadyPaid = false;
-  if (!eventData?.event?.paymentRequired) {
-    // If an accommodation upgrade is owed on registering for this free technical event, payment is not complete
+  if (!eventData?.event?.paymentRequired || (baseEventFee === 0 && totalUpgradeFee === 0)) {
+    // If fee is 0 and no upgrade is owed, registration payment is already fulfilled / free
     isAlreadyPaid = totalUpgradeFee > 0 ? eventData?.myRegistration?.paymentStatus === 'success' : true;
   } else if (isTeam && eventData?.myTeam) {
     if (isPerInd) {
       if (isLeader) {
-        const hasUnpaid = eventData.myTeam.members?.some((m: any) => m.paymentStatus !== 'success');
-        isAlreadyPaid = !!eventData.myTeam.paid && !hasUnpaid;
+        const hasUnpaid = eventData.myTeam.members?.some((m: any) => {
+          const mFee = isHostStudent(m) ? (eventData.event?.registrationFee?.host || 0) : (eventData.event?.registrationFee?.other || 0);
+          return mFee > 0 && m.paymentStatus !== 'success';
+        });
+        isAlreadyPaid = (!!eventData.myTeam.paid || baseEventFee === 0) && !hasUnpaid;
       } else {
-        isAlreadyPaid = eventData.myRegistration?.paymentStatus === 'success';
+        const myFee = isHost ? (eventData.event?.registrationFee?.host || 0) : (eventData.event?.registrationFee?.other || 0);
+        isAlreadyPaid = myFee === 0 || eventData.myRegistration?.paymentStatus === 'success';
       }
     } else {
-      isAlreadyPaid = !!eventData.myTeam.paid;
+      const hasOutside = eventData.myTeam.members?.some((m: any) => !isHostStudent(m)) ?? !isHost;
+      isAlreadyPaid = (!!eventData.myTeam.paid && !hasOutside) || baseEventFee === 0;
     }
   } else {
-    isAlreadyPaid = eventData?.myRegistration?.paymentStatus === 'success';
+    isAlreadyPaid = eventData?.myRegistration?.paymentStatus === 'success' || baseEventFee === 0;
   }
-
   if (isAlreadyPaid) {
     return (
       <View style={{ flex: 1, backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>

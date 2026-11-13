@@ -235,7 +235,10 @@ export function calculateEventFee(
       }, 0);
       return Math.max(0, totalRosterFee - (team.paidTill || 0));
     }
-    const flatFee = isHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0);
+    const hasOutsideMember = team.members?.length
+      ? team.members.some((m: any) => !isHostStudent(m))
+      : !isHost;
+    const flatFee = hasOutsideMember ? (event.registrationFee?.other || 0) : (event.registrationFee?.host || 0);
     return Math.max(0, flatFee - (team.paidTill || 0));
   }
 
@@ -276,45 +279,79 @@ export const isEventPaymentDue = ({
 
   if (!event?.paymentRequired) return false;
 
+  // If both host and other registration fees are 0, event has no entry fee
+  const hostFee = event.registrationFee?.host ?? 0;
+  const otherFee = event.registrationFee?.other ?? 0;
+  if (hostFee <= 0 && otherFee <= 0) {
+    return false;
+  }
+
+  // Resolve user if not directly provided
+  const resolvedUser = user || (team?.members && userId ? team.members.find((m: any) => m.userId === userId) : null);
+  const isHost = isHostStudent(resolvedUser);
+
   const isTeam = event?.eventType === 'team';
   if (isTeam && team) {
     const isPerInd = isPerIndividualPayment(event?.paymentType);
     const isLeader = userId ? team.leaderUserId === userId : true;
 
-    // Credit-based check: if settled amount covers the team roster fee, payment is not due
-    if (team.paidTill && team.paidTill > 0) {
-      if (isPerInd && team.members?.length) {
-        const totalRosterFee = team.members.reduce((acc: number, m: any) => {
-          const memberIsHost = isHostStudent(m);
-          return acc + (memberIsHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
-        }, 0);
-        if (totalRosterFee > 0 && team.paidTill >= totalRosterFee) {
-          return false;
-        }
-      } else if (!isPerInd) {
-        const flatFee = event.registrationFee?.host || event.registrationFee?.other || 0;
-        if (flatFee > 0 && team.paidTill >= flatFee) {
-          return false;
-        }
-      }
-    }
-
     if (isPerInd) {
+      const totalRosterFee = team.members?.length
+        ? team.members.reduce((acc: number, m: any) => {
+            const memberIsHost = isHostStudent(m);
+            return acc + (memberIsHost ? (event.registrationFee?.host || 0) : (event.registrationFee?.other || 0));
+          }, 0)
+        : (isHost ? hostFee : otherFee);
+
+      if (totalRosterFee <= 0) {
+        return false;
+      }
+
+      if (team.paidTill && team.paidTill >= totalRosterFee) {
+        return false;
+      }
+
       if (isLeader) {
-        // Leader has payment due if team is not marked paid or ANY member is unpaid
-        const hasUnpaid = team.members?.some((m: any) => m.paymentStatus !== 'success');
+        // Leader has payment due if team is not marked paid or ANY member with non-zero fee is unpaid
+        const hasUnpaid = team.members?.some((m: any) => {
+          const mFee = isHostStudent(m) ? hostFee : otherFee;
+          return mFee > 0 && m.paymentStatus !== 'success';
+        });
         return !team.paid || !!hasUnpaid;
       } else {
-        // Member has payment pending if their own registration is not success
+        // Member has payment pending only if their own individual fee is > 0 and registration is not success
+        const myFee = isHost ? hostFee : otherFee;
+        if (myFee <= 0) return false;
         return registration?.paymentStatus !== 'success';
       }
     } else {
       // Flat team fee
-      return !team.paid;
+      const hasOutsideMember = team.members?.length
+        ? team.members.some((m: any) => !isHostStudent(m))
+        : !isHost;
+      const flatFee = hasOutsideMember ? otherFee : hostFee;
+      if (flatFee <= 0) {
+        return false;
+      }
+      if (team.paidTill && team.paidTill >= flatFee) {
+        return false;
+      }
+      if (team.paid && !hasOutsideMember) {
+        return false;
+      }
+      return true;
     }
   }
 
-  // Individual event
+  // Individual event or team event before team object is loaded
+  const indFee = typeof registration?.fee === 'number'
+    ? registration.fee
+    : (isHost ? hostFee : otherFee);
+
+  if (indFee <= 0) {
+    return false;
+  }
+
   return registration?.paymentStatus !== 'success' && registration?.paymentStatus !== 'completed';
 };
 

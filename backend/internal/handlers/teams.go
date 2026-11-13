@@ -73,6 +73,7 @@ func (a *API) CreateTeam(c *gin.Context) {
 				}
 			} else {
 				if fee == 0 {
+					team.Paid = true
 					reg.PaymentStatus = models.RegPaymentSuccess
 					reg.PaidAt = isotime.Now()
 				} else {
@@ -159,7 +160,19 @@ func (a *API) JoinTeam(c *gin.Context) {
 	coveredByCredit := !event.PaymentRequired
 	if event.PaymentRequired {
 		if !event.IsPerIndividual() {
-			coveredByCredit = team.Paid || team.PaidTill > 0
+			hasNonHost := !user.IsHostCollegeStudent
+			if !hasNonHost && len(team.MemberIDs) > 0 {
+				users, _ := a.Store.GetUsers(ctx, team.MemberIDs)
+				for _, m := range users {
+					m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+					if !m.IsHostCollegeStudent {
+						hasNonHost = true
+						break
+					}
+				}
+			}
+			flatFee := event.FeeFor(!hasNonHost)
+			coveredByCredit = flatFee == 0 || (team.PaidTill >= flatFee && flatFee > 0)
 		} else {
 			users, _ := a.Store.GetUsers(ctx, team.MemberIDs)
 			totalRosterFee := fee
@@ -167,7 +180,7 @@ func (a *API) JoinTeam(c *gin.Context) {
 				m.ResolveHostStatus(a.Cfg.HostEmailDomain)
 				totalRosterFee += event.FeeFor(m.IsHostCollegeStudent)
 			}
-			coveredByCredit = team.PaidTill >= totalRosterFee && totalRosterFee > 0
+			coveredByCredit = fee == 0 || totalRosterFee == 0 || (team.PaidTill >= totalRosterFee && totalRosterFee > 0)
 		}
 	}
 	if event.PaymentRequired {
@@ -391,7 +404,20 @@ func (a *API) ConfirmTeam(c *gin.Context) {
 				teamFee = event.FeeFor(user.IsHostCollegeStudent)
 			}
 		} else {
-			teamFee = event.FeeFor(user.IsHostCollegeStudent)
+			hasNonHost := !user.IsHostCollegeStudent
+			if !hasNonHost && len(team.MemberIDs) > 0 {
+				members, err := a.Store.GetUsers(c.Request.Context(), team.MemberIDs)
+				if err == nil {
+					for _, m := range members {
+						m.ResolveHostStatus(a.Cfg.HostEmailDomain)
+						if !m.IsHostCollegeStudent {
+							hasNonHost = true
+							break
+						}
+					}
+				}
+			}
+			teamFee = event.FeeFor(!hasNonHost)
 		}
 	}
 
@@ -529,24 +555,30 @@ func (a *API) hydrateMembers(ctx context.Context, team *models.Team) {
 				pub.PaymentStatus = reg.PaymentStatus
 			}
 		}
-		if pub.PaymentStatus != models.RegPaymentSuccess {
+		if event != nil && event.PaymentRequired && event.IsPerIndividual() {
+			if event.FeeFor(pub.IsHostCollegeStudent) > 0 && pub.PaymentStatus != models.RegPaymentSuccess {
+				hasUnpaid = true
+			}
+		} else if pub.PaymentStatus != models.RegPaymentSuccess {
 			hasUnpaid = true
 		}
 		members = append(members, pub)
 	}
 	if event != nil && event.PaymentRequired && !event.IsPerIndividual() {
-		leaderUser := users[team.LeaderUserID]
-		isHost := true
-		if leaderUser != nil {
-			isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+		hasNonHost := false
+		for _, m := range members {
+			if !m.IsHostCollegeStudent {
+				hasNonHost = true
+				break
+			}
 		}
-		totalRosterFee = event.FeeFor(isHost)
+		totalRosterFee = event.FeeFor(!hasNonHost)
 	}
 
 	// Credit-based check: If total payments settled for this team cover the entire roster,
 	// mark all members as paid and self-heal any unconfirmed registrations.
 	if event != nil && event.PaymentRequired {
-		isCovered := (team.PaidTill >= totalRosterFee && totalRosterFee > 0) || (!event.IsPerIndividual() && team.Paid)
+		isCovered := (totalRosterFee == 0) || (team.PaidTill >= totalRosterFee && totalRosterFee > 0)
 		if isCovered {
 			team.Paid = true
 			hasUnpaid = false

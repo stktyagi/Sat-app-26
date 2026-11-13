@@ -476,16 +476,23 @@ func (a *API) InitiatePayment(c *gin.Context) {
 					totalRosterFee += event.FeeFor(isHost)
 				}
 			} else {
-				leaderUser := allMembers[team.LeaderUserID]
-				isHost := user.IsHostCollegeStudent
-				if leaderUser != nil {
-					isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+				hasNonHost := false
+				for _, mid := range team.MemberIDs {
+					m := allMembers[mid]
+					isHost := true
+					if m != nil {
+						isHost = m.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+					}
+					if !isHost {
+						hasNonHost = true
+						break
+					}
 				}
-				totalRosterFee = event.FeeFor(isHost)
+				totalRosterFee = event.FeeFor(!hasNonHost)
 			}
 
 			remainingDue := max(totalRosterFee-team.PaidTill, 0)
-			if remainingDue == 0 && (team.Paid || team.PaidTill > 0) {
+			if remainingDue == 0 {
 				apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed for all team members"))
 				return
 			}
@@ -501,7 +508,7 @@ func (a *API) InitiatePayment(c *gin.Context) {
 			apierr.Respond(c, apierr.NotFound("not_registered", "you are not registered for this event"))
 			return
 		}
-		if event.EventType != models.EventTypeTeam && reg.PaymentStatus == models.PaymentStatusSuccess {
+		if event.EventType != models.EventTypeTeam && (reg.PaymentStatus == models.PaymentStatusSuccess || event.FeeFor(user.IsHostCollegeStudent) == 0) {
 			apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
 			return
 		}
@@ -528,12 +535,19 @@ func (a *API) InitiatePayment(c *gin.Context) {
 					memberFees[mid] = f
 				}
 			} else {
-				leaderUser := allMembers[team.LeaderUserID]
-				isHost := user.IsHostCollegeStudent
-				if leaderUser != nil {
-					isHost = leaderUser.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+				hasNonHost := false
+				for _, mid := range team.MemberIDs {
+					m := allMembers[mid]
+					isHost := true
+					if m != nil {
+						isHost = m.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
+					}
+					if !isHost {
+						hasNonHost = true
+						break
+					}
 				}
-				totalRosterFee = event.FeeFor(isHost)
+				totalRosterFee = event.FeeFor(!hasNonHost)
 			}
 			eventFee = max(totalRosterFee-team.PaidTill, 0)
 		}

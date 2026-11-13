@@ -287,10 +287,10 @@ interface BentoCardProps {
 
 const BentoCard = React.memo(({ event, config, maxLines, onPress, idx }: BentoCardProps) => {
   if (!event) {
-    return <View style={{ height: config.height, borderRadius: 18 }} />;
+    return <View style={{ width: '100%', height: config.height, borderRadius: 18 }} />;
   }
 
-  const optimizedUrl = getOptimizedImageUrl(event.coverImage, 350);
+  const optimizedUrl = getOptimizedImageUrl(event.coverImage, 400);
   const coverSource = optimizedUrl
     ? { uri: optimizedUrl }
     : require('@/assets/event.jpg');
@@ -301,14 +301,13 @@ const BentoCard = React.memo(({ event, config, maxLines, onPress, idx }: BentoCa
       onPress={() => onPress(event)}
       activeOpacity={0.88}
       style={{
+        width: '100%',
         height: config.height,
         backgroundColor: '#1E1E22',
         borderRadius: 18,
         borderWidth: 1.5,
         borderColor: config.bgColor,
         overflow: 'hidden',
-        padding: 12,
-        justifyContent: 'flex-end',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
@@ -320,11 +319,6 @@ const BentoCard = React.memo(({ event, config, maxLines, onPress, idx }: BentoCa
         source={coverSource}
         placeholder={placeholderUrl ? { uri: placeholderUrl } : undefined}
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
           width: '100%',
           height: '100%',
         }}
@@ -343,20 +337,30 @@ const BentoCard = React.memo(({ event, config, maxLines, onPress, idx }: BentoCa
           bottom: 0,
         }}
       />
-      <Text
+      <View
         style={{
-          fontFamily: 'Poppins_700Bold',
-          fontSize: 15,
-          color: '#FFFFFF',
-          lineHeight: 19,
-          textShadowColor: 'rgba(0, 0, 0, 0.8)',
-          textShadowOffset: { width: 0, height: 1 },
-          textShadowRadius: 3,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: 12,
         }}
-        numberOfLines={maxLines}
       >
-        {event.title || 'Event'}
-      </Text>
+        <Text
+          style={{
+            fontFamily: 'Poppins_700Bold',
+            fontSize: 15,
+            color: '#FFFFFF',
+            lineHeight: 19,
+            textShadowColor: 'rgba(0, 0, 0, 0.8)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 3,
+          }}
+          numberOfLines={maxLines}
+        >
+          {event.title || 'Event'}
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 });

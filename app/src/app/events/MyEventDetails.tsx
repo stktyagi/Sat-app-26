@@ -83,11 +83,12 @@ const MyEventDetailsScreen: React.FC = () => {
   const eventRegistrationFee = calculateEventFee(eventData, userProfile, teamData);
   const requiresPayment = !!eventData?.paymentRequired && eventRegistrationFee > 0;
 
-  const isPaymentDue = isEventPaymentDue({
+  const isPaymentDue = requiresPayment && isEventPaymentDue({
     event: eventData,
     team: teamData,
     registration,
     userId,
+    user: userProfile,
   });
   const isPaid = !isPaymentDue;
 
@@ -519,7 +520,7 @@ const MyEventDetailsScreen: React.FC = () => {
                       color: "#10B981",
                     }}
                   >
-                    {feeAmount > 0 ? `Paid ₹${feeAmount}` : "Paid"}
+                    {feeAmount > 0 ? `Paid ₹${feeAmount}` : "Free Entry"}
                   </Text>
                 </View>
               )}
