@@ -7,7 +7,27 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# Native build artifacts & local caches
+android/**/build/
+android/**/.gradle/
+android/**/.cxx/
+android/**/.idea/
+android/**/local.properties
+android/app/build/
+android/.gradle/
+android/build/
+app/android/**/build/
+app/android/**/.gradle/
+app/android/**/.cxx/
+app/android/**/.idea/
+app/android/**/local.properties
+app/android/app/build/
+app/android/.gradle/
+app/android/build/
+ios/build/
+ios/Pods/
+
+# Native keys / credentials
 .kotlin/
 *.orig.*
 *.jks
@@ -16,31 +36,23 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
-# Metro
+# Metro & debug
 .metro-health-check*
-
-# debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
+# OS
 .DS_Store
 *.pem
 
-# local env files
+# Local env files
 .env*.local
 .env.local
 
-# typescript
+# Typescript & others
 *.tsbuildinfo
-
 example
-
-# generated native folders
-/ios
-/android
-
 credentials.json
 
 # Ignore Bun lockfiles so EAS uses npm (package-lock.json)
