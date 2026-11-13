@@ -80,15 +80,22 @@ func (a *API) checkCoupon(ctx context.Context, coupon *models.Coupon, user *mode
 // to the end of the day. An unparseable value is reported so the caller can
 // reject the coupon instead of silently skipping its dates.
 func couponDate(s string, endOfDay bool) (time.Time, bool) {
-	if t, ok := isotime.Parse(s); ok {
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		return time.Time{}, false
+	}
+
+	if t, err := time.ParseInLocation("2006-01-02T15:04", s, loc); err == nil {
 		return t, true
 	}
-	if t, err := time.Parse("2006-01-02", s); err == nil {
+
+	if t, err := time.ParseInLocation("2006-01-02", s, loc); err == nil {
 		if endOfDay {
 			t = t.Add(24*time.Hour - time.Millisecond)
 		}
 		return t, true
 	}
+
 	return time.Time{}, false
 }
 
