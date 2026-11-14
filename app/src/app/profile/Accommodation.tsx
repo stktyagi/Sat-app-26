@@ -20,7 +20,6 @@ interface DayInfo {
 }
 
 const FESTIVAL_DAYS: DayInfo[] = [
-  { key: 'day0', title: '19 Nov', date: 'Wednesday (from 8:00 PM)' },
   { key: 'day1', title: '20 Nov', date: 'Thursday' },
   { key: 'day2', title: '21 Nov', date: 'Friday' },
   { key: 'day3', title: '22 Nov', date: 'Saturday' },
@@ -34,19 +33,19 @@ export default function AccommodationScreen() {
   const { userData: user, refreshUserProfile } = useUserStore();
 
   const [accDayPrices, setAccDayPrices] = useState<Record<string, number>>({
-    day0: 650, day1: 650, day2: 650, day3: 650, day4: 650,
+    day1: 650, day2: 650, day3: 650, day4: 650,
   });
   const [foodDayPrices, setFoodDayPrices] = useState<Record<string, number>>({
-    day0: 150, day1: 150, day2: 150, day3: 150, day4: 150,
+    day1: 150, day2: 150, day3: 150, day4: 150,
   });
   const [registeredEventsCount, setRegisteredEventsCount] = useState<number | null>(null);
 
   const [phase, setPhase] = useState<'select' | 'initiating' | 'opening' | 'verifying'>('select');
   const [selectedAcc, setSelectedAcc] = useState<Record<string, boolean>>({
-    day0: false, day1: false, day2: false, day3: false, day4: false,
+    day1: false, day2: false, day3: false, day4: false,
   });
   const [selectedFood, setSelectedFood] = useState<Record<string, boolean>>({
-    day0: false, day1: false, day2: false, day3: false, day4: false,
+    day1: false, day2: false, day3: false, day4: false,
   });
 
   const [couponCode, setCouponCode] = useState('');
@@ -118,14 +117,13 @@ export default function AccommodationScreen() {
     if (registeredEventsCount === 0) {
       showAlert(
         "Event Registration Required",
-        "Campus accommodation is exclusively reserved for participants registered in festival events. Please register for an event first."
+        "Campus hostel accommodation is exclusively reserved for participants registered in at least one festival event. Please register for an event first to unlock accommodation."
       );
       return;
     }
 
-    const currentChoice = selectedAcc[day] ? (selectedFood[day] ? 'with_food' : 'without_food') : 'none';
-    if (currentChoice === choice) {
-      setSelectedAcc(prev => ({ ...prev, [day]: false }));
+    if (choice === 'without_food') {
+      setSelectedAcc(prev => ({ ...prev, [day]: true }));
       setSelectedFood(prev => ({ ...prev, [day]: false }));
     } else if (choice === 'with_food') {
       setSelectedAcc(prev => ({ ...prev, [day]: true }));

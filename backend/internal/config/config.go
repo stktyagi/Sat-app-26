@@ -59,6 +59,7 @@ type Config struct {
 
 	UseEmulator bool
 	GroqAPIKey  string
+	ChatbotURL  string
 
 	// FestDay0 is midnight IST of fest day0 (FEST_DAY0_DATE=YYYY-MM-DD).
 	// Zero when unset; the food scan then answers food_not_configured.
@@ -88,6 +89,7 @@ func Load() (*Config, error) {
 		AWSSecretAccessKey:   os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		UseEmulator:          os.Getenv("FIRESTORE_EMULATOR_HOST") != "",
 		GroqAPIKey:           env("GROQ_API_KEY", os.Getenv("GROQ_API_Key")),
+		ChatbotURL:           env("CHATBOT_URL", "https://satbot-backend-hnyj.onrender.com"),
 		EasebuzzKey:          os.Getenv("EASEBUZZ_KEY"),
 		EasebuzzSalt:         os.Getenv("EASEBUZZ_SALT"),
 		EasebuzzEnv:          env("EASEBUZZ_ENV", "test"),

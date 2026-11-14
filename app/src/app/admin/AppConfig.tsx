@@ -68,17 +68,17 @@ export default function AppConfigScreen() {
 
   // Document states
   const [accommodation, setAccommodation] = useState<AppAccommodation>({
-    amount: 650,
-    price: 650,
-    technicalAmount: 650,
-    culturalAmount: 650,
-    foodAmount: 150,
-    technicalFoodAmount: 150,
-    culturalFoodAmount: 150,
-    technicalDays: { day0: 650, day1: 650, day2: 650, day3: 650, day4: 650 },
-    culturalDays: { day0: 650, day1: 650, day2: 650, day3: 650, day4: 650 },
-    technicalFoodDays: { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
-    culturalFoodDays: { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
+    amount: 600,
+    price: 600,
+    technicalAmount: 600,
+    culturalAmount: 500,
+    foodAmount: 300,
+    technicalFoodAmount: 200,
+    culturalFoodAmount: 300,
+    technicalDays: { day0: 600, day1: 600, day2: 600, day3: 600, day4: 600 },
+    culturalDays: { day0: 500, day1: 500, day2: 500, day3: 500, day4: 500 },
+    technicalFoodDays: { day0: 200, day1: 200, day2: 200, day3: 200, day4: 200 },
+    culturalFoodDays: { day0: 300, day1: 300, day2: 300, day3: 300, day4: 300 },
   });
 
   const [maintenance, setMaintenance] = useState<AppMaintenance>({
@@ -114,17 +114,17 @@ export default function AppConfigScreen() {
       const data = await adminGetAppConfig();
       if (data.accommodation) {
         setAccommodation({
-          amount: data.accommodation.amount || data.accommodation.price || 650,
-          price: data.accommodation.amount || data.accommodation.price || 650,
-          technicalAmount: data.accommodation.technicalAmount || data.accommodation.amount || 650,
-          culturalAmount: data.accommodation.culturalAmount || data.accommodation.amount || 650,
-          foodAmount: data.accommodation.foodAmount ?? 150,
-          technicalFoodAmount: data.accommodation.technicalFoodAmount ?? data.accommodation.foodAmount ?? 150,
-          culturalFoodAmount: data.accommodation.culturalFoodAmount ?? data.accommodation.foodAmount ?? 150,
-          technicalDays: data.accommodation.technicalDays || { day0: 650, day1: 650, day2: 650, day3: 650, day4: 650 },
-          culturalDays: data.accommodation.culturalDays || { day0: 650, day1: 650, day2: 650, day3: 650, day4: 650 },
-          technicalFoodDays: data.accommodation.technicalFoodDays || { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
-          culturalFoodDays: data.accommodation.culturalFoodDays || { day0: 150, day1: 150, day2: 150, day3: 150, day4: 150 },
+          amount: data.accommodation.amount || data.accommodation.price || 600,
+          price: data.accommodation.amount || data.accommodation.price || 600,
+          technicalAmount: data.accommodation.technicalAmount || data.accommodation.amount || 600,
+          culturalAmount: data.accommodation.culturalAmount || data.accommodation.amount || 500,
+          foodAmount: data.accommodation.foodAmount ?? 300,
+          technicalFoodAmount: data.accommodation.technicalFoodAmount ?? data.accommodation.foodAmount ?? 200,
+          culturalFoodAmount: data.accommodation.culturalFoodAmount ?? data.accommodation.foodAmount ?? 300,
+          technicalDays: data.accommodation.technicalDays || { day0: 600, day1: 600, day2: 600, day3: 600, day4: 600 },
+          culturalDays: data.accommodation.culturalDays || { day0: 500, day1: 500, day2: 500, day3: 500, day4: 500 },
+          technicalFoodDays: data.accommodation.technicalFoodDays || { day0: 200, day1: 200, day2: 200, day3: 200, day4: 200 },
+          culturalFoodDays: data.accommodation.culturalFoodDays || { day0: 300, day1: 300, day2: 300, day3: 300, day4: 300 },
         });
       }
       if (data.maintenance) {
@@ -161,37 +161,59 @@ export default function AppConfigScreen() {
 
   // Save Accommodation
   const handleSaveAccommodation = async () => {
-    if (accommodation.amount <= 0) {
+    const baseAmount = Number(accommodation.amount || accommodation.technicalAmount || 600);
+    const techAmount = Number(accommodation.technicalAmount || baseAmount);
+    const cultAmount = Number(accommodation.culturalAmount || baseAmount);
+    const baseFood = Number(accommodation.foodAmount ?? 300);
+    const techFood = Number(accommodation.technicalFoodAmount ?? baseFood);
+    const cultFood = Number(accommodation.culturalFoodAmount ?? baseFood);
+
+    if (baseAmount <= 0 && techAmount <= 0) {
       showAlert('Invalid Input', 'Accommodation per-day amount must be greater than 0');
       return;
     }
+
+    const cleanDays = (map?: Record<string, number | string>, fallback = 0): Record<string, number> => {
+      const res: Record<string, number> = {};
+      DAY_LIST.forEach((d) => {
+        const val = map?.[d.key];
+        res[d.key] = val !== undefined && val !== '' ? Number(val) : fallback;
+      });
+      return res;
+    };
+
+    const techDays = cleanDays(accommodation.technicalDays, techAmount);
+    const cultDays = cleanDays(accommodation.culturalDays, cultAmount);
+    const techFoodDays = cleanDays(accommodation.technicalFoodDays, techFood);
+    const cultFoodDays = cleanDays(accommodation.culturalFoodDays, cultFood);
+
     setSavingTab('accommodation');
     try {
       const updated = await adminUpdateAppAccommodation({
-        amount: Number(accommodation.amount || 650),
-        price: Number(accommodation.amount || 650),
-        technicalAmount: Number(accommodation.technicalAmount || accommodation.amount || 650),
-        culturalAmount: Number(accommodation.culturalAmount || accommodation.amount || 650),
-        foodAmount: Number(accommodation.foodAmount || 0),
-        technicalFoodAmount: Number(accommodation.technicalFoodAmount || accommodation.foodAmount || 0),
-        culturalFoodAmount: Number(accommodation.culturalFoodAmount || accommodation.foodAmount || 0),
-        technicalDays: accommodation.technicalDays,
-        culturalDays: accommodation.culturalDays,
-        technicalFoodDays: accommodation.technicalFoodDays,
-        culturalFoodDays: accommodation.culturalFoodDays,
+        amount: baseAmount,
+        price: baseAmount,
+        technicalAmount: techAmount,
+        culturalAmount: cultAmount,
+        foodAmount: baseFood,
+        technicalFoodAmount: techFood,
+        culturalFoodAmount: cultFood,
+        technicalDays: techDays,
+        culturalDays: cultDays,
+        technicalFoodDays: techFoodDays,
+        culturalFoodDays: cultFoodDays,
       });
       setAccommodation({
         amount: updated.amount,
         price: updated.amount,
         technicalAmount: updated.technicalAmount ?? updated.amount,
         culturalAmount: updated.culturalAmount ?? updated.amount,
-        foodAmount: updated.foodAmount ?? 150,
-        technicalFoodAmount: updated.technicalFoodAmount ?? updated.foodAmount ?? 150,
-        culturalFoodAmount: updated.culturalFoodAmount ?? updated.foodAmount ?? 150,
-        technicalDays: updated.technicalDays ?? accommodation.technicalDays,
-        culturalDays: updated.culturalDays ?? accommodation.culturalDays,
-        technicalFoodDays: updated.technicalFoodDays ?? accommodation.technicalFoodDays,
-        culturalFoodDays: updated.culturalFoodDays ?? accommodation.culturalFoodDays,
+        foodAmount: updated.foodAmount ?? baseFood,
+        technicalFoodAmount: updated.technicalFoodAmount ?? updated.foodAmount ?? techFood,
+        culturalFoodAmount: updated.culturalFoodAmount ?? updated.foodAmount ?? cultFood,
+        technicalDays: updated.technicalDays ?? techDays,
+        culturalDays: updated.culturalDays ?? cultDays,
+        technicalFoodDays: updated.technicalFoodDays ?? techFoodDays,
+        culturalFoodDays: updated.culturalFoodDays ?? cultFoodDays,
       });
       showAlert('Saved', 'Accommodation and Food pricing updated successfully!');
     } catch (err: any) {
@@ -497,14 +519,19 @@ export default function AppConfigScreen() {
                         ₹
                       </Text>
                       <TextInput
-                        value={String(accommodation.technicalAmount ?? accommodation.amount ?? '')}
-                        onChangeText={(t) =>
+                        value={
+                          accommodation.technicalAmount !== undefined && accommodation.technicalAmount !== null
+                            ? String(accommodation.technicalAmount)
+                            : ''
+                        }
+                        onChangeText={(t) => {
+                          const cleaned = t.replace(/\D/g, '');
                           setAccommodation((prev) => ({
                             ...prev,
-                            technicalAmount: Number(t.replace(/\D/g, '')),
-                          }))
-                        }
-                        placeholder="650"
+                            technicalAmount: cleaned === '' ? ('' as any) : Number(cleaned),
+                          }));
+                        }}
+                        placeholder="600"
                         placeholderTextColor={textSecondary}
                         keyboardType="number-pad"
                         style={{
@@ -541,14 +568,19 @@ export default function AppConfigScreen() {
                         ₹
                       </Text>
                       <TextInput
-                        value={String(accommodation.culturalAmount ?? accommodation.amount ?? '')}
-                        onChangeText={(t) =>
+                        value={
+                          accommodation.culturalAmount !== undefined && accommodation.culturalAmount !== null
+                            ? String(accommodation.culturalAmount)
+                            : ''
+                        }
+                        onChangeText={(t) => {
+                          const cleaned = t.replace(/\D/g, '');
                           setAccommodation((prev) => ({
                             ...prev,
-                            culturalAmount: Number(t.replace(/\D/g, '')),
-                          }))
-                        }
-                        placeholder="650"
+                            culturalAmount: cleaned === '' ? ('' as any) : Number(cleaned),
+                          }));
+                        }}
+                        placeholder="500"
                         placeholderTextColor={textSecondary}
                         keyboardType="number-pad"
                         style={{
@@ -585,15 +617,20 @@ export default function AppConfigScreen() {
                         ₹
                       </Text>
                       <TextInput
-                        value={String(accommodation.amount ?? '')}
-                        onChangeText={(t) =>
+                        value={
+                          accommodation.amount !== undefined && accommodation.amount !== null
+                            ? String(accommodation.amount)
+                            : ''
+                        }
+                        onChangeText={(t) => {
+                          const cleaned = t.replace(/\D/g, '');
                           setAccommodation((prev) => ({
                             ...prev,
-                            amount: Number(t.replace(/\D/g, '')),
-                            price: Number(t.replace(/\D/g, '')),
-                          }))
-                        }
-                        placeholder="650"
+                            amount: cleaned === '' ? ('' as any) : Number(cleaned),
+                            price: cleaned === '' ? ('' as any) : Number(cleaned),
+                          }));
+                        }}
+                        placeholder="600"
                         placeholderTextColor={textSecondary}
                         keyboardType="number-pad"
                         style={{
@@ -630,14 +667,19 @@ export default function AppConfigScreen() {
                         ₹
                       </Text>
                       <TextInput
-                        value={String(accommodation.technicalFoodAmount ?? accommodation.foodAmount ?? '')}
-                        onChangeText={(t) =>
+                        value={
+                          accommodation.technicalFoodAmount !== undefined && accommodation.technicalFoodAmount !== null
+                            ? String(accommodation.technicalFoodAmount)
+                            : ''
+                        }
+                        onChangeText={(t) => {
+                          const cleaned = t.replace(/\D/g, '');
                           setAccommodation((prev) => ({
                             ...prev,
-                            technicalFoodAmount: Number(t.replace(/\D/g, '')),
-                          }))
-                        }
-                        placeholder="150"
+                            technicalFoodAmount: cleaned === '' ? ('' as any) : Number(cleaned),
+                          }));
+                        }}
+                        placeholder="200"
                         placeholderTextColor={textSecondary}
                         keyboardType="number-pad"
                         style={{
@@ -674,14 +716,19 @@ export default function AppConfigScreen() {
                         ₹
                       </Text>
                       <TextInput
-                        value={String(accommodation.culturalFoodAmount ?? accommodation.foodAmount ?? '')}
-                        onChangeText={(t) =>
+                        value={
+                          accommodation.culturalFoodAmount !== undefined && accommodation.culturalFoodAmount !== null
+                            ? String(accommodation.culturalFoodAmount)
+                            : ''
+                        }
+                        onChangeText={(t) => {
+                          const cleaned = t.replace(/\D/g, '');
                           setAccommodation((prev) => ({
                             ...prev,
-                            culturalFoodAmount: Number(t.replace(/\D/g, '')),
-                          }))
-                        }
-                        placeholder="150"
+                            culturalFoodAmount: cleaned === '' ? ('' as any) : Number(cleaned),
+                          }));
+                        }}
+                        placeholder="300"
                         placeholderTextColor={textSecondary}
                         keyboardType="number-pad"
                         style={{
@@ -718,14 +765,19 @@ export default function AppConfigScreen() {
                         ₹
                       </Text>
                       <TextInput
-                        value={String(accommodation.foodAmount ?? '')}
-                        onChangeText={(t) =>
+                        value={
+                          accommodation.foodAmount !== undefined && accommodation.foodAmount !== null
+                            ? String(accommodation.foodAmount)
+                            : ''
+                        }
+                        onChangeText={(t) => {
+                          const cleaned = t.replace(/\D/g, '');
                           setAccommodation((prev) => ({
                             ...prev,
-                            foodAmount: Number(t.replace(/\D/g, '')),
-                          }))
-                        }
-                        placeholder="150"
+                            foodAmount: cleaned === '' ? ('' as any) : Number(cleaned),
+                          }));
+                        }}
+                        placeholder="300"
                         placeholderTextColor={textSecondary}
                         keyboardType="number-pad"
                         style={{
@@ -748,15 +800,16 @@ export default function AppConfigScreen() {
                       </Text>
                     </View>
                     <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 12, color: textSecondary }}>
-                      Customize pricing for each festival day.
+                      Customize room and meals pricing individually for each festival day.
                     </Text>
                   </View>
 
                   {/* Day Cards */}
                   {DAY_LIST.map((d) => {
-                    const defaultTech = accommodation.technicalAmount || accommodation.amount || 650;
-                    const defaultCult = accommodation.culturalAmount || accommodation.amount || 650;
-                    const defaultFood = accommodation.technicalFoodAmount || accommodation.foodAmount || 150;
+                    const defaultTech = accommodation.technicalAmount || accommodation.amount || 600;
+                    const defaultCult = accommodation.culturalAmount || accommodation.amount || 500;
+                    const defaultTechFood = accommodation.technicalFoodAmount || accommodation.foodAmount || 200;
+                    const defaultCultFood = accommodation.culturalFoodAmount || accommodation.foodAmount || 300;
 
                     return (
                       <View
@@ -781,125 +834,206 @@ export default function AppConfigScreen() {
                           </View>
                         </View>
 
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                          {/* Tech Room Input */}
-                          <View style={{ flex: 1, gap: 4 }}>
-                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#A855F7' }}>
-                              Tech Room (₹)
-                            </Text>
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                backgroundColor: inputBg,
-                                borderWidth: 1,
-                                borderColor: cardBorder,
-                                borderRadius: 10,
-                                paddingHorizontal: 10,
-                                height: 40,
-                              }}
-                            >
-                              <TextInput
-                                value={String(accommodation.technicalDays?.[d.key] ?? '')}
-                                onChangeText={(t) => {
-                                  const val = t.trim() === '' ? 0 : Number(t.replace(/\D/g, ''));
-                                  setAccommodation((prev) => ({
-                                    ...prev,
-                                    technicalDays: { ...(prev.technicalDays || {}), [d.key]: val },
-                                  }));
-                                }}
-                                placeholder={String(defaultTech)}
-                                placeholderTextColor={textSecondary}
-                                keyboardType="number-pad"
+                        {/* Room / Stay Row */}
+                        <View style={{ gap: 6 }}>
+                          <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: textSecondary, textTransform: 'uppercase' }}>
+                            Room / Stay (₹)
+                          </Text>
+                          <View style={{ flexDirection: 'row', gap: 10 }}>
+                            {/* Tech Room Input */}
+                            <View style={{ flex: 1, gap: 4 }}>
+                              <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#A855F7' }}>
+                                Tech Room (₹)
+                              </Text>
+                              <View
                                 style={{
-                                  flex: 1,
-                                  fontFamily: 'Poppins_600SemiBold',
-                                  fontSize: 14,
-                                  color: textPrimary,
-                                  padding: 0,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  backgroundColor: inputBg,
+                                  borderWidth: 1,
+                                  borderColor: cardBorder,
+                                  borderRadius: 10,
+                                  paddingHorizontal: 10,
+                                  height: 40,
                                 }}
-                              />
+                              >
+                                <TextInput
+                                  value={
+                                    accommodation.technicalDays?.[d.key] !== undefined && accommodation.technicalDays?.[d.key] !== null
+                                      ? String(accommodation.technicalDays[d.key])
+                                      : ''
+                                  }
+                                  onChangeText={(t) => {
+                                    const cleaned = t.replace(/\D/g, '');
+                                    setAccommodation((prev) => ({
+                                      ...prev,
+                                      technicalDays: {
+                                        ...(prev.technicalDays || {}),
+                                        [d.key]: cleaned === '' ? ('' as any) : Number(cleaned),
+                                      },
+                                    }));
+                                  }}
+                                  placeholder={String(defaultTech)}
+                                  placeholderTextColor={textSecondary}
+                                  keyboardType="number-pad"
+                                  style={{
+                                    flex: 1,
+                                    fontFamily: 'Poppins_600SemiBold',
+                                    fontSize: 14,
+                                    color: textPrimary,
+                                    padding: 0,
+                                  }}
+                                />
+                              </View>
+                            </View>
+
+                            {/* Cult Room Input */}
+                            <View style={{ flex: 1, gap: 4 }}>
+                              <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#F59E0B' }}>
+                                Cult Room (₹)
+                              </Text>
+                              <View
+                                style={{
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  backgroundColor: inputBg,
+                                  borderWidth: 1,
+                                  borderColor: cardBorder,
+                                  borderRadius: 10,
+                                  paddingHorizontal: 10,
+                                  height: 40,
+                                }}
+                              >
+                                <TextInput
+                                  value={
+                                    accommodation.culturalDays?.[d.key] !== undefined && accommodation.culturalDays?.[d.key] !== null
+                                      ? String(accommodation.culturalDays[d.key])
+                                      : ''
+                                  }
+                                  onChangeText={(t) => {
+                                    const cleaned = t.replace(/\D/g, '');
+                                    setAccommodation((prev) => ({
+                                      ...prev,
+                                      culturalDays: {
+                                        ...(prev.culturalDays || {}),
+                                        [d.key]: cleaned === '' ? ('' as any) : Number(cleaned),
+                                      },
+                                    }));
+                                  }}
+                                  placeholder={String(defaultCult)}
+                                  placeholderTextColor={textSecondary}
+                                  keyboardType="number-pad"
+                                  style={{
+                                    flex: 1,
+                                    fontFamily: 'Poppins_600SemiBold',
+                                    fontSize: 14,
+                                    color: textPrimary,
+                                    padding: 0,
+                                  }}
+                                />
+                              </View>
                             </View>
                           </View>
+                        </View>
 
-                          {/* Cult Room Input */}
-                          <View style={{ flex: 1, gap: 4 }}>
-                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#F59E0B' }}>
-                              Cult Room (₹)
-                            </Text>
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                backgroundColor: inputBg,
-                                borderWidth: 1,
-                                borderColor: cardBorder,
-                                borderRadius: 10,
-                                paddingHorizontal: 10,
-                                height: 40,
-                              }}
-                            >
-                              <TextInput
-                                value={String(accommodation.culturalDays?.[d.key] ?? '')}
-                                onChangeText={(t) => {
-                                  const val = t.trim() === '' ? 0 : Number(t.replace(/\D/g, ''));
-                                  setAccommodation((prev) => ({
-                                    ...prev,
-                                    culturalDays: { ...(prev.culturalDays || {}), [d.key]: val },
-                                  }));
-                                }}
-                                placeholder={String(defaultCult)}
-                                placeholderTextColor={textSecondary}
-                                keyboardType="number-pad"
+                        {/* Food Pass / Meals Row */}
+                        <View style={{ gap: 6 }}>
+                          <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: textSecondary, textTransform: 'uppercase' }}>
+                            Food Pass / Meals (₹)
+                          </Text>
+                          <View style={{ flexDirection: 'row', gap: 10 }}>
+                            {/* Tech Food Input */}
+                            <View style={{ flex: 1, gap: 4 }}>
+                              <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#06B6D4' }}>
+                                Tech Meals (₹)
+                              </Text>
+                              <View
                                 style={{
-                                  flex: 1,
-                                  fontFamily: 'Poppins_600SemiBold',
-                                  fontSize: 14,
-                                  color: textPrimary,
-                                  padding: 0,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  backgroundColor: inputBg,
+                                  borderWidth: 1,
+                                  borderColor: cardBorder,
+                                  borderRadius: 10,
+                                  paddingHorizontal: 10,
+                                  height: 40,
                                 }}
-                              />
+                              >
+                                <TextInput
+                                  value={
+                                    accommodation.technicalFoodDays?.[d.key] !== undefined && accommodation.technicalFoodDays?.[d.key] !== null
+                                      ? String(accommodation.technicalFoodDays[d.key])
+                                      : ''
+                                  }
+                                  onChangeText={(t) => {
+                                    const cleaned = t.replace(/\D/g, '');
+                                    setAccommodation((prev) => ({
+                                      ...prev,
+                                      technicalFoodDays: {
+                                        ...(prev.technicalFoodDays || {}),
+                                        [d.key]: cleaned === '' ? ('' as any) : Number(cleaned),
+                                      },
+                                    }));
+                                  }}
+                                  placeholder={String(defaultTechFood)}
+                                  placeholderTextColor={textSecondary}
+                                  keyboardType="number-pad"
+                                  style={{
+                                    flex: 1,
+                                    fontFamily: 'Poppins_600SemiBold',
+                                    fontSize: 14,
+                                    color: textPrimary,
+                                    padding: 0,
+                                  }}
+                                />
+                              </View>
                             </View>
-                          </View>
 
-                          {/* Meals Input */}
-                          <View style={{ flex: 1, gap: 4 }}>
-                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#22c55e' }}>
-                              Meals (₹)
-                            </Text>
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                backgroundColor: inputBg,
-                                borderWidth: 1,
-                                borderColor: cardBorder,
-                                borderRadius: 10,
-                                paddingHorizontal: 10,
-                                height: 40,
-                              }}
-                            >
-                              <TextInput
-                                value={String(accommodation.technicalFoodDays?.[d.key] ?? accommodation.culturalFoodDays?.[d.key] ?? '')}
-                                onChangeText={(t) => {
-                                  const val = t.trim() === '' ? 0 : Number(t.replace(/\D/g, ''));
-                                  setAccommodation((prev) => ({
-                                    ...prev,
-                                    technicalFoodDays: { ...(prev.technicalFoodDays || {}), [d.key]: val },
-                                    culturalFoodDays: { ...(prev.culturalFoodDays || {}), [d.key]: val },
-                                  }));
-                                }}
-                                placeholder={String(defaultFood)}
-                                placeholderTextColor={textSecondary}
-                                keyboardType="number-pad"
+                            {/* Cult Food Input */}
+                            <View style={{ flex: 1, gap: 4 }}>
+                              <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: '#10B981' }}>
+                                Cult Meals (₹)
+                              </Text>
+                              <View
                                 style={{
-                                  flex: 1,
-                                  fontFamily: 'Poppins_600SemiBold',
-                                  fontSize: 14,
-                                  color: textPrimary,
-                                  padding: 0,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  backgroundColor: inputBg,
+                                  borderWidth: 1,
+                                  borderColor: cardBorder,
+                                  borderRadius: 10,
+                                  paddingHorizontal: 10,
+                                  height: 40,
                                 }}
-                              />
+                              >
+                                <TextInput
+                                  value={
+                                    accommodation.culturalFoodDays?.[d.key] !== undefined && accommodation.culturalFoodDays?.[d.key] !== null
+                                      ? String(accommodation.culturalFoodDays[d.key])
+                                      : ''
+                                  }
+                                  onChangeText={(t) => {
+                                    const cleaned = t.replace(/\D/g, '');
+                                    setAccommodation((prev) => ({
+                                      ...prev,
+                                      culturalFoodDays: {
+                                        ...(prev.culturalFoodDays || {}),
+                                        [d.key]: cleaned === '' ? ('' as any) : Number(cleaned),
+                                      },
+                                    }));
+                                  }}
+                                  placeholder={String(defaultCultFood)}
+                                  placeholderTextColor={textSecondary}
+                                  keyboardType="number-pad"
+                                  style={{
+                                    flex: 1,
+                                    fontFamily: 'Poppins_600SemiBold',
+                                    fontSize: 14,
+                                    color: textPrimary,
+                                    padding: 0,
+                                  }}
+                                />
+                              </View>
                             </View>
                           </View>
                         </View>
@@ -921,34 +1055,34 @@ export default function AppConfigScreen() {
                     </Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: '#A855F7' }}>
-                        Technical Participant (1 Day)
+                        Technical: Room ₹{accommodation.technicalAmount || accommodation.amount || 600} + Food ₹{accommodation.technicalFoodAmount || accommodation.foodAmount || 200}
                       </Text>
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: textPrimary }}>
-                        ₹{(accommodation.technicalAmount || accommodation.amount || 0) + (accommodation.technicalFoodAmount || accommodation.foodAmount || 0)}
+                        ₹{(Number(accommodation.technicalAmount || accommodation.amount || 600)) + (Number(accommodation.technicalFoodAmount || accommodation.foodAmount || 200))} / day
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: '#F59E0B' }}>
-                        Cultural Participant (1 Day)
+                        Cultural: Room ₹{accommodation.culturalAmount || accommodation.amount || 500} + Food ₹{accommodation.culturalFoodAmount || accommodation.foodAmount || 300}
                       </Text>
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: textPrimary }}>
-                        ₹{(accommodation.culturalAmount || accommodation.amount || 0) + (accommodation.culturalFoodAmount || accommodation.foodAmount || 0)}
+                        ₹{(Number(accommodation.culturalAmount || accommodation.amount || 500)) + (Number(accommodation.culturalFoodAmount || accommodation.foodAmount || 300))} / day
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: textSecondary }}>
-                        Base / Default (1 Day)
+                        Base / Default: Room ₹{accommodation.amount || 600} + Food ₹{accommodation.foodAmount || 300}
                       </Text>
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: textPrimary }}>
-                        ₹{(accommodation.amount || 0) + (accommodation.foodAmount || 0)}
+                        ₹{(Number(accommodation.amount || 600)) + (Number(accommodation.foodAmount || 300))} / day
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: cardBorder, paddingTop: 6 }}>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: textSecondary }}>
-                        Base 3 Days Stay
+                        Base 3 Days Stay (Day 1–3)
                       </Text>
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: textPrimary }}>
-                        ₹{((accommodation.amount || 0) + (accommodation.foodAmount || 0)) * 3}
+                        ₹{((Number(accommodation.amount || 600)) + (Number(accommodation.foodAmount || 300))) * 3}
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -956,7 +1090,7 @@ export default function AppConfigScreen() {
                         Base Full 5 Days Stay (Day 0–4)
                       </Text>
                       <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 13, color: accentColor }}>
-                        ₹{((accommodation.amount || 0) + (accommodation.foodAmount || 0)) * 5}
+                        ₹{((Number(accommodation.amount || 600)) + (Number(accommodation.foodAmount || 300))) * 5}
                       </Text>
                     </View>
                   </View>

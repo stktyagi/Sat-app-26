@@ -61,7 +61,7 @@ func main() {
 	st := store.New(clients.FS, cfg)
 	events := store.NewEventCache(st, provider, provider, cfg.EventCacheTTL)
 	events.StartInvalidationListener(ctx)
-	cb := chatbot.NewService(cfg.GroqAPIKey)
+	cb := chatbot.NewService(cfg.ChatbotURL)
 	faqs := store.NewListCache(provider, store.KeyFaqs, cfg.EventCacheTTL, st.AllFaqs)
 	venues := store.NewListCache(provider, store.KeyVenues, cfg.EventCacheTTL, st.AllVenues)
 	banners := store.NewListCache(provider, store.KeyBanners, cfg.EventCacheTTL, st.AllBanners)

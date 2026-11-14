@@ -10,10 +10,17 @@ import (
 )
 
 type askBody struct {
-	Message string `json:"message"`
+	Message      string `json:"message"`
+	SessionID    string `json:"sessionId"`
+	SessionIDAlt string `json:"session_id"`
 }
 
-// Chat handles AI-powered questions about Saturnalia'26.
+type resetBody struct {
+	SessionID    string `json:"sessionId"`
+	SessionIDAlt string `json:"session_id"`
+}
+
+// Chat handles AI-powered questions about Saturnalia'26 using the SatBot service.
 func (a *API) Chat(c *gin.Context) {
 	ctx := c.Request.Context()
 	user := middleware.CurrentUser(c)
@@ -28,15 +35,56 @@ func (a *API) Chat(c *gin.Context) {
 		return
 	}
 
-	if user != nil {
-		_ = user.UserID // available for personalization if needed later
+	sessionID := body.SessionID
+	if sessionID == "" {
+		sessionID = body.SessionIDAlt
+	}
+	if sessionID == "" && user != nil {
+		sessionID = user.UserID
 	}
 
-	reply, err := a.Chatbot.AskGroq(ctx, body.Message)
+	resp, err := a.Chatbot.Ask(ctx, body.Message, sessionID)
 	if err != nil {
 		apierr.Respond(c, apierr.Internal("chatbot error: "+err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"reply": reply})
+	c.JSON(http.StatusOK, gin.H{
+		"reply":              resp.Response, // backward compatibility with app ChatBot component
+		"response":           resp.Response,
+		"sessionId":          resp.SessionID,
+		"session_id":         resp.SessionID,
+		"referencedEvents":   resp.ReferencedEvents,
+		"suggestedFollowups": resp.SuggestedFollowups,
+		"intent":             resp.Intent,
+		"providerUsed":       resp.ProviderUsed,
+	})
+}
+
+// ResetChat clears the conversational history for a given session.
+func (a *API) ResetChat(c *gin.Context) {
+	ctx := c.Request.Context()
+	user := middleware.CurrentUser(c)
+
+	var body resetBody
+	if c.Request.ContentLength > 0 {
+		_ = c.ShouldBindJSON(&body)
+	}
+
+	sessionID := body.SessionID
+	if sessionID == "" {
+		sessionID = body.SessionIDAlt
+	}
+	if sessionID == "" && user != nil {
+		sessionID = user.UserID
+	}
+
+	if sessionID != "" {
+		_ = a.Chatbot.Reset(ctx, sessionID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Chat session reset successfully",
+	})
 }

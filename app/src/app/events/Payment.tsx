@@ -21,7 +21,6 @@ interface DayInfo {
 }
 
 const FESTIVAL_DAYS: DayInfo[] = [
-  { key: "day0", title: "19 Nov", date: "Wednesday (from 8:00 PM)" },
   { key: "day1", title: "20 Nov", date: "Thursday" },
   { key: "day2", title: "21 Nov", date: "Friday" },
   { key: "day3", title: "22 Nov", date: "Saturday" },
@@ -49,20 +48,20 @@ const PaymentScreen: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const [accommodation, setAccommodation] = useState<Record<string, boolean>>({
-    day0: false, day1: false, day2: false, day3: false, day4: false,
+    day1: false, day2: false, day3: false, day4: false,
   });
   const [food, setFood] = useState<Record<string, boolean>>({
-    day0: false, day1: false, day2: false, day3: false, day4: false,
+    day1: false, day2: false, day3: false, day4: false,
   });
 
   const [accConfig, setAccConfig] = useState<AppAccommodation | null>(null);
   const [userEvents, setUserEvents] = useState<any[]>([]);
 
   const [accDayPrices, setAccDayPrices] = useState<Record<string, number>>({
-    day0: 650, day1: 650, day2: 650, day3: 650, day4: 650,
+    day1: 650, day2: 650, day3: 650, day4: 650,
   });
   const [foodDayPrices, setFoodDayPrices] = useState<Record<string, number>>({
-    day0: 150, day1: 150, day2: 150, day3: 150, day4: 150,
+    day1: 150, day2: 150, day3: 150, day4: 150,
   });
 
   const [couponCode, setCouponCode] = useState('');

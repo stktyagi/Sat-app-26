@@ -14,6 +14,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import {
   Bot,
   Sparkles,
@@ -25,17 +26,31 @@ import {
   Ticket,
   MapPin,
   HelpCircle,
+  ChevronRight,
 } from 'lucide-react-native';
 
 import MarkdownText from '../display/MarkdownText';
 import { apiFetch, readError } from '@/api/client';
 import { useThemeStore } from '@/state/themeStore';
 
+export interface ReferencedEvent {
+  id: string;
+  title: string;
+  category?: string;
+  venue?: string;
+  schedule_ist?: string;
+  fee_display?: string;
+  team_size_display?: string;
+  external_url?: string | null;
+}
+
 interface Message {
   text: string;
   sender: 'user' | 'bot' | 'system';
   timestamp: Date;
   loading?: boolean;
+  referencedEvents?: ReferencedEvent[];
+  suggestedFollowups?: string[];
 }
 
 interface ChatBotProps {
@@ -52,13 +67,20 @@ const quickSuggestions = [
   { icon: MapPin, text: 'Where are the event venues located?' },
 ];
 
-const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) => {
+const generateSessionId = () =>
+  'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+
+const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isDark } = useThemeStore();
 
+  const [sessionId, setSessionId] = useState<string>(generateSessionId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [loadingEventId, setLoadingEventId] = useState<string | null>(null);
+  const [followupSuggestions, setFollowupSuggestions] = useState<string[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const isBotTyping = messages[messages.length - 1]?.loading === true;
@@ -101,8 +123,45 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
     };
   }, []);
 
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
+    const prevSession = sessionId;
     setMessages([]);
+    setFollowupSuggestions([]);
+    const newSession = generateSessionId();
+    setSessionId(newSession);
+
+    try {
+      await apiFetch(
+        '/chatbot/reset',
+        {
+          method: 'POST',
+          body: JSON.stringify({ sessionId: prevSession }),
+        },
+        'optional'
+      );
+    } catch (err) {
+      console.warn('Chatbot reset warning:', err);
+    }
+  };
+
+  const handleEventPress = async (eventId: string) => {
+    if (!eventId || loadingEventId) return;
+    try {
+      setLoadingEventId(eventId);
+      const { getEvent } = await import('@/api/events');
+      const eventData = await getEvent(eventId);
+      if (eventData) {
+        onClose();
+        router.push({
+          pathname: '/events/EventDetails',
+          params: { eventData: JSON.stringify(eventData) },
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to load event details:', e);
+    } finally {
+      setLoadingEventId(null);
+    }
   };
 
   const sendPredefinedMessage = async (messageText: string) => {
@@ -124,46 +183,51 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
     setMessages(prev => [...prev, userMessage, loaderMessage]);
 
     try {
-      if (chatbotApiUrl) {
-        const response = await apiFetch(
-          '/chatbot/ask',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              message: messageText,
-            }),
-          },
-          'optional'
-        );
+      const response = await apiFetch(
+        '/chatbot/ask',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            message: messageText,
+            sessionId: sessionId,
+          }),
+        },
+        'optional'
+      );
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.error) {
-            throw new Error(data.error);
-          }
-          if (data && data.reply) {
-            const botMessage: Message = {
-              text: data.reply,
-              sender: 'bot',
-              timestamp: new Date(),
-            };
-            setMessages(prev => [...prev.slice(0, -1), botMessage]);
-          } else {
-            throw new Error('Invalid response format: missing reply');
-          }
-        } else {
-          const detail = await readError(response, 'Failed to get response from chatbot');
-          throw new Error(detail);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.error) {
+          throw new Error(data.error);
         }
-      } else {
-        setTimeout(() => {
+        const replyText = data.reply || data.response;
+        if (replyText) {
+          const referenced: ReferencedEvent[] =
+            data.referencedEvents || data.referenced_events || [];
+          const followups: string[] =
+            data.suggestedFollowups || data.suggested_followups || [];
+
+          if (data.sessionId || data.session_id) {
+            setSessionId(data.sessionId || data.session_id);
+          }
+          if (followups.length > 0) {
+            setFollowupSuggestions(followups);
+          }
+
           const botMessage: Message = {
-            text: "Hello! I'm SatBot, your AI festival assistant. Ask me anything about Saturnalia '26!",
+            text: replyText,
             sender: 'bot',
             timestamp: new Date(),
+            referencedEvents: referenced,
+            suggestedFollowups: followups,
           };
           setMessages(prev => [...prev.slice(0, -1), botMessage]);
-        }, 800);
+        } else {
+          throw new Error('Invalid response format: missing reply');
+        }
+      } else {
+        const detail = await readError(response, 'Failed to get response from chatbot');
+        throw new Error(detail);
       }
     } catch (error) {
       console.error('Chatbot error:', error);
@@ -197,7 +261,6 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
     return (
       <Animated.View
         key={index}
-        // New messages rise in instead of popping; system reduce-motion is respected by default.
         entering={FadeInDown.duration(200).easing(Easing.bezier(0.23, 1, 0.32, 1))}
         style={{
           flexDirection: 'row',
@@ -230,7 +293,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
         {/* Message Bubble */}
         <View
           style={{
-            maxWidth: '78%',
+            maxWidth: '82%',
             paddingVertical: 12,
             paddingHorizontal: 16,
             borderRadius: 20,
@@ -275,17 +338,196 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
               {message.text}
             </Text>
           ) : (
-            <MarkdownText
-              style={{
-                fontSize: 14,
-                lineHeight: 21,
-                fontFamily: 'Poppins_400Regular',
-                color: isDark ? '#F1F5F9' : '#0F172A',
-              }}
-              lightMode={!isDark}
-            >
-              {message.text}
-            </MarkdownText>
+            <View>
+              <MarkdownText
+                style={{
+                  fontSize: 14,
+                  lineHeight: 21,
+                  fontFamily: 'Poppins_400Regular',
+                  color: isDark ? '#F1F5F9' : '#0F172A',
+                }}
+                lightMode={!isDark}
+              >
+                {message.text}
+              </MarkdownText>
+
+              {/* Referenced Events Cards */}
+              {message.referencedEvents && message.referencedEvents.length > 0 && (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  <Text
+                    style={{
+                      fontFamily: 'Poppins_600SemiBold',
+                      fontSize: 11.5,
+                      color: accentColor,
+                      letterSpacing: 0.3,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Related Events
+                  </Text>
+                  {message.referencedEvents.map((evt, eIdx) => (
+                    <TouchableOpacity
+                      key={evt.id || eIdx}
+                      activeOpacity={0.75}
+                      onPress={() => handleEventPress(evt.id)}
+                      disabled={loadingEventId === evt.id}
+                      style={{
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F8FAFC',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E2E8F0',
+                        borderWidth: 1,
+                        borderRadius: 14,
+                        padding: 10,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: 'Poppins_600SemiBold',
+                            fontSize: 13.5,
+                            color: textPrimary,
+                            flex: 1,
+                            marginRight: 6,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {evt.title}
+                        </Text>
+                        {loadingEventId === evt.id ? (
+                          <ActivityIndicator size="small" color={accentColor} />
+                        ) : (
+                          <ChevronRight size={15} color={accentColor} />
+                        )}
+                      </View>
+
+                      {evt.venue ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                          <MapPin size={11} color={textSecondary} />
+                          <Text
+                            style={{
+                              fontFamily: 'Poppins_400Regular',
+                              fontSize: 11,
+                              color: textSecondary,
+                              flex: 1,
+                            }}
+                            numberOfLines={1}
+                          >
+                            {evt.venue}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {evt.schedule_ist ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                          <Calendar size={11} color={textSecondary} />
+                          <Text
+                            style={{
+                              fontFamily: 'Poppins_400Regular',
+                              fontSize: 11,
+                              color: textSecondary,
+                              flex: 1,
+                            }}
+                            numberOfLines={1}
+                          >
+                            {evt.schedule_ist}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {(evt.fee_display || evt.team_size_display) ? (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 10,
+                            marginTop: 6,
+                            paddingTop: 6,
+                            borderTopWidth: 1,
+                            borderTopColor: isDark
+                              ? 'rgba(255, 255, 255, 0.06)'
+                              : 'rgba(0, 0, 0, 0.05)',
+                          }}
+                        >
+                          {evt.fee_display ? (
+                            <Text
+                              style={{
+                                fontFamily: 'Poppins_500Medium',
+                                fontSize: 10.5,
+                                color: accentColor,
+                              }}
+                            >
+                              {evt.fee_display}
+                            </Text>
+                          ) : null}
+                          {evt.team_size_display ? (
+                            <Text
+                              style={{
+                                fontFamily: 'Poppins_400Regular',
+                                fontSize: 10.5,
+                                color: textSecondary,
+                              }}
+                            >
+                              👥 {evt.team_size_display}
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Follow-up Question Chips inside bubble */}
+              {message.suggestedFollowups && message.suggestedFollowups.length > 0 && (
+                <View style={{ marginTop: 10, gap: 6 }}>
+                  <Text
+                    style={{
+                      fontFamily: 'Poppins_500Medium',
+                      fontSize: 11,
+                      color: textSecondary,
+                    }}
+                  >
+                    Suggested follow-ups:
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {message.suggestedFollowups.map((q, qIdx) => (
+                      <TouchableOpacity
+                        key={qIdx}
+                        activeOpacity={0.7}
+                        onPress={() => sendPredefinedMessage(q)}
+                        disabled={isBotTyping}
+                        style={{
+                          backgroundColor: isDark
+                            ? 'rgba(65, 184, 240, 0.12)'
+                            : 'rgba(65, 184, 240, 0.08)',
+                          borderColor: 'rgba(65, 184, 240, 0.28)',
+                          borderWidth: 1,
+                          borderRadius: 12,
+                          paddingVertical: 5,
+                          paddingHorizontal: 10,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: 'Poppins_500Medium',
+                            fontSize: 11,
+                            color: accentColor,
+                          }}
+                        >
+                          {q}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
           )}
 
           {/* Timestamp */}
@@ -306,6 +548,12 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
       </Animated.View>
     );
   };
+
+  // Decide which suggestions to show in the quick pills bar
+  const activeSuggestions =
+    followupSuggestions.length > 0
+      ? followupSuggestions.map(text => ({ icon: Sparkles, text }))
+      : quickSuggestions;
 
   return (
     <Modal
@@ -496,7 +744,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
                     marginBottom: 20,
                   }}
                 >
-                  Your interactive intelligence for Saturnalia '26. Inquire about event schedules,
+                  Your interactive intelligence for Saturnalia &apos;26. Inquire about event schedules,
                   guidelines, venues, tickets, and campus navigations.
                 </Text>
 
@@ -522,7 +770,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
                       color: textSecondary,
                     }}
                   >
-                    Ephemeral Session • Clears on exit
+                    Interactive Multi-turn Session
                   </Text>
                 </View>
               </View>
@@ -532,7 +780,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
             {messages.map((message, index) => renderMessage(message, index))}
           </ScrollView>
 
-          {/* Quick suggestions pills - hidden while typing to maximize reading space */}
+          {/* Quick suggestions pills */}
           {!keyboardVisible && (
             <View style={{ paddingVertical: 6 }}>
               <ScrollView
@@ -541,7 +789,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose, chatbotApiUrl }) =>
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
                 keyboardShouldPersistTaps="handled"
               >
-                {quickSuggestions.map((item, idx) => {
+                {activeSuggestions.map((item, idx) => {
                   const IconComponent = item.icon;
                   return (
                     <TouchableOpacity
