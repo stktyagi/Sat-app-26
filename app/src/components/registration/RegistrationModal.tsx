@@ -80,6 +80,14 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [hasReferralCode, setHasReferralCode] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [currentTeamSize, setCurrentTeamSize] = useState<number>(0);
+  const minTeamSize = event.minTeamSize ?? (event.eventType === 'team' ? 1 : 0);
+  const isTeamUnderMin = (currentTeamSize || 1) < minTeamSize;
+  const createdTeamStatus: 'pending' | 'payment_pending' | 'confirmed' =
+    isTeamUnderMin
+      ? 'pending'
+      : requiresPayment
+      ? 'payment_pending'
+      : 'confirmed';
   const [isCreateTeamFlow, setIsCreateTeamFlow] = useState(false);
   const [detailName, setDetailName] = useState("");
   const [detailPhone, setDetailPhone] = useState("");
@@ -832,39 +840,93 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             >
               Share this code with your team members
             </Text>
-            {event.minTeamSize && (
-              <View
+            <View
+              style={{
+                marginTop: 12,
+                paddingTop: 12,
+                borderTopWidth: 1,
+                borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Text
                 style={{
-                  marginTop: 12,
-                  paddingTop: 12,
-                  borderTopWidth: 1,
-                  borderTopColor: "rgba(255, 255, 255, 0.08)",
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 13,
+                  color: isTeamUnderMin ? '#F59E0B' : '#10B981',
                 }}
               >
-                <Text
+                Team Size: {currentTeamSize || 1} / {minTeamSize}{event.maxTeamSize ? `–${event.maxTeamSize}` : ''}
+              </Text>
+
+              {createdTeamStatus === 'pending' && (
+                <View
                   style={{
-                    fontFamily: "Poppins_600SemiBold",
-                    fontSize: 13,
-                    color: currentTeamSize >= event.minTeamSize ? "#4ADE80" : "#F59E0B",
+                    marginTop: 8,
+                    padding: 10,
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+                    borderColor: 'rgba(245, 158, 11, 0.35)',
+                    borderWidth: 1,
+                    borderRadius: 12,
                   }}
                 >
-                  Team Size: {currentTeamSize} / {event.minTeamSize}-{event.maxTeamSize || "∞"}
-                </Text>
-                {currentTeamSize < event.minTeamSize && (
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_400Regular",
-                      color: "#F59E0B",
-                      fontSize: 12,
-                      marginTop: 4,
-                    }}
-                  >
-                    ⚠️ Need {event.minTeamSize - currentTeamSize} more member
-                    {event.minTeamSize - currentTeamSize !== 1 ? "s" : ""} to submit
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                    <Ionicons name="time-outline" size={15} color="#F59E0B" style={{ marginRight: 5 }} />
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: '#F59E0B' }}>
+                      Team Incomplete (Pending)
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: 'Poppins_400Regular', color: isDark ? '#FDE68A' : '#92400E', fontSize: 11.5, lineHeight: 16 }}>
+                    Your team needs at least {minTeamSize} members. Share your invite code with teammates to complete your team before proceeding to payment and confirmation.
                   </Text>
-                )}
-              </View>
-            )}
+                </View>
+              )}
+
+              {createdTeamStatus === 'payment_pending' && (
+                <View
+                  style={{
+                    marginTop: 8,
+                    padding: 10,
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',
+                    borderColor: 'rgba(245, 158, 11, 0.35)',
+                    borderWidth: 1,
+                    borderRadius: 12,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                    <Ionicons name="card-outline" size={15} color="#F59E0B" style={{ marginRight: 5 }} />
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: '#F59E0B' }}>
+                      Team Complete (Payment Pending)
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: 'Poppins_400Regular', color: isDark ? '#FDE68A' : '#92400E', fontSize: 11.5, lineHeight: 16 }}>
+                    Minimum team size met! Complete the registration payment to finalize your registration and generate your entry pass.
+                  </Text>
+                </View>
+              )}
+
+              {createdTeamStatus === 'confirmed' && (
+                <View
+                  style={{
+                    marginTop: 8,
+                    padding: 10,
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#F0FDF4',
+                    borderColor: 'rgba(16, 185, 129, 0.3)',
+                    borderWidth: 1,
+                    borderRadius: 12,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                    <Ionicons name="checkmark-circle-outline" size={15} color="#10B981" style={{ marginRight: 5 }} />
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: '#10B981' }}>
+                      Registration Confirmed
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: 'Poppins_400Regular', color: isDark ? '#A7F3D0' : '#065F46', fontSize: 11.5, lineHeight: 16 }}>
+                    Your team registration is confirmed! You can view and manage your team from My Registrations.
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         )}
 
@@ -956,10 +1018,16 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             />
           ) : createdInviteCode ? (
             <MetallicButton
-              title={requiresPayment ? "Complete Payment" : "View Registration"}
+              title={
+                createdTeamStatus === 'pending'
+                  ? 'Complete Team'
+                  : createdTeamStatus === 'payment_pending'
+                  ? 'Complete Payment'
+                  : 'View Registration'
+              }
               onPress={() => {
                 onClose();
-                if (requiresPayment) {
+                if (createdTeamStatus === 'payment_pending') {
                   router.push({
                     pathname: '/events/Payment',
                     params: { eventId: event.eventId, teamId: createdTeamId },
