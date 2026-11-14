@@ -41,7 +41,7 @@ func (a *API) Register(c *gin.Context) {
 		apierr.Respond(c, err)
 		return
 	}
-	if err := validateResponses(event, body.Responses); err != nil {
+	if err := validateResponses(event, user, body.Responses); err != nil {
 		apierr.Respond(c, err)
 		return
 	}
@@ -216,10 +216,11 @@ func (a *API) checkRegistrable(ctx context.Context, e *models.Event, u *models.U
 
 // validateResponses checks the submitted answers against the custom fields the
 // event defines.
-func validateResponses(e *models.Event, given []models.Response) *apierr.Error {
+func validateResponses(e *models.Event, user *models.User, given []models.Response) *apierr.Error {
 	if len(e.CustomFields) == 0 {
 		return nil
 	}
+	isHost := user != nil && user.IsHostCollegeStudent
 	supplied := map[string]bool{}
 	for _, r := range given {
 		if r.Value != nil && r.Value != "" {
@@ -227,6 +228,9 @@ func validateResponses(e *models.Event, given []models.Response) *apierr.Error {
 		}
 	}
 	for _, f := range e.CustomFields {
+		if f.IsHostOnly() && !isHost {
+			continue
+		}
 		if f.Required && !supplied[f.FieldID] {
 			return apierr.BadRequest("missing_response", "a required answer is missing").
 				WithDetails(gin.H{"fieldId": f.FieldID, "label": f.Label})

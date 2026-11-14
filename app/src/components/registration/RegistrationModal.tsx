@@ -53,6 +53,25 @@ const showModalAlert = (title?: string, message?: string) => {
   }
 };
 
+const isHostOnlyField = (field: any) => {
+  return Boolean(
+    field.hostOnly ||
+    field.audience === 'host_only' ||
+    field.audience === 'host' ||
+    field.fieldId?.toLowerCase().includes('host') ||
+    field.fieldId === 'ppt_drive_link'
+  );
+};
+
+const getVisibleCustomFields = (customFields: any[] = [], isHostStudent: boolean) => {
+  return customFields.filter((field: any) => {
+    if (isHostOnlyField(field)) {
+      return isHostStudent;
+    }
+    return true;
+  });
+};
+
 const RegistrationModal: React.FC<RegistrationModalProps> = ({
   visible,
   event,
@@ -90,9 +109,9 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       : 'confirmed';
   const [isCreateTeamFlow, setIsCreateTeamFlow] = useState(false);
   const [detailName, setDetailName] = useState("");
-  const [detailPhone, setDetailPhone] = useState("");
-  const [detailAge, setDetailAge] = useState("");
-  const [detailGender, setDetailGender] = useState<string>("");
+
+  const isNonHostStudent = !isHost;
+  const visibleCustomFields = getVisibleCustomFields(event.customFields || [], isHost);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -108,9 +127,6 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
       const profile = useUserStore.getState().userData;
       setDetailName(profile?.displayName ?? "");
-      setDetailPhone(profile?.phoneNumber ?? "");
-      setDetailAge(profile?.age ?? "");
-      setDetailGender(profile?.gender ?? "");
 
       if (event.eventType === "team") {
         setRegistrationStep("choice");
@@ -153,7 +169,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return;
     }
 
-    if (event.customFields?.length) {
+    if (visibleCustomFields.length) {
       setIsCreateTeamFlow(true);
       setRegistrationStep("custom-fields");
       return;
@@ -190,7 +206,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return;
     }
 
-    if (event.customFields?.length) {
+    if (visibleCustomFields.length) {
       setIsCreateTeamFlow(false);
       setRegistrationStep("custom-fields");
       return;
@@ -210,10 +226,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
-  // The backend won't accept a registration without a name and phone, but sign-in may not
-  // provide them, so ask here only for whichever is missing from the profile.
+  // If sign-in did not provide a display name, ask for it here.
   const needsName = !userData?.displayName?.trim();
-  const needsPhone = !userData?.phoneNumber?.trim();
 
   const buildDetailsPayload = () => {
     const payload: Record<string, string> = {};
@@ -222,20 +236,6 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       if (!name) throw new Error("Please add your full name so organisers know who's registering.");
       payload.displayName = name;
     }
-    if (needsPhone && !detailPhone.trim()) {
-      throw new Error("Please add your phone number so organisers can reach you about the event.");
-    }
-    if (detailPhone.trim()) {
-      const digits = detailPhone.replace(/\D/g, "");
-      if (digits.length !== 10) throw new Error("Phone number must be 10 digits");
-      payload.phoneNumber = digits;
-    }
-    const age = detailAge.trim();
-    if (age) {
-      if (!/^\d{1,3}$/.test(age)) throw new Error("Please enter a valid age");
-      payload.age = age;
-    }
-    if (detailGender) payload.gender = detailGender;
     return payload;
   };
 
@@ -274,7 +274,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setIsLoading(true);
 
       await saveRegistrationDetails(buildDetailsPayload());
-      const registrationData = responsesFromFields(event.customFields || [], customFieldsData);
+      const registrationData = responsesFromFields(visibleCustomFields, customFieldsData);
 
       if (event.eventType === "team") {
         if (isCreateTeamFlow) {
@@ -316,8 +316,9 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const linkRegex = new RegExp(expression);
 
   function isResponseValid(field: any, response: any) {
+    const isRequired = field.isRequired || field.required || isHostOnlyField(field);
     if (
-      field.isRequired &&
+      isRequired &&
       (response == undefined ||
         (typeof response == "string" && response.trim() == "") ||
         (Array.isArray(response) && response.length == 0))
@@ -556,9 +557,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const renderCustomFields = () => {
-    const isNonHostStudent = userData && !userData.isHostCollegeStudent;
     let isValid = true;
-    for (const field of event.customFields || []) {
+    for (const field of visibleCustomFields) {
       const response = customFieldsData[field.fieldId];
       isValid = isResponseValid(field, response);
       if (!isValid) break;
@@ -566,7 +566,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     return (
       <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 }}>
-        {!createdInviteCode && (
+        {!createdInviteCode && needsName && (
           <View style={{ gap: 16, marginBottom: 16 }}>
             <Text
               style={{
@@ -577,47 +577,20 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
             >
               Your details
             </Text>
-            {(needsName || needsPhone) && (
-              <Text style={{ fontFamily: "Poppins_400Regular", color: modalTextSecondary, fontSize: 13, marginTop: -8 }}>
-                Organisers use these to confirm your spot. Fields marked * are needed to register.
-              </Text>
-            )}
-            {needsName && (
-              <View>
-                <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
-                  Full name *
-                </Text>
-                <TextInput
-                  value={detailName}
-                  onChangeText={setDetailName}
-                  placeholder="Your full name"
-                  placeholderTextColor={modalPlaceholder}
-                  autoCapitalize="words"
-                  textContentType="name"
-                  style={{
-                  fontFamily: "Poppins_500Medium",
-                  backgroundColor: modalCardBg,
-                  color: modalTextPrimary,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: modalBorderColor,
-                  fontSize: 15,
-                }}
-                />
-              </View>
-            )}
+            <Text style={{ fontFamily: "Poppins_400Regular", color: modalTextSecondary, fontSize: 13, marginTop: -8 }}>
+              Organisers use this to confirm your spot.
+            </Text>
             <View>
               <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
-                {needsPhone ? "Phone number *" : "Phone number"}
+                Full name *
               </Text>
               <TextInput
-                value={detailPhone}
-                onChangeText={setDetailPhone}
-                placeholder="10-digit mobile number"
+                value={detailName}
+                onChangeText={setDetailName}
+                placeholder="Your full name"
                 placeholderTextColor={modalPlaceholder}
-                keyboardType="phone-pad"
+                autoCapitalize="words"
+                textContentType="name"
                 style={{
                   fontFamily: "Poppins_500Medium",
                   backgroundColor: modalCardBg,
@@ -630,115 +603,13 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   fontSize: 15,
                 }}
               />
-            </View>
-            <View>
-              <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
-                Age
-              </Text>
-              <TextInput
-                value={detailAge}
-                onChangeText={setDetailAge}
-                placeholder="e.g. 20"
-                placeholderTextColor={modalPlaceholder}
-                keyboardType="number-pad"
-                maxLength={3}
-                style={{
-                  fontFamily: "Poppins_500Medium",
-                  backgroundColor: modalCardBg,
-                  color: modalTextPrimary,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: modalBorderColor,
-                  fontSize: 15,
-                }}
-              />
-            </View>
-            <View>
-              <Text style={{ fontFamily: "Poppins_500Medium", color: modalTextPrimary, fontSize: 14, marginBottom: 8 }}>
-                Gender
-              </Text>
-              <View style={{ gap: 8 }}>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  {[
-                    { id: "male", label: "Male" },
-                    { id: "female", label: "Female" },
-                  ].map((opt) => {
-                    const isSelected = detailGender === opt.id;
-                    return (
-                      <TouchableOpacity
-                        key={opt.id}
-                        onPress={() => setDetailGender(isSelected ? "" : opt.id)}
-                        style={{
-                          flex: 1,
-                          alignItems: "center",
-                          justifyContent: "center",
-                          paddingVertical: 12,
-                          paddingHorizontal: 6,
-                          borderRadius: 14,
-                          borderWidth: 1,
-                          borderColor: isSelected ? "#38BDF8" : modalBorderColor,
-                          backgroundColor: isSelected ? "rgba(56, 189, 248, 0.12)" : modalCardBg,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
-                            color: isSelected ? "#38BDF8" : modalTextPrimary,
-                            fontSize: 13.5,
-                          }}
-                        >
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  {[
-                    { id: "other", label: "Other" },
-                    { id: "not_disclosed", label: "Not to disclose" },
-                  ].map((opt) => {
-                    const isSelected = detailGender === opt.id;
-                    return (
-                      <TouchableOpacity
-                        key={opt.id}
-                        onPress={() => setDetailGender(isSelected ? "" : opt.id)}
-                        style={{
-                          flex: 1,
-                          alignItems: "center",
-                          justifyContent: "center",
-                          paddingVertical: 12,
-                          paddingHorizontal: 6,
-                          borderRadius: 14,
-                          borderWidth: 1,
-                          borderColor: isSelected ? "#38BDF8" : modalBorderColor,
-                          backgroundColor: isSelected ? "rgba(56, 189, 248, 0.12)" : modalCardBg,
-                        }}
-                      >
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
-                            color: isSelected ? "#38BDF8" : modalTextPrimary,
-                            fontSize: 12.5,
-                          }}
-                        >
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
             </View>
           </View>
         )}
 
-        {!createdInviteCode && event.customFields && event.customFields.length > 0 && (
+        {!createdInviteCode && visibleCustomFields.length > 0 && (
           <View style={{ gap: 16 }}>
-            {event.customFields.map((field: any) => (
+            {visibleCustomFields.map((field: any) => (
               <View key={field.fieldId}>
                 <Text
                   style={{
@@ -749,7 +620,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   }}
                 >
                   {field.label}
-                  {field.isRequired && (
+                  {(field.isRequired || field.required || isHostOnlyField(field)) && (
                     <Text style={{ color: "#EF4444" }}> *</Text>
                   )}
                 </Text>

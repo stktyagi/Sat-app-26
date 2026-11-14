@@ -32,7 +32,35 @@ type CustomField struct {
 	Label    string   `json:"label"             firestore:"label"`
 	Type     string   `json:"type"              firestore:"type"`
 	Required bool     `json:"required"          firestore:"required"`
+	HostOnly bool     `json:"hostOnly,omitempty" firestore:"hostOnly,omitempty"`
+	Audience string   `json:"audience,omitempty" firestore:"audience,omitempty"`
 	Options  []string `json:"options,omitempty" firestore:"options"`
+}
+
+func (cf *CustomField) IsHostOnly() bool {
+	if cf == nil {
+		return false
+	}
+	if cf.HostOnly || strings.EqualFold(cf.Audience, "host_only") || strings.EqualFold(cf.Audience, "host") {
+		return true
+	}
+	fid := strings.ToLower(cf.FieldID)
+	return strings.Contains(fid, "host") || fid == "ppt_drive_link"
+}
+
+// FilterCustomFieldsFor replaces e.CustomFields with a filtered copy visible to the caller.
+// If isHost is false, host-only fields are omitted.
+func (e *Event) FilterCustomFieldsFor(isHost bool) {
+	if isHost || len(e.CustomFields) == 0 {
+		return
+	}
+	visible := make([]CustomField, 0, len(e.CustomFields))
+	for _, f := range e.CustomFields {
+		if !f.IsHostOnly() {
+			visible = append(visible, f)
+		}
+	}
+	e.CustomFields = visible
 }
 
 type Event struct {

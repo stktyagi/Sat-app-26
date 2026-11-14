@@ -46,7 +46,7 @@ func (a *API) CreateTeam(c *gin.Context) {
 		apierr.Respond(c, err)
 		return
 	}
-	if err := validateResponses(event, body.Responses); err != nil {
+	if err := validateResponses(event, user, body.Responses); err != nil {
 		apierr.Respond(c, err)
 		return
 	}
@@ -153,7 +153,7 @@ func (a *API) JoinTeam(c *gin.Context) {
 		apierr.Respond(c, err)
 		return
 	}
-	if err := validateResponses(event, body.Responses); err != nil {
+	if err := validateResponses(event, user, body.Responses); err != nil {
 		apierr.Respond(c, err)
 		return
 	}

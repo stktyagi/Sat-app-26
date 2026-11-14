@@ -74,10 +74,12 @@ func (a *API) ListEvents(c *gin.Context) {
 		if !e.Matches(q) {
 			continue
 		}
+		isHost := user != nil && user.IsHostCollegeStudent
 		if user != nil {
 			fee := e.FeeFor(user.IsHostCollegeStudent)
 			e.EffectiveFee = &fee
 		}
+		e.FilterCustomFieldsFor(isHost)
 		filtered = append(filtered, e)
 	}
 
@@ -136,10 +138,12 @@ func (a *API) GetEvent(c *gin.Context) {
 
 	body := gin.H{"event": event}
 
+	isHost := false
 	// A signed-in caller gets their own pricing and their existing registration
 	// in the same round trip, so the detail screen needs no follow-up call.
 	if user := middleware.CurrentUser(c); user != nil {
-		fee := event.FeeFor(user.IsHostCollegeStudent)
+		isHost = user.IsHostCollegeStudent
+		fee := event.FeeFor(isHost)
 		event.EffectiveFee = &fee
 
 		reg, err := a.Store.GetRegistration(c.Request.Context(), models.RegistrationID(event.EventID, user.UserID))
@@ -185,6 +189,8 @@ func (a *API) GetEvent(c *gin.Context) {
 			body["myRegistration"] = reg
 		}
 	}
+
+	event.FilterCustomFieldsFor(isHost)
 
 	c.JSON(http.StatusOK, body)
 }
