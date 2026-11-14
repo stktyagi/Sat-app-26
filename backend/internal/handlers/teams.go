@@ -264,7 +264,8 @@ func (a *API) TeamAccommodation(c *gin.Context) {
 }
 
 type renameTeamBody struct {
-	TeamName string `json:"teamName"`
+	TeamName  *string           `json:"teamName"`
+	Responses []models.Response `json:"responses"`
 }
 
 func (a *API) RenameTeam(c *gin.Context) {
@@ -273,7 +274,7 @@ func (a *API) RenameTeam(c *gin.Context) {
 		return
 	}
 	if !team.IsLeader(middleware.CurrentUser(c).UserID) {
-		apierr.Respond(c, apierr.Forbidden("leader_only", "only the team leader can rename the team"))
+		apierr.Respond(c, apierr.Forbidden("leader_only", "only the team leader can rename or update the team"))
 		return
 	}
 
@@ -281,17 +282,46 @@ func (a *API) RenameTeam(c *gin.Context) {
 	if !bind(c, &body) {
 		return
 	}
-	name := strings.TrimSpace(body.TeamName)
-	if name == "" {
-		apierr.Respond(c, apierr.BadRequest("invalid_team_name", "teamName is required"))
+
+	updates := map[string]any{}
+
+	if body.TeamName != nil {
+		name := strings.TrimSpace(*body.TeamName)
+		if name == "" {
+			apierr.Respond(c, apierr.BadRequest("invalid_team_name", "teamName cannot be empty"))
+			return
+		}
+		updates["teamName"] = name
+	}
+
+	if body.Responses != nil {
+		event, err := a.Cache.Get(c.Request.Context(), team.EventID)
+		if err == nil && event != nil {
+			user := middleware.CurrentUser(c)
+			if err := validateResponses(event, user, body.Responses); err != nil {
+				apierr.Respond(c, err)
+				return
+			}
+		}
+		updates["responses"] = body.Responses
+	}
+
+	if len(updates) == 0 {
+		apierr.Respond(c, apierr.BadRequest("invalid_request", "teamName or responses is required"))
 		return
 	}
 
-	if err := a.Store.UpdateTeam(c.Request.Context(), team.TeamID, map[string]any{"teamName": name}); err != nil {
-		apierr.Respond(c, apierr.Internal("could not rename the team"))
+	if err := a.Store.UpdateTeam(c.Request.Context(), team.TeamID, updates); err != nil {
+		apierr.Respond(c, apierr.Internal("could not update the team"))
 		return
 	}
-	a.reloadAndRespond(c, team.TeamID, "renamed but the team could not be read back")
+
+	if body.Responses != nil {
+		regID := models.RegistrationID(team.EventID, team.LeaderUserID)
+		_ = a.Store.UpdateRegistrationResponses(c.Request.Context(), regID, body.Responses)
+	}
+
+	a.reloadAndRespond(c, team.TeamID, "updated but the team could not be read back")
 }
 
 // RemoveMember lets the leader drop someone from the team. That member

@@ -161,3 +161,14 @@ func (s *Store) MarkRegistrationCovered(ctx context.Context, id string) error {
 	})
 	return wrap(err)
 }
+
+// UpdateRegistrationResponses updates the responses field on a registration document.
+func (s *Store) UpdateRegistrationResponses(ctx context.Context, id string, responses []models.Response) error {
+	if responses == nil {
+		responses = []models.Response{}
+	}
+	_, err := s.FS.Collection(ColRegistrations).Doc(id).Set(ctx, map[string]any{
+		"responses": responses,
+	}, firestore.MergeAll)
+	return wrap(err)
+}
