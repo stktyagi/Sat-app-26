@@ -15,20 +15,24 @@
       },
       "bundleIdentifier": "aaravgupta.events",
       "appleTeamId": "3YK32DPS3W",
-      "buildNumber": "7",
+      "version": "1.4.1",
+      "buildNumber": "9",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Saturnalia needs camera access to scan event tickets, merchandise QR codes, and entry passes.",
         "NSPhotoLibraryUsageDescription": "Saturnalia needs photo library access to upload stories, profile photos, and festival reels.",
         "NSPhotoLibraryAddUsageDescription": "Saturnalia needs permission to save ticket passes and media to your gallery.",
         "NSLocationWhenInUseUsageDescription": "Saturnalia needs your location to show campus navigation and guide you to event venues.",
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "LSApplicationQueriesSchemes": [
           "tez",
           "phonepe",
           "paytmmp",
           "bhim"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
         "aps-environment": "development"
