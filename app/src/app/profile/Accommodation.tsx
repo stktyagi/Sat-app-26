@@ -122,6 +122,13 @@ export default function AccommodationScreen() {
       return;
     }
 
+    const currentChoice = selectedAcc[day] ? (selectedFood[day] ? 'with_food' : 'without_food') : 'none';
+    if (currentChoice === choice) {
+      setSelectedAcc(prev => ({ ...prev, [day]: false }));
+      setSelectedFood(prev => ({ ...prev, [day]: false }));
+      return;
+    }
+
     if (choice === 'without_food') {
       setSelectedAcc(prev => ({ ...prev, [day]: true }));
       setSelectedFood(prev => ({ ...prev, [day]: false }));
