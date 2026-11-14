@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   StatusBar,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -27,11 +28,14 @@ import {
   MapPin,
   HelpCircle,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-react-native';
 
 import MarkdownText from '../display/MarkdownText';
 import { apiFetch, readError } from '@/api/client';
 import { useThemeStore } from '@/state/themeStore';
+import { useUserStore } from '@/state/userStore';
+import { FirebaseEvent } from '@/types/models';
 
 export interface ReferencedEvent {
   id: string;
@@ -59,23 +63,46 @@ interface ChatBotProps {
   chatbotApiUrl?: string;
 }
 
+const isEventRelated = (text: string) => {
+  const lower = text.trim().toLowerCase();
+  if (
+    lower.includes('what is saturnalia') ||
+    lower.includes('about saturnalia') ||
+    lower.includes('explore other festival') ||
+    lower.includes('explore cultural events') ||
+    lower.includes('show technical competitions') ||
+    lower.includes('show business challenges') ||
+    lower.includes('are there any free events') ||
+    lower.includes('who can participate in saturnalia') ||
+    lower.includes('festival fact')
+  ) {
+    return false;
+  }
+  return true;
+};
+
 const quickSuggestions = [
-  { icon: Sparkles, text: "What is Saturnalia '26?" },
-  { icon: Calendar, text: 'What is the schedule for 21-23 Nov?' },
-  { icon: Ticket, text: 'How do I register for events?' },
-  { icon: HelpCircle, text: 'Are outside college students allowed?' },
-  { icon: MapPin, text: 'Where are the event venues located?' },
+  { icon: Sparkles, text: 'Tell me about SatHack' },
+  { icon: Calendar, text: 'Where and when is Battle of Bands?' },
+  { icon: Ticket, text: 'What are the rules and team size for SatHack?' },
+  { icon: MapPin, text: 'Where is AlgoAuction happening?' },
+  { icon: Sparkles, text: 'Tell me about Case Quest' },
 ];
 
-const generateSessionId = () =>
-  'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+const generateSessionId = (userId?: string) =>
+  userId
+    ? `sess_${userId}_${Date.now().toString(36)}`
+    : 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
 
 const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isDark } = useThemeStore();
+  const { userData } = useUserStore();
 
-  const [sessionId, setSessionId] = useState<string>(generateSessionId);
+  const [sessionId, setSessionId] = useState<string>(() =>
+    generateSessionId(userData?.userId || (userData as any)?.id)
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -127,7 +154,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
     const prevSession = sessionId;
     setMessages([]);
     setFollowupSuggestions([]);
-    const newSession = generateSessionId();
+    const newSession = generateSessionId(userData?.userId || (userData as any)?.id);
     setSessionId(newSession);
 
     try {
@@ -144,21 +171,87 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
     }
   };
 
-  const handleEventPress = async (eventId: string) => {
-    if (!eventId || loadingEventId) return;
+  const handleEventPress = async (evt: ReferencedEvent) => {
+    if (!evt || loadingEventId) return;
+
+    if (evt.external_url) {
+      Linking.openURL(evt.external_url).catch(() => {});
+      return;
+    }
+
+    const clickKey = evt.id || evt.title || 'event';
+    setLoadingEventId(clickKey);
+
     try {
-      setLoadingEventId(eventId);
-      const { getEvent } = await import('@/api/events');
-      const eventData = await getEvent(eventId);
-      if (eventData) {
-        onClose();
+      let matchedEvent: FirebaseEvent | null = null;
+      try {
+        const { listEvents } = await import('@/api/events');
+        const allEvents = await listEvents();
+
+        // 1. Direct match by ID
+        matchedEvent = allEvents.find((e) => e.id === evt.id || e.eventId === evt.id) || null;
+
+        // 2. Fuzzy match by title words or slug
+        if (!matchedEvent && evt.title) {
+          const cleanEvt = evt.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+          matchedEvent =
+            allEvents.find((e) => {
+              const cleanE = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              return cleanE === cleanEvt || cleanE.includes(cleanEvt) || cleanEvt.includes(cleanE);
+            }) || null;
+        }
+      } catch (err) {
+        console.warn('Events list lookup warning:', err);
+      }
+
+      // Safe event payload ensuring EventDetails will never crash
+      const finalEvent: FirebaseEvent = matchedEvent || {
+        id: evt.id || 'sat-event',
+        eventId: evt.id || 'sat-event',
+        title: evt.title || 'Saturnalia Event',
+        category: evt.category || 'Cultural',
+        venueName: evt.venue || 'TIET Campus',
+        dateTime: evt.schedule_ist || '',
+        startDateTime: evt.schedule_ist || '',
+        endDateTime: '',
+        isPublic: true,
+        eventType: (evt.team_size_display || '').toLowerCase().includes('member')
+          ? 'team'
+          : 'individual',
+        description: `Scheduled for ${evt.schedule_ist || 'Saturnalia 2026'} at ${evt.venue || 'TIET Campus'}.`,
+        shortDescription: evt.fee_display || '',
+        coverImage: '',
+        isFeatured: false,
+        paymentStarted: false,
+        prizes: '',
+        shortPrizes: '',
+        rules: '',
+        sameCollegeOnly: false,
+        registeredCount: 0,
+        registrationDeadline: '',
+        reelsId: [],
+        coordinators: [],
+        customFields: [],
+        images: [],
+        links: [],
+        registrationFee: { host: 0, other: 0 },
+        paymentRequired: false,
+      };
+
+      // Close modal first and schedule navigation on next tick to prevent Modal dismiss crash
+      onClose();
+      setTimeout(() => {
         router.push({
           pathname: '/events/EventDetails',
-          params: { eventData: JSON.stringify(eventData) },
+          params: { eventData: JSON.stringify(finalEvent) },
         });
-      }
+      }, 100);
     } catch (e) {
-      console.warn('Failed to load event details:', e);
+      console.warn('Navigation error:', e);
+      onClose();
+      setTimeout(() => {
+        router.push('/(tabs)/events' as any);
+      }, 100);
     } finally {
       setLoadingEventId(null);
     }
@@ -204,8 +297,9 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
         if (replyText) {
           const referenced: ReferencedEvent[] =
             data.referencedEvents || data.referenced_events || [];
-          const followups: string[] =
+          const rawFollowups: string[] =
             data.suggestedFollowups || data.suggested_followups || [];
+          const followups = rawFollowups.filter(isEventRelated);
 
           if (data.sessionId || data.session_id) {
             setSessionId(data.sessionId || data.session_id);
@@ -232,7 +326,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
     } catch (error) {
       console.error('Chatbot error:', error);
       const errorMessage: Message = {
-        text: 'Sorry, I ran into a connection issue. Please try asking again in a moment!',
+        text: 'Sorry, I ran into a connection issue with SatBot. Please try asking again in a moment!',
         sender: 'bot',
         timestamp: new Date(),
       };
@@ -274,9 +368,9 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
         {!isUser && (
           <View
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
+              width: 32,
+              height: 32,
+              borderRadius: 16,
               backgroundColor: isDark ? 'rgba(65, 184, 240, 0.15)' : 'rgba(65, 184, 240, 0.12)',
               borderColor: 'rgba(65, 184, 240, 0.3)',
               borderWidth: 1,
@@ -286,14 +380,14 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
               marginBottom: 4,
             }}
           >
-            <Bot size={16} color={accentColor} />
+            <Bot size={17} color={accentColor} />
           </View>
         )}
 
         {/* Message Bubble */}
         <View
           style={{
-            maxWidth: '82%',
+            maxWidth: '84%',
             paddingVertical: 12,
             paddingHorizontal: 16,
             borderRadius: 20,
@@ -323,7 +417,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
                   color: isDark ? '#94A3B8' : '#64748B',
                 }}
               >
-                Thinking...
+                SatBot is thinking...
               </Text>
             </View>
           ) : isUser ? (
@@ -353,139 +447,208 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
 
               {/* Referenced Events Cards */}
               {message.referencedEvents && message.referencedEvents.length > 0 && (
-                <View style={{ marginTop: 12, gap: 8 }}>
+                <View style={{ marginTop: 12, gap: 8, width: '100%' }}>
                   <Text
                     style={{
                       fontFamily: 'Poppins_600SemiBold',
-                      fontSize: 11.5,
+                      fontSize: 11,
                       color: accentColor,
                       letterSpacing: 0.3,
                       textTransform: 'uppercase',
                     }}
                   >
-                    Related Events
+                    Referenced Events
                   </Text>
-                  {message.referencedEvents.map((evt, eIdx) => (
-                    <TouchableOpacity
-                      key={evt.id || eIdx}
-                      activeOpacity={0.75}
-                      onPress={() => handleEventPress(evt.id)}
-                      disabled={loadingEventId === evt.id}
-                      style={{
-                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F8FAFC',
-                        borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E2E8F0',
-                        borderWidth: 1,
-                        borderRadius: 14,
-                        padding: 10,
-                      }}
-                    >
-                      <View
+                  {message.referencedEvents.map((evt, eIdx) => {
+                    const isCultural = evt.category?.toLowerCase().includes('cultural');
+                    const isTech = evt.category?.toLowerCase().includes('tech');
+                    const isBiz = evt.category?.toLowerCase().includes('business');
+                    const catColor = isTech ? '#A855F7' : isCultural ? '#F59E0B' : isBiz ? '#10B981' : accentColor;
+                    const isCardLoading = loadingEventId === (evt.id || evt.title);
+
+                    return (
+                      <TouchableOpacity
+                        key={evt.id || eIdx}
+                        activeOpacity={0.75}
+                        onPress={() => handleEventPress(evt)}
+                        disabled={isCardLoading}
                         style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          marginBottom: 4,
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F8FAFC',
+                          borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E2E8F0',
+                          borderWidth: 1,
+                          borderRadius: 14,
+                          padding: 12,
+                          gap: 6,
                         }}
                       >
-                        <Text
-                          style={{
-                            fontFamily: 'Poppins_600SemiBold',
-                            fontSize: 13.5,
-                            color: textPrimary,
-                            flex: 1,
-                            marginRight: 6,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {evt.title}
-                        </Text>
-                        {loadingEventId === evt.id ? (
-                          <ActivityIndicator size="small" color={accentColor} />
-                        ) : (
-                          <ChevronRight size={15} color={accentColor} />
-                        )}
-                      </View>
-
-                      {evt.venue ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                          <MapPin size={11} color={textSecondary} />
-                          <Text
-                            style={{
-                              fontFamily: 'Poppins_400Regular',
-                              fontSize: 11,
-                              color: textSecondary,
-                              flex: 1,
-                            }}
-                            numberOfLines={1}
-                          >
-                            {evt.venue}
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      {evt.schedule_ist ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                          <Calendar size={11} color={textSecondary} />
-                          <Text
-                            style={{
-                              fontFamily: 'Poppins_400Regular',
-                              fontSize: 11,
-                              color: textSecondary,
-                              flex: 1,
-                            }}
-                            numberOfLines={1}
-                          >
-                            {evt.schedule_ist}
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      {(evt.fee_display || evt.team_size_display) ? (
+                        {/* Title & Action Icon Row */}
                         <View
                           style={{
                             flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 10,
-                            marginTop: 6,
-                            paddingTop: 6,
-                            borderTopWidth: 1,
-                            borderTopColor: isDark
-                              ? 'rgba(255, 255, 255, 0.06)'
-                              : 'rgba(0, 0, 0, 0.05)',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
+                            gap: 8,
                           }}
                         >
-                          {evt.fee_display ? (
-                            <Text
-                              style={{
-                                fontFamily: 'Poppins_500Medium',
-                                fontSize: 10.5,
-                                color: accentColor,
-                              }}
-                            >
-                              {evt.fee_display}
+                          <Text
+                            style={{
+                              fontFamily: 'Poppins_600SemiBold',
+                              fontSize: 13.5,
+                              color: textPrimary,
+                              flex: 1,
+                              lineHeight: 18,
+                            }}
+                          >
+                            {evt.title}
+                          </Text>
+                          {isCardLoading ? (
+                            <ActivityIndicator size="small" color={accentColor} />
+                          ) : evt.external_url ? (
+                            <ExternalLink size={15} color={accentColor} style={{ marginTop: 2, flexShrink: 0 }} />
+                          ) : (
+                            <ChevronRight size={15} color={accentColor} style={{ marginTop: 2, flexShrink: 0 }} />
+                          )}
+                        </View>
+
+                        {/* Category Badge */}
+                        {evt.category ? (
+                          <View
+                            style={{
+                              alignSelf: 'flex-start',
+                              backgroundColor: isDark ? `${catColor}25` : `${catColor}15`,
+                              borderColor: `${catColor}40`,
+                              borderWidth: 1,
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: catColor }}>
+                              {evt.category}
                             </Text>
-                          ) : null}
-                          {evt.team_size_display ? (
+                          </View>
+                        ) : null}
+
+                        {/* Venue */}
+                        {evt.venue ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                            <MapPin size={12} color={accentColor} style={{ marginTop: 2, flexShrink: 0 }} />
                             <Text
                               style={{
                                 fontFamily: 'Poppins_400Regular',
-                                fontSize: 10.5,
+                                fontSize: 11.5,
+                                lineHeight: 16,
                                 color: textSecondary,
+                                flex: 1,
                               }}
                             >
-                              👥 {evt.team_size_display}
+                              {evt.venue}
                             </Text>
-                          ) : null}
-                        </View>
-                      ) : null}
-                    </TouchableOpacity>
-                  ))}
+                          </View>
+                        ) : null}
+
+                        {/* Schedule */}
+                        {evt.schedule_ist ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                            <Calendar size={12} color="#F59E0B" style={{ marginTop: 2, flexShrink: 0 }} />
+                            <Text
+                              style={{
+                                fontFamily: 'Poppins_400Regular',
+                                fontSize: 11.5,
+                                lineHeight: 16,
+                                color: textSecondary,
+                                flex: 1,
+                              }}
+                            >
+                              {evt.schedule_ist}
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        {/* Fee, Team Size & Action CTA */}
+                        {(evt.fee_display || evt.team_size_display || evt.external_url) ? (
+                          <View
+                            style={{
+                              marginTop: 4,
+                              paddingTop: 8,
+                              borderTopWidth: 1,
+                              borderTopColor: isDark
+                                ? 'rgba(255, 255, 255, 0.08)'
+                                : 'rgba(0, 0, 0, 0.06)',
+                              gap: 6,
+                            }}
+                          >
+                            {/* Fee Display Row (Own line so it never overflows) */}
+                            {evt.fee_display ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                <Ticket size={12} color="#10B981" style={{ flexShrink: 0 }} />
+                                <Text
+                                  style={{
+                                    fontFamily: 'Poppins_500Medium',
+                                    fontSize: 11,
+                                    color: '#10B981',
+                                    flexShrink: 1,
+                                  }}
+                                >
+                                  {evt.fee_display}
+                                </Text>
+                              </View>
+                            ) : null}
+
+                            {/* Team Size and CTA Row */}
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 8,
+                              }}
+                            >
+                              {evt.team_size_display ? (
+                                <Text
+                                  style={{
+                                    fontFamily: 'Poppins_400Regular',
+                                    fontSize: 11,
+                                    color: textSecondary,
+                                    flexShrink: 1,
+                                  }}
+                                >
+                                  👥 {evt.team_size_display}
+                                </Text>
+                              ) : <View />}
+
+                              <View
+                                style={{
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  backgroundColor: isDark ? 'rgba(65, 184, 240, 0.15)' : 'rgba(65, 184, 240, 0.1)',
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 3,
+                                  borderRadius: 8,
+                                }}
+                              >
+                                <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10.5, color: accentColor }}>
+                                  {evt.external_url ? 'Register Link' : 'View Event'}
+                                </Text>
+                                {evt.external_url ? (
+                                  <ExternalLink size={10} color={accentColor} />
+                                ) : (
+                                  <ChevronRight size={10} color={accentColor} />
+                                )}
+                              </View>
+                            </View>
+                          </View>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               )}
 
               {/* Follow-up Question Chips inside bubble */}
               {message.suggestedFollowups && message.suggestedFollowups.length > 0 && (
-                <View style={{ marginTop: 10, gap: 6 }}>
+                <View style={{ marginTop: 12, gap: 6 }}>
                   <Text
                     style={{
                       fontFamily: 'Poppins_500Medium',
@@ -704,21 +867,21 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
           >
             {/* Empty State / Welcome Hero */}
             {messages.length === 0 && (
-              <View style={{ alignItems: 'center', paddingHorizontal: 20, marginVertical: 'auto' }}>
+              <View style={{ alignItems: 'center', paddingHorizontal: 12, marginVertical: 'auto' }}>
                 <View
                   style={{
-                    width: 76,
-                    height: 76,
-                    borderRadius: 38,
+                    width: 72,
+                    height: 72,
+                    borderRadius: 36,
                     backgroundColor: isDark ? 'rgba(65, 184, 240, 0.12)' : 'rgba(65, 184, 240, 0.1)',
                     borderColor: 'rgba(65, 184, 240, 0.28)',
                     borderWidth: 1.5,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: 18,
+                    marginBottom: 14,
                   }}
                 >
-                  <Sparkles size={36} color={accentColor} />
+                  <Sparkles size={34} color={accentColor} />
                 </View>
 
                 <Text
@@ -728,7 +891,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
                     color: textPrimary,
                     textAlign: 'center',
                     letterSpacing: 0.5,
-                    marginBottom: 8,
+                    marginBottom: 6,
                   }}
                 >
                   Ask SatBot AI
@@ -737,18 +900,17 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
                 <Text
                   style={{
                     fontFamily: 'Poppins_400Regular',
-                    fontSize: 13.5,
-                    lineHeight: 21,
+                    fontSize: 13,
+                    lineHeight: 20,
                     color: textSecondary,
                     textAlign: 'center',
-                    marginBottom: 20,
+                    marginBottom: 16,
                   }}
                 >
-                  Your interactive intelligence for Saturnalia &apos;26. Inquire about event schedules,
-                  guidelines, venues, tickets, and campus navigations.
+                  Your interactive guide for Saturnalia &apos;26. Inquire about event schedules, rules, prizes, venues, and directions.
                 </Text>
 
-                {/* Privacy Badge */}
+                {/* Multi-turn Badge */}
                 <View
                   style={{
                     flexDirection: 'row',
@@ -760,6 +922,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
                     borderRadius: 20,
                     borderColor: cardBorder,
                     borderWidth: 1,
+                    marginBottom: 20,
                   }}
                 >
                   <ShieldCheck size={14} color={accentColor} />
@@ -770,8 +933,69 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
                       color: textSecondary,
                     }}
                   >
-                    Interactive Multi-turn Session
+                    Interactive Multi-turn Memory
                   </Text>
+                </View>
+
+                {/* Curated Prompt Cards */}
+                <View style={{ width: '100%', gap: 8 }}>
+                  <Text
+                    style={{
+                      fontFamily: 'Poppins_600SemiBold',
+                      fontSize: 12,
+                      color: textSecondary,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      marginBottom: 2,
+                    }}
+                  >
+                    Suggested Questions
+                  </Text>
+                  {quickSuggestions.map((item, idx) => {
+                    const IconComponent = item.icon;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        onPress={() => sendPredefinedMessage(item.text)}
+                        activeOpacity={0.7}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 10,
+                          backgroundColor: cardBg,
+                          borderColor: cardBorder,
+                          borderWidth: 1,
+                          borderRadius: 14,
+                          paddingVertical: 11,
+                          paddingHorizontal: 14,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            backgroundColor: isDark ? 'rgba(65, 184, 240, 0.12)' : 'rgba(65, 184, 240, 0.08)',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <IconComponent size={14} color={accentColor} />
+                        </View>
+                        <Text
+                          style={{
+                            fontFamily: 'Poppins_500Medium',
+                            fontSize: 13,
+                            color: textPrimary,
+                            flex: 1,
+                          }}
+                        >
+                          {item.text}
+                        </Text>
+                        <ChevronRight size={14} color={textSecondary} />
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
             )}
@@ -781,7 +1005,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ visible, onClose }) => {
           </ScrollView>
 
           {/* Quick suggestions pills */}
-          {!keyboardVisible && (
+          {!keyboardVisible && messages.length > 0 && (
             <View style={{ paddingVertical: 6 }}>
               <ScrollView
                 horizontal
