@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	TeamStatusPending   = "pending"
-	TeamStatusConfirmed = "confirmed"
+	TeamStatusPending        = "pending"
+	TeamStatusPaymentPending = "payment_pending"
+	TeamStatusConfirmed      = "confirmed"
+	TeamStatusRejected       = "rejected"
 )
 
 // TeamRef is the teamRegistrations document ID, "{eventId}_{INVITECODE}". The
@@ -95,11 +97,25 @@ func (t *Team) Without(userID string) []string {
 	return kept
 }
 
-// StatusFor reports whether a team of this size has met the minimum the event
-// requires.
+// StatusFor reports whether a team of this size has met the minimum the event requires.
 func StatusFor(size, minTeamSize int) string {
 	if minTeamSize > 0 && size < minTeamSize {
 		return TeamStatusPending
+	}
+	return TeamStatusConfirmed
+}
+
+// ResolveTeamStatus reports the team's status based on size and payment completeness.
+// Priority:
+// 1. Pending: when the team size is not complete
+// 2. Payment Pending: when payment is not completed or more payment is needed
+// 3. Confirmed: when team size is complete and payment is completed
+func ResolveTeamStatus(size, minTeamSize int, isPaid bool) string {
+	if minTeamSize > 0 && size < minTeamSize {
+		return TeamStatusPending
+	}
+	if !isPaid {
+		return TeamStatusPaymentPending
 	}
 	return TeamStatusConfirmed
 }

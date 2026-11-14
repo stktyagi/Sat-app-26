@@ -272,6 +272,14 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               />
             )}
 
+            {transaction.easebuzzTxnId && (
+              <DetailRow
+                icon={<Receipt size={16} color="#41B8F0" />}
+                label="Easebuzz Txn ID"
+                value={transaction.easebuzzTxnId}
+              />
+            )}
+
             <DetailRow
               icon={<Tag size={16} color="#94A3B8" />}
               label="Document ID"

@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
-import { X, Save, ChevronDown, Phone, School, Mail } from "lucide-react-native";
+import { X, Save, ChevronDown, Phone, School, Mail, Trash2 } from "lucide-react-native";
 import { showAlert } from "../../index";
 import { PrivateRoleComponent } from "../../auth/PrivateRoleComponent";
 import { UserEventRegistration } from "@/api/admin";
@@ -36,6 +36,7 @@ interface TeamDetailsModalProps {
     teamId: string,
     newStatus: "confirmed" | "pending" | "payment_pending" | "rejected"
   ) => Promise<void>;
+  onDeleteTeam?: (teamId: string) => Promise<void>;
 }
 
 const getStatusColor = (status: string) => {
@@ -86,7 +87,9 @@ export default function TeamDetailsModal({
   loadingMembers,
   onClose,
   onStatusUpdate,
+  onDeleteTeam,
 }: TeamDetailsModalProps) {
+  const [isDeletingTeam, setIsDeletingTeam] = useState(false);
   const { isDark } = useThemeStore();
   const cardBg = isDark ? "#1C1C20" : "#FFFFFF";
   const cardBorder = isDark ? "#2A2A30" : "#D5D5D5";
@@ -302,6 +305,62 @@ export default function TeamDetailsModal({
                     )}
                     <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 14, marginLeft: 8 }}>
                       {isSavingStatus ? "Saving..." : "Save Status"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {onDeleteTeam && (
+                  <TouchableOpacity
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "rgba(239, 68, 68, 0.4)",
+                      backgroundColor: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
+                    }}
+                    className={`rounded-xl p-3 mt-2 flex-row items-center justify-center ${
+                      isDeletingTeam ? "opacity-50" : ""
+                    }`}
+                    onPress={() => {
+                      if (!team || !onDeleteTeam) return;
+                      showAlert(
+                        isSolo ? "Delete Registration" : "Delete Team Registration",
+                        `Are you sure you want to delete ${isSolo ? "this registration" : `team "${team.teamName}" and all member registrations`}? This action cannot be undone.`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: async () => {
+                              setIsDeletingTeam(true);
+                              try {
+                                await onDeleteTeam(team.teamId);
+                                onClose();
+                              } catch (err: any) {
+                                showAlert("Error", err?.message || "Failed to delete team registration");
+                              } finally {
+                                setIsDeletingTeam(false);
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                    disabled={isDeletingTeam}
+                    activeOpacity={0.8}
+                  >
+                    {isDeletingTeam ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <Trash2 size={16} color="#EF4444" />
+                    )}
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        color: "#EF4444",
+                        fontSize: 13,
+                        marginLeft: 8,
+                      }}
+                    >
+                      {isDeletingTeam ? "Deleting..." : isSolo ? "Delete Registration" : "Delete Team Registration"}
                     </Text>
                   </TouchableOpacity>
                 )}

@@ -100,13 +100,22 @@ export type Event = {
   createdAt: any;
 };
 
+export type RegistrationStatus =
+  | "confirmed"
+  | "pending"
+  | "payment_pending"
+  | "rejected"
+  | "registered"
+  | "cancelled"
+  | "awaited";
+
 export type Registration = {
   id: string;
   userId: string;
   eventId: string;
   teamId?: string;
   registrationDate: any;
-  status: "registered" | "confirmed" | "cancelled";
+  status: RegistrationStatus;
   paymentStatus: "pending" | "completed" | "failed";
   accommodationRequested: boolean;
 };
@@ -117,7 +126,7 @@ export interface TeamRegistrationData {
   teamName: string;
   leaderUserId: string;
   inviteCode?: string;
-  status?: string;
+  status?: "confirmed" | "pending" | "payment_pending" | "rejected" | string;
   paidTill?: number;
   members: Array<{
     userId: string;

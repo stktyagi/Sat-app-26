@@ -52,6 +52,7 @@ export interface PaymentTransaction {
   transactionFees: number;
   userId: string;
   bill?: Record<string, any>;
+  easebuzzTxnId?: string;
 }
 
 export interface TransactionFilters {

@@ -311,6 +311,16 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			}
 		}
 
+		var minTeamSize int
+		if team != nil && p.EventID != "" {
+			evDoc, evErr := tx.Get(s.FS.Collection(ColEvents).Doc(p.EventID))
+			if evErr == nil && evDoc.Exists() {
+				if ev, err := decodeEvent(evDoc); err == nil && ev != nil {
+					minTeamSize = ev.MinTeamSize
+				}
+			}
+		}
+
 		// ---- decisions ----
 		now := isotime.Now()
 		orphans := []string{}
@@ -383,14 +393,28 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			return err
 		}
 
+		newTeamStatus := ""
+		if team != nil {
+			newTeamStatus = models.ResolveTeamStatus(len(team.MemberIDs), minTeamSize, markTeamPaid)
+		}
+
 		for i := 0; i < len(covered); i++ {
 			if !settleRegs[i] {
 				continue
 			}
-			if err := tx.Update(regRefs[i], []firestore.Update{
+			regUpd := []firestore.Update{
 				{Path: "paymentStatus", Value: models.RegPaymentSuccess},
 				{Path: "paidAt", Value: now},
-			}); err != nil {
+			}
+			currStatus, _ := regSnaps[i].DataAt("status")
+			if currStatus != models.RegStatusRejected {
+				if team == nil {
+					regUpd = append(regUpd, firestore.Update{Path: "status", Value: models.RegStatusConfirmed})
+				} else if newTeamStatus != "" {
+					regUpd = append(regUpd, firestore.Update{Path: "status", Value: newTeamStatus})
+				}
+			}
+			if err := tx.Update(regRefs[i], regUpd); err != nil {
 				return err
 			}
 		}
@@ -401,8 +425,27 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 				{Path: "paid", Value: markTeamPaid},
 				{Path: "updatedAt", Value: now},
 			}
+			if newTeamStatus != "" && team.Status != models.TeamStatusRejected {
+				teamUpd = append(teamUpd, firestore.Update{Path: "status", Value: newTeamStatus})
+			}
 			if err := tx.Update(teamRef, teamUpd); err != nil {
 				return err
+			}
+			if newTeamStatus == models.TeamStatusConfirmed {
+				for _, m := range team.MemberIDs {
+					if !slices.Contains(covered, m) {
+						mRegID := models.RegistrationID(team.EventID, m)
+						idx := slices.Index(allUserIDs, m)
+						if idx >= 0 && idx < len(regSnaps) && regSnaps[idx].Exists() {
+							cSt, _ := regSnaps[idx].DataAt("status")
+							if cSt != models.RegStatusRejected {
+								_ = tx.Update(s.FS.Collection(ColRegistrations).Doc(mRegID), []firestore.Update{
+									{Path: "status", Value: newTeamStatus},
+								})
+							}
+						}
+					}
+				}
 			}
 		}
 

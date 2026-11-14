@@ -82,6 +82,33 @@ func TestStatusFor(t *testing.T) {
 	}
 }
 
+func TestResolveTeamStatus(t *testing.T) {
+	// Priority rule: Pending > Payment pending
+	// 1. Team size incomplete (< minTeamSize): always pending regardless of payment
+	if got := models.ResolveTeamStatus(1, 3, false); got != models.TeamStatusPending {
+		t.Errorf("team below minSize unpaid: got %q, want pending", got)
+	}
+	if got := models.ResolveTeamStatus(1, 3, true); got != models.TeamStatusPending {
+		t.Errorf("team below minSize paid: got %q, want pending (priority: Pending > Payment pending)", got)
+	}
+
+	// 2. Team size complete, but unpaid: payment_pending
+	if got := models.ResolveTeamStatus(3, 3, false); got != models.TeamStatusPaymentPending {
+		t.Errorf("team at minSize unpaid: got %q, want payment_pending", got)
+	}
+	if got := models.ResolveTeamStatus(2, 0, false); got != models.TeamStatusPaymentPending {
+		t.Errorf("team with no minSize unpaid: got %q, want payment_pending", got)
+	}
+
+	// 3. Team size complete and paid: confirmed
+	if got := models.ResolveTeamStatus(3, 3, true); got != models.TeamStatusConfirmed {
+		t.Errorf("team at minSize paid: got %q, want confirmed", got)
+	}
+	if got := models.ResolveTeamStatus(1, 0, true); got != models.TeamStatusConfirmed {
+		t.Errorf("team with no minSize paid: got %q, want confirmed", got)
+	}
+}
+
 func TestTeamNormaliseRecomputesSize(t *testing.T) {
 	team := &models.Team{MemberIDs: []string{"u1", "u2"}}
 	team.Normalise()

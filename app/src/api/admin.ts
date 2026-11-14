@@ -581,8 +581,18 @@ const mapReg = (item: any): UserEventRegistration => {
   const team = item?.team;
   const paymentStatus = reg.paymentStatus ?? item.paymentStatus;
   const rawStatus = reg.status ?? item.status ?? 'confirmed';
-  const isPaymentPending = paymentStatus === 'pending' && rawStatus !== 'rejected';
-  const status = isPaymentPending ? 'payment_pending' : rawStatus;
+
+  // Priority: Rejected > Pending > Payment Pending > Confirmed
+  let status: string = rawStatus;
+  if (rawStatus === 'rejected') {
+    status = 'rejected';
+  } else if (rawStatus === 'pending') {
+    status = 'pending';
+  } else if (rawStatus === 'payment_pending' || paymentStatus === 'pending') {
+    status = 'payment_pending';
+  } else {
+    status = 'confirmed';
+  }
   return {
     userId: reg.userId ?? item.userId ?? '',
     eventId: reg.eventId ?? item.eventId ?? '',
@@ -664,9 +674,19 @@ export const getEventTeamSummaries = async (eventId: string): Promise<TeamSummar
       (m) => m.paymentStatus === 'pending' || m.status === 'payment_pending'
     );
     const rawTeamStatus = (first?.status as TeamSummary['status']) || 'confirmed';
-    const status = (isTeamPaymentPending && rawTeamStatus !== 'rejected')
-      ? 'payment_pending'
-      : rawTeamStatus;
+    const isPending = rawTeamStatus === 'pending' || members.some((m) => m.status === 'pending');
+
+    // Priority: Rejected > Pending > Payment Pending > Confirmed
+    let status: TeamSummary['status'] = 'confirmed';
+    if (rawTeamStatus === 'rejected') {
+      status = 'rejected';
+    } else if (isPending) {
+      status = 'pending';
+    } else if (isTeamPaymentPending || rawTeamStatus === 'payment_pending') {
+      status = 'payment_pending';
+    } else {
+      status = 'confirmed';
+    }
 
     return {
       teamId,
@@ -741,6 +761,28 @@ export const updateTeamRegistrationStatus = async (
   } catch (err: any) {
     console.error('Failed to update status:', err);
     return { success: false, error: err?.message || 'Failed to update status' };
+  }
+};
+
+export const updateEventRegistrationStatus = updateTeamRegistrationStatus;
+
+export const deleteEventRegistration = async (
+  eventId: string,
+  target: string,
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const res = await apiFetch(`/admin/events/${eventId}/registrations/${encodeURIComponent(target)}`, {
+      method: 'DELETE',
+    }, 'required');
+    if (!res.ok) {
+      const err = await readError(res, 'Failed to delete registration');
+      return { success: false, error: err };
+    }
+    invalidateEventRegistrationsCache(eventId);
+    return { success: true };
+  } catch (err: any) {
+    console.error('Failed to delete registration:', err);
+    return { success: false, error: err?.message || 'Failed to delete registration' };
   }
 };
 
@@ -979,9 +1021,35 @@ export const fetchTransactions = async (filters?: any, loadMore?: boolean) => {
       );
     }
     if (filters.paymentTypeFilter && filters.paymentTypeFilter !== 'all') {
+      const target = filters.paymentTypeFilter.toLowerCase();
       items = items.filter((p: any) => {
-        const type = p.paymentType || (p.processedIntentions?.eventRegistration ? 'event' : 'other');
-        return type === filters.paymentTypeFilter;
+        const type = (p.paymentType || '').toLowerCase();
+        if (target === 'event') {
+          return type.includes('event') || Boolean(p.processedIntentions?.eventRegistration) || Boolean(p.eventId);
+        }
+        if (target === 'accommodation') {
+          return type.includes('accommodation') || Boolean(p.processedIntentions?.accommodation) || Boolean(p.processedIntentions?.accommodationTier);
+        }
+        if (target === 'food') {
+          return type.includes('food') || Boolean(p.processedIntentions?.food);
+        }
+        return type === target;
+      });
+    }
+
+    if (filters.dateRange && filters.dateRange !== 'all') {
+      const now = Date.now();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      items = items.filter((p: any) => {
+        const dateStr = p.createdAt || p.completedAt;
+        if (!dateStr) return true;
+        const time = new Date(dateStr).getTime();
+        if (isNaN(time)) return true;
+        const diffMs = now - time;
+        if (filters.dateRange === 'today') return diffMs <= oneDayMs;
+        if (filters.dateRange === 'week') return diffMs <= 7 * oneDayMs;
+        if (filters.dateRange === 'month') return diffMs <= 30 * oneDayMs;
+        return true;
       });
     }
   }

@@ -787,8 +787,10 @@ export default function QRScanner({
                         backgroundColor:
                           userData.status === "confirmed"
                             ? "rgba(16, 185, 129, 0.2)"
-                            : userData.status === "payment pending"
-                            ? "rgba(234, 179, 8, 0.2)"
+                            : userData.status === "payment_pending" || userData.status === "payment pending"
+                            ? "rgba(59, 130, 246, 0.2)"
+                            : userData.status === "pending"
+                            ? "rgba(245, 158, 11, 0.2)"
                             : userData.status === "rejected"
                             ? "rgba(239, 68, 68, 0.2)"
                             : "rgba(107, 114, 128, 0.2)",
@@ -802,14 +804,16 @@ export default function QRScanner({
                           color:
                             userData.status === "confirmed"
                               ? "#10B981"
-                              : userData.status === "payment pending"
-                              ? "#FBBF24"
+                              : userData.status === "payment_pending" || userData.status === "payment pending"
+                              ? "#3B82F6"
+                              : userData.status === "pending"
+                              ? "#F59E0B"
                               : userData.status === "rejected"
                               ? "#EF4444"
                               : textSecondary,
                         }}
                       >
-                        {userData.status}
+                        {userData.status ? userData.status.replace(/_/g, " ") : ""}
                       </Text>
                     </View>
                   </View>
@@ -939,7 +943,7 @@ export default function QRScanner({
                             fontSize: 13,
                           }}
                         >
-                          Cannot check in: Status is "{userData.status}"
+                          Cannot check in: Status is "{userData.status ? userData.status.replace(/_/g, " ") : ""}"
                         </Text>
                       </View>
                     )}

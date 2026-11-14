@@ -27,6 +27,7 @@ import {
   Share2,
   QrCode,
   ShieldCheck,
+  LogOut,
 } from "lucide-react-native";
 import QRCode from "react-native-qrcode-svg";
 import { useUserStore } from "@/state/userStore";
@@ -36,6 +37,7 @@ import TeamDetailsCard from "@/components/registration/TeamDetailsCard";
 import { useEventDetail } from "@/hooks/useEventDetail";
 import {
   useDeleteTeam,
+  useLeaveTeam,
   useRemoveTeamMember,
   useUnregisterForEvent,
 } from "@/hooks/useEventMutations";
@@ -71,6 +73,7 @@ const MyEventDetailsScreen: React.FC = () => {
 
 
   const deleteTeamMutation = useDeleteTeam();
+  const leaveTeamMutation = useLeaveTeam();
   const removeTeamMemberMutation = useRemoveTeamMember();
   const unregisterMutation = useUnregisterForEvent();
 
@@ -150,6 +153,35 @@ const MyEventDetailsScreen: React.FC = () => {
     ]);
   };
 
+  const handleLeaveTeam = () => {
+    if (!teamData) {
+      showAlert("Error", "Team data not available");
+      return;
+    }
+
+    const isConfirmed = teamData.status === "confirmed";
+    const title = isConfirmed ? "Leave Confirmed Team" : "Leave Team";
+    const message = isConfirmed
+      ? "Your team registration is currently confirmed. Leaving this team will cancel your registration for this event."
+      : "Are you sure you want to leave this team? This will cancel your registration for this event.";
+
+    showAlert(title, message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes, Leave Team",
+        style: "destructive",
+        onPress: () => {
+          if (!teamData?.teamId) return;
+          leaveTeamMutation.mutate(teamData.teamId, {
+            onSuccess: () => router.back(),
+            onError: (error: any) =>
+              showAlert("Error", error.message || "Failed to leave team"),
+          });
+        },
+      },
+    ]);
+  };
+
   const handleCancelRegistration = () => {
     showAlert(
       "Cancel Registration",
@@ -222,18 +254,31 @@ const MyEventDetailsScreen: React.FC = () => {
     );
   }
 
-  // Determine computed status
+  const isTeam =
+    eventData?.eventType === "team" ||
+    (eventData?.maxTeamSize && eventData.maxTeamSize > 1) ||
+    !!teamData ||
+    !!registration?.teamId;
+  const minTeamSize = eventData?.minTeamSize ?? (isTeam ? 1 : 0);
+  const teamMemberCount =
+    teamData?.memberIds?.length ??
+    teamData?.members?.length ??
+    teamData?.size ??
+    0;
+  const isUnderMinSize = isTeam && teamMemberCount < minTeamSize;
+
+  // Determine computed status: Priority is Rejected > Pending (team incomplete) > Payment Pending (payment due) > Confirmed
   const rawStatus =
-    eventData?.eventType === "team" && teamData
-      ? isPaymentDue
-        ? "payment_pending"
-        : teamData.status || "pending"
-      : isPaymentDue
+    registration.status === "rejected" || teamData?.status === "rejected"
+      ? "rejected"
+      : isTeam && (isUnderMinSize || !teamData || teamData.status === "pending" || registration.status === "pending")
+      ? "pending"
+      : isPaymentDue || teamData?.status === "payment_pending" || registration.status === "payment_pending"
       ? "payment_pending"
-      : registration.status || "confirmed";
+      : "confirmed";
 
   const getStatusBadge = () => {
-    switch (rawStatus) {
+    switch (rawStatus as string) {
       case "confirmed":
         return {
           icon: <CheckCircle2 size={13} color="#10B981" />,
@@ -246,6 +291,14 @@ const MyEventDetailsScreen: React.FC = () => {
         return {
           icon: <CreditCard size={13} color="#F59E0B" />,
           label: "Payment Due",
+          color: "#F59E0B",
+          bg: isDark ? "rgba(245, 158, 11, 0.12)" : "#FEF3C7",
+          border: "rgba(245, 158, 11, 0.3)",
+        };
+      case "pending":
+        return {
+          icon: <Clock size={13} color="#F59E0B" />,
+          label: isTeam ? "Team Incomplete" : "Pending",
           color: "#F59E0B",
           bg: isDark ? "rgba(245, 158, 11, 0.12)" : "#FEF3C7",
           border: "rgba(245, 158, 11, 0.3)",
@@ -309,7 +362,6 @@ const MyEventDetailsScreen: React.FC = () => {
   const attendeeName = registration.user?.name || userProfile?.displayName || "Participant";
   const qrData = registration.qrToken || `${registration.eventId || eventData?.eventId}_${registration.userId || userId}`;
 
-  const isTeam = eventData?.eventType === "team";
   const categoryName = eventData?.category || registration.eventCategory || "Festival";
 
   // Payment status calculations
@@ -622,8 +674,8 @@ const MyEventDetailsScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* PAYMENT ACTION BANNER (Urgent status placed right at top when pending) */}
-        {isPaymentDue && (
+        {/* TEAM INCOMPLETE BANNER (Priority 1: Users must complete the team first) */}
+        {rawStatus === "pending" && isTeam && (
           <View
             style={{
               backgroundColor: isDark ? "rgba(245, 158, 11, 0.08)" : "#FFFBEB",
@@ -634,7 +686,7 @@ const MyEventDetailsScreen: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
               <View
                 style={{
                   width: 32,
@@ -644,6 +696,92 @@ const MyEventDetailsScreen: React.FC = () => {
                   alignItems: "center",
                   justifyContent: "center",
                   marginRight: 10,
+                  marginTop: 2,
+                }}
+              >
+                <Users size={17} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    marginBottom: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_600SemiBold",
+                      color: "#F59E0B",
+                      fontSize: 14,
+                      flexShrink: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    Team Incomplete
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: isDark ? "rgba(245, 158, 11, 0.2)" : "#FEF3C7",
+                      borderColor: isDark ? "rgba(245, 158, 11, 0.35)" : "#FDE68A",
+                      borderWidth: 1,
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        color: isDark ? "#FBBF24" : "#B45309",
+                        fontSize: 11,
+                      }}
+                    >
+                      {teamMemberCount}/{minTeamSize} Members
+                    </Text>
+                  </View>
+                </View>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_400Regular",
+                    color: textSecondary,
+                    fontSize: 12,
+                    lineHeight: 18,
+                  }}
+                >
+                  Your team needs at least {minTeamSize} members. Share your invite code with teammates to complete the team before payment and confirmation.
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* PAYMENT ACTION BANNER (Shown when team is complete but payment is required) */}
+        {rawStatus === "payment_pending" && (
+          <View
+            style={{
+              backgroundColor: isDark ? "rgba(245, 158, 11, 0.08)" : "#FFFBEB",
+              borderColor: "rgba(245, 158, 11, 0.35)",
+              borderWidth: 1,
+              borderRadius: 18,
+              padding: 18,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 8 }}>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: "rgba(245, 158, 11, 0.2)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 10,
+                  marginTop: 2,
                 }}
               >
                 <AlertTriangle size={17} color="#F59E0B" />
@@ -1021,7 +1159,7 @@ const MyEventDetailsScreen: React.FC = () => {
             eventData={eventData}
             userId={userId}
             isLeader={isLeader}
-            isPaymentDue={isPaymentDue}
+            isPaymentDue={rawStatus === "payment_pending"}
             onPay={() =>
               router.push({
                 pathname: "/events/Payment",
@@ -1190,6 +1328,29 @@ const MyEventDetailsScreen: React.FC = () => {
             <Trash2 size={14} color="#EF4444" style={{ marginRight: 6 }} />
             <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#EF4444", fontSize: 13 }}>
               Delete Team
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {isTeam && teamData && !isLeader && (
+          <TouchableOpacity
+            onPress={handleLeaveTeam}
+            activeOpacity={0.7}
+            style={{
+              borderWidth: 1,
+              borderColor: "rgba(239, 68, 68, 0.3)",
+              backgroundColor: isDark ? "rgba(239, 68, 68, 0.06)" : "#FEF2F2",
+              borderRadius: 14,
+              paddingVertical: 12,
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "row",
+              marginBottom: 16,
+            }}
+          >
+            <LogOut size={14} color="#EF4444" style={{ marginRight: 6 }} />
+            <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#EF4444", fontSize: 13 }}>
+              Leave Team
             </Text>
           </TouchableOpacity>
         )}

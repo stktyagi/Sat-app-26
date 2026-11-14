@@ -474,8 +474,8 @@ const PaymentScreen: React.FC = () => {
     );
   }
 
-  // 2. A host-college team member has nothing to buy here: only the leader pays the team fee
-  if (isTeamMemberNotLeader && isHost) {
+  // 2. A non-leader team member cannot pay the team fee: only the leader pays the team fee (including for late joiners)
+  if (isTeamMemberNotLeader) {
     return (
       <View style={{ flex: 1, backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
         <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>

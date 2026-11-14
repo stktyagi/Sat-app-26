@@ -109,7 +109,13 @@
         }
       ],
       "expo-sharing",
-      "expo-video",
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": false,
+          "supportsPictureInPicture": false
+        }
+      ],
       "react-native-video",
       "expo-font",
       "expo-image",

@@ -164,14 +164,25 @@ func (a *API) GetEvent(c *gin.Context) {
 			}
 		}
 		if err == nil {
-			reg.QRToken = a.QR.Sign(reg.ID)
-			body["myRegistration"] = reg
 			if reg.TeamID != "" {
-				if team, err := a.Store.GetTeam(c.Request.Context(), reg.TeamID); err == nil {
+				if team, err := a.Store.GetTeam(c.Request.Context(), reg.TeamID); err == nil && team != nil {
 					a.hydrateMembers(c.Request.Context(), team)
 					body["myTeam"] = team
+					if reg.Status != models.RegStatusRejected {
+						reg.Status = team.Status
+					}
+				}
+			} else {
+				if reg.Status != models.RegStatusRejected {
+					if event.PaymentRequired && reg.PaymentStatus != models.RegPaymentSuccess {
+						reg.Status = models.RegStatusPaymentPending
+					} else {
+						reg.Status = models.RegStatusConfirmed
+					}
 				}
 			}
+			reg.QRToken = a.QR.Sign(reg.ID)
+			body["myRegistration"] = reg
 		}
 	}
 
@@ -219,17 +230,30 @@ func (a *API) GetMyEvents(c *gin.Context) {
 		reg.QRToken = a.QR.Sign(reg.ID)
 		row := gin.H{"registration": reg}
 
-		if event, err := a.Cache.Get(ctx, reg.EventID); err == nil {
+		var currentEvent *models.Event
+		if event, err := a.Cache.Get(ctx, reg.EventID); err == nil && event != nil {
 			fee := event.FeeFor(user.IsHostCollegeStudent)
 			event.EffectiveFee = &fee
 			row["event"] = event
+			currentEvent = event
 		}
 		// teamId is the team document ID, so this is a direct read rather than
 		// a query.
 		if reg.TeamID != "" {
-			if team, err := a.Store.GetTeam(ctx, reg.TeamID); err == nil {
+			if team, err := a.Store.GetTeam(ctx, reg.TeamID); err == nil && team != nil {
 				a.hydrateMembers(ctx, team)
 				row["team"] = team
+				if reg.Status != models.RegStatusRejected {
+					reg.Status = team.Status
+				}
+			}
+		} else {
+			if reg.Status != models.RegStatusRejected && currentEvent != nil {
+				if currentEvent.PaymentRequired && reg.PaymentStatus != models.RegPaymentSuccess {
+					reg.Status = models.RegStatusPaymentPending
+				} else {
+					reg.Status = models.RegStatusConfirmed
+				}
 			}
 		}
 		items = append(items, row)

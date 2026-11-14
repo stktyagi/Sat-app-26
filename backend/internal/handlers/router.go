@@ -125,6 +125,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	eventsShared.PATCH("/admin/events/:id", api.UpdateEvent)
 	eventsShared.GET("/admin/events/:id/registrations", api.ListEventRegistrations)
 	eventsShared.PATCH("/admin/events/:id/registrations/:target/status", api.AdminUpdateRegistrationStatus)
+	eventsShared.DELETE("/admin/events/:id/registrations/:target", api.AdminDeleteRegistration)
 
 	// Venues: Admin, EB_Events
 	venues := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents))

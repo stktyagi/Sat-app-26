@@ -19,8 +19,8 @@ func TestRegistrationID(t *testing.T) {
 func TestNewRegistrationRecordsTheFeeWithoutCollectingIt(t *testing.T) {
 	reg := models.NewRegistration("u1", "sathack", "sathack_0275AA", "0275AA", 200, nil)
 
-	if reg.Status != models.RegStatusConfirmed {
-		t.Errorf("status = %q, want confirmed while payments are not enforced", reg.Status)
+	if reg.Status != models.RegStatusPending {
+		t.Errorf("status = %q, want pending for unconfirmed team", reg.Status)
 	}
 	if reg.CheckingStatus != models.CheckinPending {
 		t.Errorf("checkingStatus = %q, want pending", reg.CheckingStatus)
@@ -43,6 +43,35 @@ func TestNewRegistrationWithoutATeam(t *testing.T) {
 
 	if reg.TeamID != "" || reg.TeamInviteCode != "" {
 		t.Errorf("an individual registration should carry no team, got %q / %q", reg.TeamID, reg.TeamInviteCode)
+	}
+	if reg.Status != models.RegStatusConfirmed {
+		t.Errorf("status = %q, want confirmed for free individual registration", reg.Status)
+	}
+}
+
+func TestResolveRegistrationStatus(t *testing.T) {
+	// Conflict priority: Pending > Payment pending
+	// 1. Team size incomplete: always pending regardless of payment
+	if got := models.ResolveRegistrationStatus(false, false, ""); got != models.RegStatusPending {
+		t.Errorf("size incomplete & payment incomplete: got %q, want pending", got)
+	}
+	if got := models.ResolveRegistrationStatus(false, true, ""); got != models.RegStatusPending {
+		t.Errorf("size incomplete & payment complete: got %q, want pending", got)
+	}
+
+	// 2. Team size complete, but payment incomplete: payment_pending
+	if got := models.ResolveRegistrationStatus(true, false, ""); got != models.RegStatusPaymentPending {
+		t.Errorf("size complete & payment incomplete: got %q, want payment_pending", got)
+	}
+
+	// 3. Team size complete & payment complete: confirmed
+	if got := models.ResolveRegistrationStatus(true, true, ""); got != models.RegStatusConfirmed {
+		t.Errorf("size complete & payment complete: got %q, want confirmed", got)
+	}
+
+	// 4. Manually rejected registration remains rejected
+	if got := models.ResolveRegistrationStatus(true, true, models.RegStatusRejected); got != models.RegStatusRejected {
+		t.Errorf("rejected status should remain rejected, got %q", got)
 	}
 }
 

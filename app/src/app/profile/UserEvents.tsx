@@ -31,17 +31,42 @@ const UserEventsScreen: React.FC = () => {
 
   const userId = userProfile?.userId;
   const events = rows.map((row: any) => {
+    const isTeam =
+      row.event?.eventType === 'team' ||
+      (row.event?.maxTeamSize && row.event.maxTeamSize > 1) ||
+      !!row.team ||
+      !!row.registration?.teamId;
+    const minTeamSize = row.event?.minTeamSize ?? (isTeam ? 1 : 0);
+    const memberCount =
+      row.team?.memberIds?.length ??
+      row.team?.members?.length ??
+      row.team?.size ??
+      0;
+    const isUnderMinSize = isTeam && memberCount < minTeamSize;
+
+    // Priority: Rejected > Pending (team incomplete) > Payment Pending > Confirmed
     let displayStatus = row.registration?.status || 'confirmed';
-    if (
+    if (row.registration?.status === 'rejected' || row.team?.status === 'rejected') {
+      displayStatus = 'rejected';
+    } else if (
+      isTeam &&
+      (isUnderMinSize || !row.team || row.team?.status === 'pending' || row.registration?.status === 'pending')
+    ) {
+      displayStatus = 'pending';
+    } else if (
       isEventPaymentDue({
         event: row.event,
         team: row.team,
         registration: row.registration,
         userId,
         user: userProfile,
-      })
+      }) ||
+      row.registration?.status === 'payment_pending' ||
+      row.team?.status === 'payment_pending'
     ) {
       displayStatus = 'payment_pending';
+    } else {
+      displayStatus = 'confirmed';
     }
 
     // If event is missing (e.g. deleted or archived from DB), format the eventId into a human-readable title
@@ -297,7 +322,7 @@ const UserEventsScreen: React.FC = () => {
                         </View>
                       </View>
                     </View>
-                    <View style={{ backgroundColor: badge.bg, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+                    <View style={{ backgroundColor: badge.bg, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, flexShrink: 0 }}>
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', color: badge.color, fontSize: 12 }}>
                         {badge.label}
                       </Text>

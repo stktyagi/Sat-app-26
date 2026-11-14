@@ -22,6 +22,7 @@ import {
   MapPin,
   Sparkles,
   ShieldAlert,
+  Receipt,
   FileText,
   Home,
   Utensils,
@@ -319,6 +320,14 @@ const PaymentTransactionModal: React.FC<PaymentTransactionModalProps> = ({
                   icon={<Calendar size={16} color="#10B981" />}
                   label="Completed At"
                   value={formatDate(transaction.completedAt)}
+                />
+              )}
+
+              {transaction.easebuzzTxnId && (
+                <DetailRow
+                  icon={<Receipt size={16} color="#41B8F0" />}
+                  label="Easebuzz Txn ID"
+                  value={transaction.easebuzzTxnId}
                 />
               )}
 

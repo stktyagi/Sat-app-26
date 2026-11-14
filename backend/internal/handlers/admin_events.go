@@ -298,11 +298,26 @@ func (a *API) ListEventRegistrations(c *gin.Context) {
 			row["user"] = u.ResolveHostStatus(a.Cfg.HostEmailDomain)
 		}
 		if r.TeamID != "" {
+			var team *models.Team
 			if t, ok := teamsCache[r.TeamID]; ok {
+				team = t
 				row["team"] = t
-			} else if team, err := a.Store.GetTeam(ctx, r.TeamID); err == nil && team != nil {
-				teamsCache[r.TeamID] = team
-				row["team"] = team
+			} else if t, err := a.Store.GetTeam(ctx, r.TeamID); err == nil && t != nil {
+				a.hydrateMembers(ctx, t)
+				teamsCache[r.TeamID] = t
+				team = t
+				row["team"] = t
+			}
+			if team != nil && r.Status != models.RegStatusRejected {
+				r.Status = team.Status
+			}
+		} else {
+			if r.Status != models.RegStatusRejected {
+				if event.PaymentRequired && r.PaymentStatus != models.RegPaymentSuccess {
+					r.Status = models.RegStatusPaymentPending
+				} else {
+					r.Status = models.RegStatusConfirmed
+				}
 			}
 		}
 		items = append(items, row)
@@ -342,8 +357,14 @@ func (a *API) AdminUpdateRegistrationStatus(c *gin.Context) {
 	}
 
 	status := strings.TrimSpace(body.Status)
-	if status == "" {
-		apierr.Respond(c, apierr.BadRequest("invalid_status", "status cannot be empty"))
+	validStatuses := map[string]bool{
+		models.RegStatusConfirmed:      true,
+		models.RegStatusPending:        true,
+		models.RegStatusPaymentPending: true,
+		models.RegStatusRejected:       true,
+	}
+	if !validStatuses[status] {
+		apierr.Respond(c, apierr.BadRequest("invalid_status", "status must be confirmed, pending, payment_pending, or rejected"))
 		return
 	}
 
@@ -377,6 +398,54 @@ func (a *API) AdminUpdateRegistrationStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "updatedStatus": status})
+}
+
+// AdminDeleteRegistration removes a registration or team registration from an event.
+func (a *API) AdminDeleteRegistration(c *gin.Context) {
+	ctx := c.Request.Context()
+	eventID := c.Param("id")
+	target := c.Param("target")
+
+	event, err := a.Store.GetEvent(ctx, eventID)
+	if err != nil {
+		apierr.Respond(c, apierr.NotFound("event_not_found", "no such event"))
+		return
+	}
+
+	caller := middleware.CurrentUser(c)
+	if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) && !caller.HasRole(models.RoleEBOutreach) {
+		if !caller.HasRole(models.RoleEventPOC) || !isUserEventCoordinator(caller, event) {
+			apierr.Respond(c, apierr.Forbidden("not_event_coordinator", "you are not an assigned coordinator for this event"))
+			return
+		}
+	}
+
+	if strings.HasPrefix(target, "solo-") {
+		userID := strings.TrimPrefix(target, "solo-")
+		regID := models.RegistrationID(eventID, userID)
+		_ = a.Store.DeleteRegistration(ctx, regID)
+	} else if team, err := a.Store.GetTeam(ctx, target); err == nil && team != nil {
+		if err := a.Store.AdminDeleteTeam(ctx, target); err != nil {
+			apierr.Respond(c, apierr.Internal("could not delete team registration"))
+			return
+		}
+	} else {
+		regID := target
+		if !strings.Contains(target, "_") {
+			regID = models.RegistrationID(eventID, target)
+		}
+		if reg, err := a.Store.GetRegistration(ctx, regID); err == nil && reg != nil {
+			if reg.TeamID != "" {
+				_ = a.Store.CleanUserFromTeam(ctx, reg.TeamID, reg.UserID)
+			}
+		}
+		if err := a.Store.DeleteRegistration(ctx, regID); err != nil {
+			apierr.Respond(c, apierr.Internal("could not delete registration"))
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "deleted": target})
 }
 
 // applyEventBody overlays the supplied fields onto an event and reports how

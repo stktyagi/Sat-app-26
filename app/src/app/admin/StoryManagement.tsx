@@ -22,20 +22,34 @@ import {
   Check,
   ChevronDown,
   X,
+  Edit,
+  Video,
+  Play,
 } from "lucide-react-native";
 import {
   adminListStories,
   adminCreateStory,
+  adminUpdateStory,
   adminDeleteStory,
   adminUploadMedia,
   adminListEvents,
   BackendStory,
+  BackendStoryItem,
   AdminEvent,
 } from "@/api/admin";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
 import { useThemeStore } from "@/state/themeStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useContentCacheStore } from "@/state/contentCacheStore";
+
+interface StoryMediaItem {
+  id?: string;
+  uri: string;
+  type: "image" | "video";
+  name?: string;
+  isExisting?: boolean;
+  ref?: string;
+}
 
 export default function StoryManagement() {
   const navigation = useAdminNavigation();
@@ -48,12 +62,22 @@ export default function StoryManagement() {
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Form state
+  // Create Form state
   const [name, setName] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<AdminEvent | null>(null);
   const [order, setOrder] = useState("0");
-  const [selectedImageUris, setSelectedImageUris] = useState<string[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<StoryMediaItem[]>([]);
   const [showEventPicker, setShowEventPicker] = useState(false);
+  const [eventPickerTarget, setEventPickerTarget] = useState<"create" | "edit">("create");
+
+  // Edit Form state
+  const [editingStory, setEditingStory] = useState<BackendStory | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editOrder, setEditOrder] = useState("0");
+  const [editSelectedEvent, setEditSelectedEvent] = useState<AdminEvent | null>(null);
+  const [editMedia, setEditMedia] = useState<StoryMediaItem[]>([]);
+  const [updating, setUpdating] = useState(false);
 
   const bgColor = isDark ? "#131316" : "#E0E0E0";
   const cardBg = isDark ? "#1C1C20" : "#FFFFFF";
@@ -82,26 +106,43 @@ export default function StoryManagement() {
     loadData();
   }, []);
 
-  const pickImages = async () => {
+  const pickMedia = async (target: "create" | "edit") => {
     try {
-      // Android Photo Picker — no READ_MEDIA_IMAGES permission needed
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images", "videos"],
         allowsMultipleSelection: true,
         quality: 0.85,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uris = result.assets.map((a) => a.uri);
-        setSelectedImageUris((prev) => [...prev, ...uris]);
+        const items: StoryMediaItem[] = result.assets.map((a) => {
+          const isVideo =
+            a.type === "video" || /\.(mp4|mov|webm|m4v|3gp)/i.test(a.uri);
+          return {
+            uri: a.uri,
+            type: isVideo ? "video" : "image",
+            name: a.fileName || (isVideo ? "video.mp4" : "image.jpg"),
+            isExisting: false,
+          };
+        });
+
+        if (target === "create") {
+          setSelectedMedia((prev) => [...prev, ...items]);
+        } else {
+          setEditMedia((prev) => [...prev, ...items]);
+        }
       }
     } catch (err: any) {
-      console.error("pickImages error:", err);
-      showAlert("Error", "Failed to select images");
+      console.error("pickMedia error:", err);
+      showAlert("Error", "Failed to select media files");
     }
   };
 
-  const removeSelectedImage = (indexToRemove: number) => {
-    setSelectedImageUris((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  const removeSelectedMedia = (indexToRemove: number) => {
+    setSelectedMedia((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const removeEditMedia = (indexToRemove: number) => {
+    setEditMedia((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleCreateStory = async () => {
@@ -109,38 +150,48 @@ export default function StoryManagement() {
       showAlert("Validation Error", "Please provide a name for the story.");
       return;
     }
-    if (selectedImageUris.length === 0) {
-      showAlert("Validation Error", "Please select at least one image for the story.");
+    if (selectedMedia.length === 0) {
+      showAlert("Validation Error", "Please select at least one image or video for the story.");
       return;
     }
 
     setCreating(true);
     try {
-      // 1. Upload all selected images to ImageKit
       const uploadedUrls: string[] = [];
-      for (const uri of selectedImageUris) {
-        const res = await adminUploadMedia(uri, {
-          folder: "stories",
+      const storyItems: BackendStoryItem[] = [];
+
+      for (const item of selectedMedia) {
+        const isVid = item.type === "video" || /\.(mp4|mov|webm|m4v|3gp)/i.test(item.uri);
+        // Videos go to AWS S3, images go to ImageKit
+        const res = await adminUploadMedia(item.uri, {
+          folder: isVid ? "stories/videos" : "stories",
+          mimeType: isVid ? "video/mp4" : "image/jpeg",
+          fileName: item.name,
         });
+
         uploadedUrls.push(res.url);
+        storyItems.push({
+          id: Math.random().toString(36).substring(2, 14),
+          url: res.url,
+          ref: res.ref,
+          mediaType: isVid ? "video" : "image",
+        });
       }
 
-      // 2. Create story in backend
       await adminCreateStory({
         name: name.trim(),
         eventId: selectedEvent ? selectedEvent.eventId || selectedEvent.id : undefined,
         images: uploadedUrls,
+        items: storyItems,
         order: parseInt(order, 10) || 0,
       });
 
-      // 3. Invalidate user session cache
       useContentCacheStore.getState().invalidateStories();
 
-      // Reset form
       setName("");
       setSelectedEvent(null);
       setOrder("0");
-      setSelectedImageUris([]);
+      setSelectedMedia([]);
 
       showAlert("Success", "Story created and published successfully!");
       await loadData();
@@ -149,6 +200,104 @@ export default function StoryManagement() {
       showAlert("Error", error.message || "Failed to create story");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleOpenEdit = (story: BackendStory) => {
+    setEditingStory(story);
+    setEditName(story.name || "");
+    setEditOrder(story.order !== undefined ? String(story.order) : "0");
+
+    const matchedEvent = story.eventId
+      ? events.find((e) => (e.eventId || e.id) === story.eventId) || null
+      : null;
+    setEditSelectedEvent(matchedEvent);
+
+    const initialMedia: StoryMediaItem[] =
+      story.items && story.items.length > 0
+        ? story.items.map((it) => ({
+            id: it.id,
+            uri: it.url,
+            type:
+              it.mediaType === "video" || /\.(mp4|mov|webm|m4v|3gp)/i.test(it.url)
+                ? "video"
+                : "image",
+            isExisting: true,
+            ref: it.ref,
+          }))
+        : (story.images || []).map((img, idx) => ({
+            id: `${story.id}-${idx}`,
+            uri: img,
+            type: /\.(mp4|mov|webm|m4v|3gp)/i.test(img) ? "video" : "image",
+            isExisting: true,
+          }));
+
+    setEditMedia(initialMedia);
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateStory = async () => {
+    if (!editingStory) return;
+    if (!editName.trim()) {
+      showAlert("Validation Error", "Please provide a name for the story.");
+      return;
+    }
+    if (editMedia.length === 0) {
+      showAlert("Validation Error", "Story must have at least one image or video slide.");
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const finalItems: BackendStoryItem[] = [];
+      const finalUrls: string[] = [];
+
+      for (const item of editMedia) {
+        if (item.isExisting) {
+          finalItems.push({
+            id: item.id || Math.random().toString(36).substring(2, 14),
+            url: item.uri,
+            ref: item.ref,
+            mediaType: item.type,
+          });
+          finalUrls.push(item.uri);
+        } else {
+          const isVid = item.type === "video" || /\.(mp4|mov|webm|m4v|3gp)/i.test(item.uri);
+          // Upload videos to AWS S3, images to ImageKit
+          const res = await adminUploadMedia(item.uri, {
+            folder: isVid ? "stories/videos" : "stories",
+            mimeType: isVid ? "video/mp4" : "image/jpeg",
+            fileName: item.name,
+          });
+
+          finalItems.push({
+            id: Math.random().toString(36).substring(2, 14),
+            url: res.url,
+            ref: res.ref,
+            mediaType: isVid ? "video" : "image",
+          });
+          finalUrls.push(res.url);
+        }
+      }
+
+      await adminUpdateStory(editingStory.id, {
+        name: editName.trim(),
+        eventId: editSelectedEvent ? editSelectedEvent.eventId || editSelectedEvent.id : undefined,
+        images: finalUrls,
+        items: finalItems,
+        order: parseInt(editOrder, 10) || 0,
+      });
+
+      useContentCacheStore.getState().invalidateStories();
+      setEditModalVisible(false);
+      setEditingStory(null);
+      showAlert("Success", "Story updated successfully!");
+      await loadData();
+    } catch (error: any) {
+      console.error("handleUpdateStory error:", error);
+      showAlert("Error", error.message || "Failed to update story");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -226,7 +375,7 @@ export default function StoryManagement() {
               marginTop: 2,
             }}
           >
-            Create and organize home screen event stories
+            Create, edit, and organize home screen photo and video stories
           </Text>
         </View>
       </View>
@@ -279,7 +428,10 @@ export default function StoryManagement() {
               Link to Event (Optional)
             </Text>
             <TouchableOpacity
-              onPress={() => setShowEventPicker(true)}
+              onPress={() => {
+                setEventPickerTarget("create");
+                setShowEventPicker(true);
+              }}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -321,12 +473,14 @@ export default function StoryManagement() {
             />
           </View>
 
-          {/* Image Upload Header & Picker */}
+          {/* Media Upload Header & Picker */}
           <View
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
+              flexWrap: "wrap",
+              gap: 8,
               marginBottom: 10,
             }}
           >
@@ -337,10 +491,10 @@ export default function StoryManagement() {
                 fontSize: 14,
               }}
             >
-              Story Images ({selectedImageUris.length}) *
+              Story Media ({selectedMedia.length}) *
             </Text>
             <TouchableOpacity
-              onPress={pickImages}
+              onPress={() => pickMedia("create")}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -360,15 +514,15 @@ export default function StoryManagement() {
                   marginLeft: 6,
                 }}
               >
-                Add Images
+                Add Media
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Image Previews Grid */}
-          {selectedImageUris.length === 0 ? (
+          {/* Media Previews Grid */}
+          {selectedMedia.length === 0 ? (
             <TouchableOpacity
-              onPress={pickImages}
+              onPress={() => pickMedia("create")}
               style={{
                 borderWidth: 2,
                 borderStyle: "dashed",
@@ -391,7 +545,7 @@ export default function StoryManagement() {
                   marginTop: 8,
                 }}
               >
-                Tap to pick story slides / photos
+                Tap to pick story slides (Images & Videos)
               </Text>
               <Text
                 style={{
@@ -401,7 +555,7 @@ export default function StoryManagement() {
                   marginTop: 2,
                 }}
               >
-                You can select multiple photos at once
+                Images go to ImageKit • Videos go to AWS S3
               </Text>
             </TouchableOpacity>
           ) : (
@@ -410,22 +564,47 @@ export default function StoryManagement() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 10, paddingVertical: 6, marginBottom: 20 }}
             >
-              {selectedImageUris.map((uri, idx) => (
+              {selectedMedia.map((item, idx) => (
                 <View
-                  key={`${uri}-${idx}`}
+                  key={`${item.uri}-${idx}`}
                   style={{
                     position: "relative",
-                    width: 80,
-                    height: 120,
+                    width: 86,
+                    height: 124,
                     borderRadius: 12,
                     overflow: "hidden",
                     borderWidth: 1,
                     borderColor: cardBorder,
+                    backgroundColor: isDark ? "#2A2A32" : "#E2E8F0",
                   }}
                 >
-                  <Image source={{ uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                  <Image source={{ uri: item.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+
+                  {/* Video Badge */}
+                  {item.type === "video" && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        bottom: 4,
+                        left: 4,
+                        backgroundColor: "rgba(0, 0, 0, 0.75)",
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      <Video size={10} color="#FFBA00" />
+                      <Text style={{ color: "#FFFFFF", fontSize: 9, fontFamily: "Poppins_600SemiBold" }}>
+                        VIDEO
+                      </Text>
+                    </View>
+                  )}
+
                   <TouchableOpacity
-                    onPress={() => removeSelectedImage(idx)}
+                    onPress={() => removeSelectedMedia(idx)}
                     style={{
                       position: "absolute",
                       top: 4,
@@ -552,6 +731,16 @@ export default function StoryManagement() {
                 : [];
             const coverImage = rawImages.length > 0 ? rawImages[0] : null;
 
+            const videoCount = (item.items || []).filter(
+              (i) => i.mediaType === "video" || /\.(mp4|mov|webm|m4v|3gp)/i.test(i.url)
+            ).length;
+            const totalSlides = rawImages.length;
+            const imageCount = Math.max(0, totalSlides - videoCount);
+
+            const firstIsVideo =
+              (item.items?.[0]?.mediaType === "video") ||
+              (coverImage && /\.(mp4|mov|webm|m4v|3gp)/i.test(coverImage));
+
             return (
               <View
                 key={item.id}
@@ -569,13 +758,14 @@ export default function StoryManagement() {
                 <View
                   style={{
                     width: 60,
-                    height: 80,
+                    height: 84,
                     borderRadius: 10,
                     backgroundColor: isDark ? "#282830" : "#E2E8F0",
                     alignItems: "center",
                     justifyContent: "center",
                     marginRight: 14,
                     overflow: "hidden",
+                    position: "relative",
                   }}
                 >
                   {coverImage ? (
@@ -586,6 +776,22 @@ export default function StoryManagement() {
                     />
                   ) : (
                     <Layers size={24} color="#B01866" />
+                  )}
+
+                  {firstIsVideo && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        bottom: 3,
+                        left: 3,
+                        backgroundColor: "rgba(0,0,0,0.7)",
+                        paddingHorizontal: 4,
+                        paddingVertical: 1,
+                        borderRadius: 4,
+                      }}
+                    >
+                      <Play size={8} color="#FFBA00" />
+                    </View>
                   )}
                 </View>
 
@@ -605,8 +811,9 @@ export default function StoryManagement() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 12,
-                      marginTop: 6,
+                      gap: 8,
+                      marginTop: 4,
+                      flexWrap: "wrap",
                     }}
                   >
                     <Text
@@ -616,8 +823,33 @@ export default function StoryManagement() {
                         fontSize: 12,
                       }}
                     >
-                      {rawImages.length} {rawImages.length === 1 ? "Slide" : "Slides"}
+                      {totalSlides} {totalSlides === 1 ? "Slide" : "Slides"}
                     </Text>
+
+                    {videoCount > 0 && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: "rgba(255, 186, 0, 0.15)",
+                          paddingHorizontal: 6,
+                          paddingVertical: 1,
+                          borderRadius: 6,
+                          gap: 3,
+                        }}
+                      >
+                        <Video size={10} color="#D97706" />
+                        <Text
+                          style={{
+                            fontFamily: "Poppins_500Medium",
+                            color: isDark ? "#FBBF24" : "#B45309",
+                            fontSize: 11,
+                          }}
+                        >
+                          {videoCount} {videoCount === 1 ? "Video" : "Videos"}
+                        </Text>
+                      </View>
+                    )}
 
                     {item.order !== undefined ? (
                       <Text
@@ -650,26 +882,330 @@ export default function StoryManagement() {
                   ) : null}
                 </View>
 
-                <TouchableOpacity
-                  onPress={() => handleDeleteStory(item)}
-                  disabled={deletingId === item.id}
-                  style={{
-                    padding: 10,
-                    borderRadius: 10,
-                    backgroundColor: "rgba(239, 68, 68, 0.1)",
-                  }}
-                >
-                  {deletingId === item.id ? (
-                    <ActivityIndicator size="small" color="#EF4444" />
-                  ) : (
-                    <Trash2 size={18} color="#EF4444" />
-                  )}
-                </TouchableOpacity>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  {/* Edit Button */}
+                  <TouchableOpacity
+                    onPress={() => handleOpenEdit(item)}
+                    style={{
+                      padding: 10,
+                      borderRadius: 10,
+                      backgroundColor: isDark
+                        ? "rgba(255, 255, 255, 0.08)"
+                        : "rgba(0, 0, 0, 0.06)",
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Edit size={17} color={textPrimary} />
+                  </TouchableOpacity>
+
+                  {/* Delete Button */}
+                  <TouchableOpacity
+                    onPress={() => handleDeleteStory(item)}
+                    disabled={deletingId === item.id}
+                    style={{
+                      padding: 10,
+                      borderRadius: 10,
+                      backgroundColor: "rgba(239, 68, 68, 0.1)",
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {deletingId === item.id ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <Trash2 size={17} color="#EF4444" />
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             );
           })
         )}
       </ScrollView>
+
+      {/* Edit Story Modal */}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!updating) setEditModalVisible(false);
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: cardBg,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: "90%",
+              padding: 20,
+              paddingBottom: Math.max(insets.bottom, 20),
+            }}
+          >
+            {/* Modal Header */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Poppins_600SemiBold",
+                  color: textPrimary,
+                  fontSize: 18,
+                }}
+              >
+                Edit Story
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!updating) setEditModalVisible(false);
+                }}
+                disabled={updating}
+              >
+                <X size={22} color={textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Story Name */}
+              <Input
+                label="Story Name *"
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Story Name"
+                style={{ marginBottom: 14 }}
+              />
+
+              {/* Event Picker Button */}
+              <View style={{ marginBottom: 14 }}>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textPrimary,
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
+                  Link to Event (Optional)
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setEventPickerTarget("edit");
+                    setShowEventPicker(true);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: 14,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: cardBorder,
+                    backgroundColor: cardBg,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                    <Calendar size={18} color="#FFBA00" />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_400Regular",
+                        color: editSelectedEvent ? textPrimary : textSecondary,
+                        fontSize: 14,
+                        marginLeft: 10,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {editSelectedEvent ? editSelectedEvent.title : "None (select event)"}
+                    </Text>
+                  </View>
+                  <ChevronDown size={18} color={textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Order */}
+              <View style={{ marginBottom: 16 }}>
+                <Input
+                  label="Sort Order"
+                  value={editOrder}
+                  onChangeText={setEditOrder}
+                  keyboardType="numeric"
+                  placeholder="0"
+                />
+              </View>
+
+              {/* Media Slides Header & Picker */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: textPrimary,
+                    fontSize: 14,
+                  }}
+                >
+                  Story Slides ({editMedia.length}) *
+                </Text>
+                <TouchableOpacity
+                  onPress={() => pickMedia("edit")}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 6,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    backgroundColor: "rgba(176, 24, 102, 0.14)",
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <ImagePlus size={16} color="#B01866" />
+                  <Text
+                    style={{
+                      fontFamily: "Poppins_500Medium",
+                      color: "#B01866",
+                      fontSize: 12,
+                      marginLeft: 6,
+                    }}
+                  >
+                    Add Media
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Edit Media Previews */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 10, paddingVertical: 6, marginBottom: 20 }}
+              >
+                {editMedia.map((item, idx) => (
+                  <View
+                    key={`${item.uri}-${idx}`}
+                    style={{
+                      position: "relative",
+                      width: 86,
+                      height: 124,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      borderWidth: 1,
+                      borderColor: cardBorder,
+                      backgroundColor: isDark ? "#2A2A32" : "#E2E8F0",
+                    }}
+                  >
+                    <Image source={{ uri: item.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+
+                    {/* Video Badge */}
+                    {item.type === "video" && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          bottom: 4,
+                          left: 4,
+                          backgroundColor: "rgba(0, 0, 0, 0.75)",
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 6,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 3,
+                        }}
+                      >
+                        <Video size={10} color="#FFBA00" />
+                        <Text style={{ color: "#FFFFFF", fontSize: 9, fontFamily: "Poppins_600SemiBold" }}>
+                          VIDEO
+                        </Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity
+                      onPress={() => removeEditMedia(idx)}
+                      style={{
+                        position: "absolute",
+                        top: 4,
+                        right: 4,
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: "rgba(0, 0, 0, 0.65)",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <X size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+
+              {/* Save Changes Button */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#B01866",
+                  opacity: updating ? 0.7 : 1,
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 10,
+                  marginBottom: 10,
+                }}
+                disabled={updating}
+                onPress={handleUpdateStory}
+                activeOpacity={0.8}
+              >
+                {updating ? (
+                  <>
+                    <ActivityIndicator color="#FFFFFF" />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        color: "#FFFFFF",
+                        fontSize: 15,
+                        marginLeft: 8,
+                      }}
+                    >
+                      Saving Changes...
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={18} color="#FFFFFF" />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        color: "#FFFFFF",
+                        fontSize: 15,
+                        marginLeft: 8,
+                      }}
+                    >
+                      Save Changes
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Event Selection Modal */}
       <Modal
@@ -726,16 +1262,21 @@ export default function StoryManagement() {
 
             <TouchableOpacity
               onPress={() => {
-                setSelectedEvent(null);
+                if (eventPickerTarget === "create") {
+                  setSelectedEvent(null);
+                } else {
+                  setEditSelectedEvent(null);
+                }
                 setShowEventPicker(false);
               }}
               style={{
                 paddingVertical: 12,
                 paddingHorizontal: 16,
                 borderRadius: 12,
-                backgroundColor: !selectedEvent
-                  ? "rgba(176, 24, 102, 0.15)"
-                  : "transparent",
+                backgroundColor:
+                  (eventPickerTarget === "create" ? !selectedEvent : !editSelectedEvent)
+                    ? "rgba(176, 24, 102, 0.15)"
+                    : "transparent",
                 marginBottom: 8,
                 flexDirection: "row",
                 alignItems: "center",
@@ -745,26 +1286,36 @@ export default function StoryManagement() {
               <Text
                 style={{
                   fontFamily: "Poppins_500Medium",
-                  color: !selectedEvent ? "#B01866" : textPrimary,
+                  color: (eventPickerTarget === "create" ? !selectedEvent : !editSelectedEvent)
+                    ? "#B01866"
+                    : textPrimary,
                   fontSize: 14,
                 }}
               >
                 None
               </Text>
-              {!selectedEvent && <Check size={18} color="#B01866" />}
+              {(eventPickerTarget === "create" ? !selectedEvent : !editSelectedEvent) && (
+                <Check size={18} color="#B01866" />
+              )}
             </TouchableOpacity>
 
             <FlatList
               data={events}
               keyExtractor={(item) => item.eventId || item.id}
               renderItem={({ item }) => {
+                const currentSelection =
+                  eventPickerTarget === "create" ? selectedEvent : editSelectedEvent;
                 const isSelected =
-                  selectedEvent &&
-                  (selectedEvent.eventId || selectedEvent.id) === (item.eventId || item.id);
+                  currentSelection &&
+                  (currentSelection.eventId || currentSelection.id) === (item.eventId || item.id);
                 return (
                   <TouchableOpacity
                     onPress={() => {
-                      setSelectedEvent(item);
+                      if (eventPickerTarget === "create") {
+                        setSelectedEvent(item);
+                      } else {
+                        setEditSelectedEvent(item);
+                      }
                       setShowEventPicker(false);
                     }}
                     style={{

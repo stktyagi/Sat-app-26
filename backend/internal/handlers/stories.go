@@ -16,10 +16,11 @@ import (
 )
 
 type storyBody struct {
-	Name    *string   `json:"name"    form:"name"`
-	EventID *string   `json:"eventId" form:"eventId"`
-	Images  *[]string `json:"images"`
-	Order   *int      `json:"order"   form:"order"`
+	Name    *string             `json:"name"    form:"name"`
+	EventID *string             `json:"eventId" form:"eventId"`
+	Images  *[]string           `json:"images"`
+	Items   *[]models.StoryItem `json:"items"`
+	Order   *int                `json:"order"   form:"order"`
 }
 
 // ListStories returns all event stories for users.
@@ -64,8 +65,8 @@ func (a *API) AdminGetStory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"story": st})
 }
 
-// CreateStory handles creating a story. Supports multipart images upload
-// or JSON with images array.
+// CreateStory handles creating a story. Supports multipart media upload
+// or JSON with images/items array.
 func (a *API) CreateStory(c *gin.Context) {
 	var body storyBody
 
@@ -88,7 +89,7 @@ func (a *API) CreateStory(c *gin.Context) {
 	saved := false
 	defer func() { a.settleMedia(saved, nil, storyRefs(story)) }()
 
-	// If images were uploaded in multipart form, upload each to ImageKit
+	// If media files were uploaded in multipart form, upload videos to S3 and images to ImageKit
 	if isMultipart {
 		if err := a.handleStoryFileUploads(c, story); err != nil {
 			apierr.Respond(c, err)
@@ -144,12 +145,12 @@ func (a *API) UpdateStory(c *gin.Context) {
 	n := applyStoryBody(story, &body)
 
 	if isMultipart {
-		beforeCount := len(story.Images)
+		beforeCount := len(story.Items)
 		if err := a.handleStoryFileUploads(c, story); err != nil {
 			apierr.Respond(c, err)
 			return
 		}
-		if len(story.Images) > beforeCount {
+		if len(story.Items) > beforeCount {
 			n++
 		}
 	}
@@ -206,20 +207,32 @@ func (a *API) handleStoryFileUploads(c *gin.Context, story *models.Story) *apier
 
 	fileHeaders := form.File["images"]
 	if len(fileHeaders) == 0 {
+		fileHeaders = form.File["videos"]
+	}
+	if len(fileHeaders) == 0 {
 		fileHeaders = form.File["files"]
+	}
+	if len(fileHeaders) == 0 {
+		fileHeaders = form.File["media"]
 	}
 	if len(fileHeaders) == 0 {
 		if fh, err := c.FormFile("image"); err == nil && fh != nil {
 			fileHeaders = append(fileHeaders, fh)
 		}
 	}
+	if len(fileHeaders) == 0 {
+		if fh, err := c.FormFile("video"); err == nil && fh != nil {
+			fileHeaders = append(fileHeaders, fh)
+		}
+	}
+	if len(fileHeaders) == 0 {
+		if fh, err := c.FormFile("file"); err == nil && fh != nil {
+			fileHeaders = append(fileHeaders, fh)
+		}
+	}
 
 	if len(fileHeaders) == 0 {
 		return nil
-	}
-
-	if a.Storage == nil {
-		return apierr.BadRequest("storage_not_configured", "ImageKit storage is not configured")
 	}
 
 	now := time.Now().UTC()
@@ -230,10 +243,37 @@ func (a *API) handleStoryFileUploads(c *gin.Context, story *models.Story) *apier
 		}
 		defer f.Close()
 
-		ref, url, err := a.Storage.UploadFile(c.Request.Context(), "stories", fh.Filename, f)
-		if err != nil {
-			log.Printf("ImageKit story image upload error: %v", err)
-			return apierr.Internal("failed to upload story image to ImageKit")
+		isVideo := isVideoFile(fh.Filename, fh.Header.Get("Content-Type"))
+		var (
+			ref       string
+			url       string
+			mediaType string
+		)
+
+		if isVideo {
+			if a.S3 == nil || !a.S3.IsConfigured() {
+				return apierr.BadRequest("storage_not_configured", "AWS S3 storage is not configured")
+			}
+			res, err := a.S3.Upload(c.Request.Context(), "stories/videos", fh.Filename, f)
+			if err != nil {
+				log.Printf("AWS S3 story video upload error: %v", err)
+				return apierr.Internal("failed to upload story video to AWS S3: " + err.Error())
+			}
+			ref = res.Key
+			url = res.URL
+			mediaType = "video"
+		} else {
+			if a.Storage == nil {
+				return apierr.BadRequest("storage_not_configured", "ImageKit storage is not configured")
+			}
+			ikRef, ikURL, err := a.Storage.UploadFile(c.Request.Context(), "stories", fh.Filename, f)
+			if err != nil {
+				log.Printf("ImageKit story image upload error: %v", err)
+				return apierr.Internal("failed to upload story image to ImageKit")
+			}
+			ref = ikRef
+			url = ikURL
+			mediaType = "image"
 		}
 
 		story.Images = append(story.Images, url)
@@ -241,7 +281,7 @@ func (a *API) handleStoryFileUploads(c *gin.Context, story *models.Story) *apier
 			ID:         random.Code(12),
 			URL:        url,
 			Ref:        ref,
-			MediaType:  "image",
+			MediaType:  mediaType,
 			UploadedAt: now,
 		})
 	}
@@ -249,7 +289,7 @@ func (a *API) handleStoryFileUploads(c *gin.Context, story *models.Story) *apier
 	return nil
 }
 
-// storyRefs lists the ImageKit files a story owns.
+// storyRefs lists the media references (ImageKit and AWS S3) a story owns.
 func storyRefs(st *models.Story) []string {
 	refs := make([]string, 0, len(st.Items))
 	for _, it := range st.Items {
@@ -280,10 +320,31 @@ func applyStoryBody(st *models.Story, body *storyBody) int {
 		st.Order = *body.Order
 		n++
 	}
-	if body.Images != nil {
+	if body.Items != nil {
+		st.Items = *body.Items
+		now := time.Now().UTC()
+		st.Images = make([]string, len(st.Items))
+		for i := range st.Items {
+			if st.Items[i].ID == "" {
+				st.Items[i].ID = random.Code(12)
+			}
+			if st.Items[i].UploadedAt.IsZero() {
+				st.Items[i].UploadedAt = now
+			}
+			if st.Items[i].MediaType == "" {
+				if isVideoFile(st.Items[i].URL, "") {
+					st.Items[i].MediaType = "video"
+				} else {
+					st.Items[i].MediaType = "image"
+				}
+			}
+			st.Images[i] = st.Items[i].URL
+		}
+		n++
+	} else if body.Images != nil {
 		st.Images = *body.Images
-		// Keep the existing item for any URL that survives, so its ImageKit
-		// ref is not lost and the file stays deletable.
+		// Keep the existing item for any URL that survives, so its ref
+		// is not lost and the file stays deletable.
 		kept := make(map[string]models.StoryItem, len(st.Items))
 		for _, it := range st.Items {
 			kept[it.URL] = it
@@ -295,10 +356,14 @@ func applyStoryBody(st *models.Story, body *storyBody) int {
 				st.Items[i] = it
 				continue
 			}
+			mediaType := "image"
+			if isVideoFile(img, "") {
+				mediaType = "video"
+			}
 			st.Items[i] = models.StoryItem{
 				ID:         random.Code(12),
 				URL:        img,
-				MediaType:  "image",
+				MediaType:  mediaType,
 				UploadedAt: now,
 			}
 		}
@@ -311,8 +376,9 @@ func validateStory(st *models.Story) *apierr.Error {
 	if st.Name == "" {
 		return apierr.BadRequest("missing_fields", "story name is required")
 	}
-	if len(st.Images) == 0 {
-		return apierr.BadRequest("missing_fields", "at least one image is required for the story")
+	if len(st.Images) == 0 && len(st.Items) == 0 {
+		return apierr.BadRequest("missing_fields", "at least one image or video is required for the story")
 	}
+	st.Normalise()
 	return nil
 }

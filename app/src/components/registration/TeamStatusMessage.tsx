@@ -10,6 +10,44 @@ interface TeamStatusMessageProps {
 const TeamStatusMessage: React.FC<TeamStatusMessageProps> = ({ status }) => {
   const { isDark } = useThemeStore();
 
+  if (status === 'pending') {
+    return (
+      <View
+        style={{
+          marginTop: 12,
+          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)',
+          borderColor: 'rgba(245, 158, 11, 0.35)',
+          borderWidth: 1,
+          borderRadius: 14,
+          padding: 12,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <Clock size={16} color="#F59E0B" style={{ marginRight: 6 }} />
+          <Text
+            style={{
+              fontFamily: 'Poppins_600SemiBold',
+              fontSize: 13,
+              color: '#F59E0B',
+            }}
+          >
+            Team Incomplete
+          </Text>
+        </View>
+        <Text
+          style={{
+            fontFamily: 'Poppins_400Regular',
+            fontSize: 12,
+            color: isDark ? '#FDE68A' : '#92400E',
+            lineHeight: 18,
+          }}
+        >
+          Your team does not have the minimum required members yet. Please complete your team before proceeding to payment and confirmation.
+        </Text>
+      </View>
+    );
+  }
+
   if (status === 'awaited') {
     return (
       <View

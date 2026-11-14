@@ -358,18 +358,19 @@ const ProfileDetailsScreen = () => {
         </View>
 
         {/* Identity & Verification Documents Card */}
-        <View
-          style={{
-            backgroundColor: cardBg,
-            borderWidth: 1,
-            borderColor: isOutside && !isVerified
-              ? (isDark ? "rgba(245, 158, 11, 0.4)" : "#FCD34D")
-              : cardBorder,
-            borderRadius: 24,
-            padding: 20,
-            marginBottom: 20,
-          }}
-        >
+        {isOutside && (
+          <View
+            style={{
+              backgroundColor: cardBg,
+              borderWidth: 1,
+              borderColor: isOutside && !isVerified
+                ? (isDark ? "rgba(245, 158, 11, 0.4)" : "#FCD34D")
+                : cardBorder,
+              borderRadius: 24,
+              padding: 20,
+              marginBottom: 20,
+            }}
+          >
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons name="id-card-outline" size={22} color="#41B8F0" />
@@ -637,6 +638,7 @@ const ProfileDetailsScreen = () => {
             )}
           </View>
         </View>
+        )}
 
         {/* Account Status Card */}
         <View

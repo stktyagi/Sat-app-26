@@ -123,6 +123,26 @@ const EventDetailsScreen: React.FC = () => {
   const isPaid = !isPaymentDue;
   const isIdentityComplete = isIdentityVerificationComplete(userProfile);
 
+  const minTeamSize = event?.minTeamSize ?? (isTeamEvent ? 1 : 0);
+  const teamMemberCount =
+    myTeam?.memberIds?.length ??
+    myTeam?.members?.length ??
+    myTeam?.size ??
+    (existingRegistration?.teamId ? 1 : 0);
+  const isUnderMinSize = isTeamEvent && teamMemberCount < minTeamSize;
+
+  // Strict status priority:
+  // Rejected > Pending (team incomplete) > Payment Pending (fee due) > Confirmed
+  const computedStatus: 'pending' | 'payment_pending' | 'confirmed' | 'rejected' | null = existingRegistration
+    ? (existingRegistration.status === 'rejected' || myTeam?.status === 'rejected'
+        ? 'rejected'
+        : isTeamEvent && (isUnderMinSize || !myTeam || myTeam.status === 'pending' || existingRegistration.status === 'pending')
+        ? 'pending'
+        : isPaymentDue || myTeam?.status === 'payment_pending' || existingRegistration.status === 'payment_pending'
+        ? 'payment_pending'
+        : 'confirmed')
+    : null;
+
   useFocusEffect(
     React.useCallback(() => {
       checkExistingRegistration();
@@ -139,10 +159,20 @@ const EventDetailsScreen: React.FC = () => {
     }
 
     if (existingRegistration) {
-      if (isPaymentDue && (!isTeamEvent || isLeader)) {
-        const params: Record<string, string> = { eventId: event.eventId };
-        if (existingRegistration.teamId) params.teamId = existingRegistration.teamId;
-        router.push({ pathname: '/events/Payment', params });
+      // Priority 1: Team must be complete first before payment
+      if (computedStatus === 'pending') {
+        router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
+        return;
+      }
+      // Priority 2: When team is complete and payment is pending, leader or solo goes to payment
+      if (computedStatus === 'payment_pending') {
+        if (!isTeamEvent || isLeader) {
+          const params: Record<string, string> = { eventId: event.eventId };
+          if (existingRegistration.teamId) params.teamId = existingRegistration.teamId;
+          router.push({ pathname: '/events/Payment', params });
+          return;
+        }
+        router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
         return;
       }
       router.push({ pathname: '/events/MyEventDetails', params: { eventId: event.eventId } });
@@ -263,8 +293,14 @@ const EventDetailsScreen: React.FC = () => {
       return 'Registration Disabled (Private)';
     }
     if (existingRegistration) {
-      if (isPaymentDue) {
-        return isTeamEvent && !isLeader ? 'View Team (Payment Pending)' : 'Complete Payment';
+      if (computedStatus === 'rejected') {
+        return 'Registration Rejected';
+      }
+      if (computedStatus === 'pending') {
+        return isLeader ? 'Complete Team' : 'View Team';
+      }
+      if (computedStatus === 'payment_pending') {
+        return isTeamEvent && !isLeader ? 'View Team' : 'Complete Payment';
       }
       return 'View Registration';
     }
@@ -440,24 +476,56 @@ const EventDetailsScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Payment Pending Badge */}
-          {existingRegistration && isPaymentDue && (
+          {/* Registration Status Badge on Cover Image */}
+          {existingRegistration && computedStatus && (
             <View
               style={{
                 position: 'absolute',
-                bottom: 28,
+                bottom: 30,
                 left: 14,
-                backgroundColor: '#F59E0B',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
+                maxWidth: '80%',
+                backgroundColor:
+                  computedStatus === 'confirmed'
+                    ? '#10B981'
+                    : computedStatus === 'rejected'
+                    ? '#EF4444'
+                    : '#F59E0B',
+                paddingHorizontal: 10,
+                paddingVertical: 5,
                 borderRadius: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
+                zIndex: 5,
               }}
             >
-              <Ionicons name="time" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
-              <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 12 }}>
-                Payment Pending
+              <Ionicons
+                name={
+                  computedStatus === 'confirmed'
+                    ? 'checkmark-circle'
+                    : computedStatus === 'rejected'
+                    ? 'close-circle'
+                    : computedStatus === 'pending'
+                    ? 'people'
+                    : 'card'
+                }
+                size={13}
+                color="#FFFFFF"
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 11 }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {computedStatus === 'confirmed'
+                  ? 'Confirmed'
+                  : computedStatus === 'rejected'
+                  ? 'Rejected'
+                  : computedStatus === 'pending'
+                  ? isTeamEvent
+                    ? `Team Incomplete (${teamMemberCount}/${minTeamSize})`
+                    : 'Pending'
+                  : 'Payment Pending'}
               </Text>
             </View>
           )}
@@ -690,26 +758,131 @@ const EventDetailsScreen: React.FC = () => {
         ) : null}
 
         {/* Confirmed Entry Pass / Ticket Preview for Registered User */}
-        {existingRegistration &&
-          existingRegistration.status !== 'rejected' &&
-          !isPaymentDue && (
-            <View style={{ marginBottom: 20 }}>
-              <View
+        {existingRegistration && computedStatus === 'confirmed' && (
+          <View style={{ marginBottom: 20 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 10,
+              }}
+            >
+              <Text
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 10,
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 15,
+                  color: isDark ? '#FFFFFF' : '#000000',
                 }}
+              >
+                Your Entry Pass
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: '/events/MyEventDetails',
+                    params: { eventId: event.eventId },
+                  })
+                }
+                style={{ flexDirection: 'row', alignItems: 'center' }}
               >
                 <Text
                   style={{
-                    fontFamily: 'Poppins_600SemiBold',
-                    fontSize: 15,
-                    color: isDark ? '#FFFFFF' : '#000000',
+                    fontFamily: 'Poppins_500Medium',
+                    fontSize: 12,
+                    color: accentColor,
+                    marginRight: 2,
                   }}
                 >
-                  Your Entry Pass
+                  Manage Registration
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={accentColor} />
+              </TouchableOpacity>
+            </View>
+            <EventTicketCard
+              registration={existingRegistration}
+              eventData={currentEvent || event}
+            />
+          </View>
+        )}
+
+        {/* TEAM INCOMPLETE BANNER (Priority 1: Complete team before payment) */}
+        {existingRegistration && computedStatus === 'pending' && (
+          <View
+            style={{
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : '#FFFBEB',
+              borderColor: 'rgba(245, 158, 11, 0.35)',
+              borderWidth: 1,
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: 20,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="people" size={20} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                    marginBottom: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: 'Poppins_600SemiBold',
+                      color: '#F59E0B',
+                      fontSize: 14,
+                      flexShrink: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    Team Incomplete
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+                      borderColor: isDark ? 'rgba(245, 158, 11, 0.35)' : '#FDE68A',
+                      borderWidth: 1,
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Poppins_600SemiBold',
+                        color: isDark ? '#FBBF24' : '#B45309',
+                        fontSize: 11,
+                      }}
+                    >
+                      {teamMemberCount}/{minTeamSize} Members
+                    </Text>
+                  </View>
+                </View>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_400Regular',
+                    color: isDark ? '#A1A1AA' : '#6B7280',
+                    fontSize: 12,
+                    marginTop: 4,
+                  }}
+                >
+                  Your team needs at least {minTeamSize} members. Share your invite code with teammates to complete the team before payment and confirmation.
                 </Text>
                 <TouchableOpacity
                   onPress={() =>
@@ -718,27 +891,147 @@ const EventDetailsScreen: React.FC = () => {
                       params: { eventId: event.eventId },
                     })
                   }
-                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                  style={{
+                    marginTop: 10,
+                    alignSelf: 'flex-start',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 8,
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FDE68A',
+                  }}
                 >
                   <Text
                     style={{
-                      fontFamily: 'Poppins_500Medium',
+                      fontFamily: 'Poppins_600SemiBold',
                       fontSize: 12,
-                      color: accentColor,
-                      marginRight: 2,
+                      color: isDark ? '#FBBF24' : '#92400E',
                     }}
                   >
-                    Manage Registration
+                    Manage Team & Invite Code →
                   </Text>
-                  <Ionicons name="chevron-forward" size={14} color={accentColor} />
                 </TouchableOpacity>
               </View>
-              <EventTicketCard
-                registration={existingRegistration}
-                eventData={currentEvent || event}
-              />
             </View>
-          )}
+          </View>
+        )}
+
+        {/* PAYMENT ACTION BANNER (Shown when team is complete but payment is required) */}
+        {existingRegistration && computedStatus === 'payment_pending' && (
+          <View
+            style={{
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : '#FFFBEB',
+              borderColor: 'rgba(245, 158, 11, 0.35)',
+              borderWidth: 1,
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: 20,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="card" size={20} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_600SemiBold',
+                    color: '#F59E0B',
+                    fontSize: 14,
+                  }}
+                >
+                  Payment Pending
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_400Regular',
+                    color: isDark ? '#A1A1AA' : '#6B7280',
+                    fontSize: 12,
+                    marginTop: 4,
+                  }}
+                >
+                  {isLeader || !isTeamEvent
+                    ? 'Team size requirement met! Please complete the registration payment to confirm your team entry.'
+                    : 'Team size requirement met! Waiting for team leader to complete the registration payment.'}
+                </Text>
+                {(!isTeamEvent || isLeader) && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      const params: Record<string, string> = { eventId: event.eventId };
+                      if (existingRegistration.teamId) params.teamId = existingRegistration.teamId;
+                      router.push({ pathname: '/events/Payment', params });
+                    }}
+                    style={{
+                      marginTop: 10,
+                      alignSelf: 'flex-start',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      backgroundColor: '#FFBA00',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Poppins_600SemiBold',
+                        fontSize: 12,
+                        color: '#121212',
+                      }}
+                    >
+                      Complete Payment →
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* REGISTRATION REJECTED BANNER */}
+        {existingRegistration && computedStatus === 'rejected' && (
+          <View
+            style={{
+              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : '#FEF2F2',
+              borderColor: 'rgba(239, 68, 68, 0.35)',
+              borderWidth: 1,
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: 20,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ionicons name="close-circle" size={24} color="#EF4444" />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_600SemiBold',
+                    color: '#EF4444',
+                    fontSize: 14,
+                  }}
+                >
+                  Registration Rejected
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_400Regular',
+                    color: isDark ? '#A1A1AA' : '#6B7280',
+                    fontSize: 12,
+                    marginTop: 2,
+                  }}
+                >
+                  Your registration for this event was rejected by the organizers.
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Navigation Tabs for detailed information */}
         <View
@@ -966,7 +1259,9 @@ const EventDetailsScreen: React.FC = () => {
           variant={
             !existingRegistration && !isIdentityComplete
               ? 'amber'
-              : isPaymentDue && (!isTeamEvent || isLeader)
+              : computedStatus === 'pending'
+              ? 'amber'
+              : computedStatus === 'payment_pending' && (!isTeamEvent || isLeader)
               ? 'amber'
               : 'metallic'
           }

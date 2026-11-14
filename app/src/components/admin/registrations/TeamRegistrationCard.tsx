@@ -77,16 +77,27 @@ export default function TeamRegistrationCard({ team, onPress, onViewPayment }: T
   const textPrimary = isDark ? "#FFFFFF" : "#111827";
   const textSecondary = isDark ? "#A0A0A0" : "#6B7280";
 
-  // Check payment pending before team registration status
-  const isPaymentPending =
-    (team.paymentStatus === "pending" ||
-      team.status === "payment_pending" ||
-      (team.members && team.members.some((m: any) => m.paymentStatus === "pending" || m.status === "payment_pending"))) &&
-    team.status !== "rejected";
-  const displayStatus = isPaymentPending ? "payment_pending" : (team.status || "confirmed");
+  // Priority: Rejected > Pending > Payment Pending > Confirmed
+  let displayStatus = team.status || "confirmed";
+  if (team.status === "rejected") {
+    displayStatus = "rejected";
+  } else if (team.status === "pending") {
+    displayStatus = "pending";
+  } else if (
+    team.paymentStatus === "pending" ||
+    team.status === "payment_pending" ||
+    (team.members && team.members.some((m: any) => m.paymentStatus === "pending" || m.status === "payment_pending"))
+  ) {
+    displayStatus = "payment_pending";
+  } else {
+    displayStatus = "confirmed";
+  }
+
+  const isPaymentPending = displayStatus === "payment_pending";
   const hasPaymentStatus =
     !isPaymentPending &&
-    (team.status === "confirmed" || team.paymentStatus === "completed" || team.paymentStatus === "success");
+    displayStatus !== "pending" &&
+    (displayStatus === "confirmed" || team.paymentStatus === "completed" || team.paymentStatus === "success");
 
   return (
     <View
@@ -100,17 +111,25 @@ export default function TeamRegistrationCard({ team, onPress, onViewPayment }: T
         activeOpacity={0.7}
       >
         <View className="flex-1 mr-3">
-          <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 16, marginBottom: 2 }}>
+          <Text
+            style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 16, marginBottom: 2 }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {team.teamName}
           </Text>
-          <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 12, marginBottom: 4 }}>
+          <Text
+            style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 12, marginBottom: 4 }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             Team ID: {team.teamId}
           </Text>
           <Text style={{ fontFamily: "Poppins_500Medium", color: "#41B8F0", fontSize: 12 }}>
             Tap to view members →
           </Text>
         </View>
-        <View className="flex-row items-center gap-2">
+        <View className="flex-row items-center gap-2 flex-shrink-0">
           {hasPaymentStatus && onViewPayment && (
             <TouchableOpacity
               onPress={(e) => {

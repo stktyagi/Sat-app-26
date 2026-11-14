@@ -118,10 +118,23 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
       const regsResponse = await adminGetUserRegistrations(user.email);
       
       const mappedRegs = regsResponse.map((item: any) => {
-        const isPaymentPending =
-          (item.registration?.paymentStatus === 'pending' || item.registration?.status === 'payment_pending') &&
-          item.registration?.status !== 'rejected';
-        const effectiveStatus = isPaymentPending ? 'payment_pending' : (item.registration?.status || 'pending');
+        const rawStatus = item.registration?.status || 'confirmed';
+        const isPaymentDue =
+          item.registration?.paymentStatus === 'pending' ||
+          rawStatus === 'payment_pending';
+
+        // Priority: Rejected > Pending > Payment Pending > Confirmed
+        let effectiveStatus = rawStatus;
+        if (rawStatus === 'rejected') {
+          effectiveStatus = 'rejected';
+        } else if (rawStatus === 'pending') {
+          effectiveStatus = 'pending';
+        } else if (isPaymentDue) {
+          effectiveStatus = 'payment_pending';
+        } else {
+          effectiveStatus = 'confirmed';
+        }
+
         return {
           eventName: item.event?.title || 'Unknown Event',
           eventType: item.event?.eventType || item.event?.category || 'Unknown',
@@ -549,6 +562,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                           className={`px-3 py-1 rounded-full ${
                             reg.status === "confirmed"
                               ? "bg-green-500/20"
+                              : reg.status === "payment_pending"
+                              ? "bg-blue-500/20"
                               : reg.status === "pending"
                               ? "bg-yellow-500/20"
                               : "bg-red-500/20"
@@ -559,12 +574,14 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                             className={`text-xs capitalize ${
                               reg.status === "confirmed"
                                 ? "text-green-400"
+                                : reg.status === "payment_pending"
+                                ? "text-blue-400"
                                 : reg.status === "pending"
                                 ? "text-yellow-400"
                                 : "text-red-400"
                             }`}
                           >
-                            {reg.status}
+                            {reg.status.replace(/_/g, ' ')}
                           </Text>
                         </View>
                       </View>

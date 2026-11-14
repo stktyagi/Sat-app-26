@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -17,8 +18,34 @@ type deleteMediaBody struct {
 	Ref string `json:"ref" form:"ref"`
 }
 
-// UploadMedia handles uploading media files. When folder starts with "reels",
-// it transparently routes to AWS S3. For all other folders, it uses ImageKit.
+// isVideoFile checks if a file is a video based on filename extension or content type.
+func isVideoFile(filename, contentType string) bool {
+	ct := strings.ToLower(contentType)
+	if strings.HasPrefix(ct, "video/") {
+		return true
+	}
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".3gp", ".wmv", ".flv":
+		return true
+	default:
+		return false
+	}
+}
+
+// isS3Ref returns true if the media reference belongs to AWS S3 rather than ImageKit.
+// ImageKit references strictly use "|" (refSep) to delimit account ID, file ID, size, and path.
+// S3 references are object keys without "|".
+func isS3Ref(ref string) bool {
+	if strings.Contains(ref, "|") {
+		return false
+	}
+	return true
+}
+
+// UploadMedia handles uploading media files.
+// For stories and general media: videos are routed to AWS S3, and images are routed to ImageKit.
+// Folder "reels" is also routed to AWS S3.
 // Accepts multipart/form-data with file field ("file", "media", "image", or "video")
 // and optional "folder" form field (defaults to "general").
 func (a *API) UploadMedia(c *gin.Context) {
@@ -49,30 +76,40 @@ func (a *API) UploadMedia(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Transparently route reels to AWS S3
-	if strings.HasPrefix(folder, "reels") {
+	isVideo := isVideoFile(fileHeader.Filename, fileHeader.Header.Get("Content-Type")) ||
+		strings.HasPrefix(folder, "reels") ||
+		strings.Contains(folder, "video")
+
+	// Videos MUST go to AWS S3
+	if isVideo {
 		if a.S3 == nil || !a.S3.IsConfigured() {
 			apierr.Respond(c, apierr.BadRequest("storage_not_configured", "AWS S3 storage is not configured"))
 			return
 		}
 
-		res, err := a.S3.Upload(c.Request.Context(), folder, fileHeader.Filename, file)
+		s3Folder := folder
+		if folder == "stories" {
+			s3Folder = "stories/videos"
+		}
+
+		res, err := a.S3.Upload(c.Request.Context(), s3Folder, fileHeader.Filename, file)
 		if err != nil {
 			log.Printf("UploadMedia (S3 upload error): %v", err)
 			apierr.Respond(c, apierr.Internal("failed to upload media to AWS S3: "+err.Error()))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"url":    res.URL,
-			"ref":    res.Key,
-			"name":   fileHeader.Filename,
-			"size":   fileHeader.Size,
-			"folder": folder,
+			"url":       res.URL,
+			"ref":       res.Key,
+			"name":      fileHeader.Filename,
+			"size":      fileHeader.Size,
+			"folder":    s3Folder,
+			"mediaType": "video",
 		})
 		return
 	}
 
-	// Default to ImageKit for other folders
+	// Images MUST go to ImageKit
 	if a.Storage == nil {
 		apierr.Respond(c, apierr.BadRequest("storage_not_configured", "ImageKit storage is not configured"))
 		return
@@ -86,11 +123,12 @@ func (a *API) UploadMedia(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"url":    url,
-		"ref":    ref,
-		"name":   fileHeader.Filename,
-		"size":   fileHeader.Size,
-		"folder": folder,
+		"url":       url,
+		"ref":       ref,
+		"name":      fileHeader.Filename,
+		"size":      fileHeader.Size,
+		"folder":    folder,
+		"mediaType": "image",
 	})
 }
 
@@ -108,7 +146,7 @@ func (a *API) DeleteMedia(c *gin.Context) {
 		return
 	}
 
-	if strings.HasPrefix(ref, "reels/") || strings.HasPrefix(ref, "reels") {
+	if isS3Ref(ref) {
 		if a.S3 != nil && a.S3.IsConfigured() {
 			if err := a.S3.Delete(c.Request.Context(), ref); err != nil {
 				log.Printf("DeleteMedia (S3 error): %v", err)
@@ -143,7 +181,7 @@ func (a *API) settleMedia(saved bool, before, after []string) {
 	}
 	go func() {
 		for _, ref := range drop {
-			if strings.HasPrefix(ref, "reels") && a.S3 != nil && a.S3.IsConfigured() {
+			if isS3Ref(ref) && a.S3 != nil && a.S3.IsConfigured() {
 				_ = a.S3.Delete(context.Background(), ref)
 			} else if a.Storage != nil {
 				if err := a.Storage.Delete(context.Background(), ref); err != nil {

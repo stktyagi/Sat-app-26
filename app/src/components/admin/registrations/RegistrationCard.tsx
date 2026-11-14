@@ -1,12 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { Phone, School, Users, Info } from "lucide-react-native";
+import { Phone, School, Users, Info, Trash2, ChevronDown } from "lucide-react-native";
 import { UserEventRegistration } from "@/api/admin";
 import { useThemeStore } from "@/state/themeStore";
 
 interface RegistrationCardProps {
   registration: UserEventRegistration;
   onViewPayment?: (registration: UserEventRegistration) => void;
+  onUpdateStatus?: (
+    registration: UserEventRegistration,
+    newStatus: "confirmed" | "pending" | "payment_pending" | "rejected"
+  ) => void;
+  onDelete?: (registration: UserEventRegistration) => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -43,6 +48,13 @@ const getStatusText = (status: string) => {
   }
 };
 
+const STATUS_CHOICES: Array<"confirmed" | "pending" | "payment_pending" | "rejected"> = [
+  "confirmed",
+  "pending",
+  "payment_pending",
+  "rejected",
+];
+
 const formatDate = (dateString: string) => {
   try {
     const date = new Date(dateString);
@@ -57,20 +69,39 @@ const formatDate = (dateString: string) => {
   }
 };
 
-export default function RegistrationCard({ registration, onViewPayment }: RegistrationCardProps) {
+export default function RegistrationCard({
+  registration,
+  onViewPayment,
+  onUpdateStatus,
+  onDelete,
+}: RegistrationCardProps) {
   const { isDark } = useThemeStore();
   const cardBg = isDark ? "#1C1C20" : "#FFFFFF";
   const cardBorder = isDark ? "#2A2A30" : "#D5D5D5";
   const textPrimary = isDark ? "#FFFFFF" : "#111827";
   const textSecondary = isDark ? "#A0A0A0" : "#6B7280";
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
 
-  // Check payment pending before registration status
-  const isPaymentPending =
-    (registration.paymentStatus === "pending" || registration.status === "payment_pending") &&
-    registration.status !== "rejected";
-  const displayStatus = isPaymentPending ? "payment_pending" : (registration.status || "confirmed");
+  // Priority: Rejected > Pending > Payment Pending > Confirmed
+  let displayStatus = registration.status || "confirmed";
+  if (registration.status === "rejected") {
+    displayStatus = "rejected";
+  } else if (registration.status === "pending") {
+    displayStatus = "pending";
+  } else if (
+    registration.paymentStatus === "pending" ||
+    registration.status === "payment_pending"
+  ) {
+    displayStatus = "payment_pending";
+  } else {
+    displayStatus = "confirmed";
+  }
+
+  const isPaymentPending = displayStatus === "payment_pending";
   const hasPaymentStatus =
-    !isPaymentPending && (registration?.paymentStatus === "completed" || registration?.paymentStatus === "success");
+    !isPaymentPending &&
+    displayStatus !== "pending" &&
+    (registration?.paymentStatus === "completed" || registration?.paymentStatus === "success");
 
   return (
     <View
@@ -82,14 +113,20 @@ export default function RegistrationCard({ registration, onViewPayment }: Regist
         <View className="flex-1 mr-3">
           <Text
             style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 16, marginBottom: 2 }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {registration.user?.name || registration.user?.displayName || "Unknown User"}
           </Text>
-          <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
+          <Text
+            style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {registration.user?.email}
           </Text>
         </View>
-        <View className="flex-row items-center gap-2">
+        <View className="flex-row items-center gap-2 flex-shrink-0">
           {hasPaymentStatus && onViewPayment && (
             <TouchableOpacity
               onPress={() => onViewPayment(registration)}
@@ -100,18 +137,100 @@ export default function RegistrationCard({ registration, onViewPayment }: Regist
               <Info size={16} color="#41B8F0" />
             </TouchableOpacity>
           )}
-          <View
-            className="px-3 py-1 rounded-full"
-            style={{ backgroundColor: getStatusColor(displayStatus) + "20" }}
-          >
-            <Text
-              style={{ color: getStatusColor(displayStatus), fontFamily: "Poppins_600SemiBold", fontSize: 11 }}
+
+          {onDelete && (
+            <TouchableOpacity
+              onPress={() => onDelete(registration)}
+              style={{ backgroundColor: isDark ? "rgba(239, 68, 68, 0.15)" : "#FEE2E2" }}
+              className="p-2 rounded-full"
+              activeOpacity={0.7}
             >
-              {getStatusText(displayStatus)}
-            </Text>
-          </View>
+              <Trash2 size={16} color="#EF4444" />
+            </TouchableOpacity>
+          )}
+
+          {onUpdateStatus ? (
+            <TouchableOpacity
+              onPress={() => setShowStatusPicker((prev) => !prev)}
+              activeOpacity={0.7}
+              style={{
+                backgroundColor: getStatusColor(displayStatus) + "20",
+                borderColor: getStatusColor(displayStatus) + "40",
+                borderWidth: 1,
+              }}
+              className="flex-row items-center px-3 py-1 rounded-full gap-1"
+            >
+              <Text
+                style={{ color: getStatusColor(displayStatus), fontFamily: "Poppins_600SemiBold", fontSize: 11 }}
+              >
+                {getStatusText(displayStatus)}
+              </Text>
+              <ChevronDown size={12} color={getStatusColor(displayStatus)} />
+            </TouchableOpacity>
+          ) : (
+            <View
+              className="px-3 py-1 rounded-full"
+              style={{ backgroundColor: getStatusColor(displayStatus) + "20" }}
+            >
+              <Text
+                style={{ color: getStatusColor(displayStatus), fontFamily: "Poppins_600SemiBold", fontSize: 11 }}
+              >
+                {getStatusText(displayStatus)}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
+
+      {/* Inline Status Picker for Admin Editing */}
+      {showStatusPicker && onUpdateStatus && (
+        <View
+          style={{
+            backgroundColor: isDark ? "#26262B" : "#F3F4F6",
+            borderColor: cardBorder,
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 8,
+            marginBottom: 12,
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 6,
+          }}
+        >
+          {STATUS_CHOICES.map((choice) => {
+            const isSelected = choice === displayStatus;
+            const choiceColor = getStatusColor(choice);
+            return (
+              <TouchableOpacity
+                key={choice}
+                onPress={() => {
+                  onUpdateStatus(registration, choice);
+                  setShowStatusPicker(false);
+                }}
+                activeOpacity={0.7}
+                style={{
+                  backgroundColor: isSelected ? choiceColor : choiceColor + "18",
+                  borderColor: choiceColor + "50",
+                  borderWidth: 1,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  borderRadius: 14,
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: "Poppins_600SemiBold",
+                    fontSize: 11,
+                    color: isSelected ? "#FFFFFF" : choiceColor,
+                  }}
+                >
+                  {getStatusText(choice)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* User Details */}
       <View className="space-y-2 mb-3">

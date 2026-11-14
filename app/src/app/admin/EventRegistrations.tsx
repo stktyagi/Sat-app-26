@@ -16,6 +16,8 @@ import {
   getAllEventRegistrations,
   getAllTeamRegistrationsWithMembers,
   updateTeamRegistrationStatus,
+  updateEventRegistrationStatus,
+  deleteEventRegistration,
   updatePaymentStatus,
   TeamSummary,
 } from "@/api/admin";
@@ -129,12 +131,19 @@ export default function EventRegistrations({
       });
     }
 
-    // Apply status filter (check payment pending before registration status)
+    // Apply status filter (Priority: Rejected > Pending > Payment Pending > Confirmed)
     if (selectedStatus !== "all") {
       filtered = filtered.filter((reg) => {
-        const isPaymentPending =
-          (reg.paymentStatus === "pending" || reg.status === "payment_pending") && reg.status !== "rejected";
-        const effectiveStatus = isPaymentPending ? "payment_pending" : (reg.status || "confirmed");
+        let effectiveStatus = reg.status || "confirmed";
+        if (reg.status === "rejected") {
+          effectiveStatus = "rejected";
+        } else if (reg.status === "pending") {
+          effectiveStatus = "pending";
+        } else if (reg.paymentStatus === "pending" || reg.status === "payment_pending") {
+          effectiveStatus = "payment_pending";
+        } else {
+          effectiveStatus = "confirmed";
+        }
         return effectiveStatus === selectedStatus;
       });
     }
@@ -156,7 +165,19 @@ export default function EventRegistrations({
           team.status === "payment_pending" ||
           (team.members && team.members.some((m: any) => m.paymentStatus === "pending" || m.status === "payment_pending"))) &&
         team.status !== "rejected";
-      const effectiveStatus = isPaymentPending ? "payment_pending" : (team.status || "confirmed");
+      const isUnderMinSize = !!event.minTeamSize && team.memberCount < event.minTeamSize;
+
+      // Priority: Rejected > Pending > Payment Pending > Confirmed
+      let effectiveStatus: "confirmed" | "pending" | "payment_pending" | "rejected" = team.status || "confirmed";
+      if (team.status === "rejected") {
+        effectiveStatus = "rejected";
+      } else if (isUnderMinSize || team.status === "pending") {
+        effectiveStatus = "pending";
+      } else if (isPaymentPending || team.status === "payment_pending") {
+        effectiveStatus = "payment_pending";
+      } else {
+        effectiveStatus = "confirmed";
+      }
 
       return {
         teamId: team.teamId,
@@ -334,6 +355,65 @@ export default function EventRegistrations({
     }
   };
 
+  const handleUpdateIndividualStatus = async (
+    reg: UserEventRegistration,
+    newStatus: "confirmed" | "pending" | "payment_pending" | "rejected"
+  ) => {
+    try {
+      const target = reg.teamId || `solo-${reg.userId}`;
+      const result = await updateEventRegistrationStatus(eventId, target, newStatus);
+      if (result.success) {
+        setAllRegistrations((prev) =>
+          prev.map((r) => (r.userId === reg.userId ? { ...r, status: newStatus } : r))
+        );
+        showAlert("Success", `Status updated to ${newStatus.replace(/_/g, " ")}`);
+      } else {
+        showAlert("Error", result.error || "Failed to update status");
+      }
+    } catch (err: any) {
+      showAlert("Error", err?.message || "Failed to update status");
+    }
+  };
+
+  const handleDeleteIndividualRegistration = (reg: UserEventRegistration) => {
+    showAlert(
+      "Delete Registration",
+      `Are you sure you want to delete the registration for ${reg.user.name || reg.user.displayName || "this user"}? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const target = reg.teamId || `solo-${reg.userId}`;
+              const res = await deleteEventRegistration(eventId, target);
+              if (res.success) {
+                setAllRegistrations((prev) => prev.filter((r) => r.userId !== reg.userId));
+                showAlert("Success", "Registration deleted successfully");
+              } else {
+                showAlert("Error", res.error || "Failed to delete registration");
+              }
+            } catch (err: any) {
+              showAlert("Error", err?.message || "Failed to delete registration");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteTeamRegistration = async (teamId: string) => {
+    const res = await deleteEventRegistration(eventId, teamId);
+    if (res.success) {
+      setAllTeamRegistrations((prev) => prev.filter((t) => t.teamId !== teamId));
+      setAllRegistrations((prev) => prev.filter((r) => r.teamId !== teamId));
+      showAlert("Success", "Team registration deleted successfully");
+    } else {
+      throw new Error(res.error || "Failed to delete team registration");
+    }
+  };
+
   // Handle viewing payment for individual registration
   const handleViewIndividualPayment = async (registration: UserEventRegistration) => {
     setShowPaymentModal(true);
@@ -410,6 +490,8 @@ export default function EventRegistrations({
       <RegistrationCard
         registration={item}
         onViewPayment={handleViewIndividualPayment}
+        onUpdateStatus={handleUpdateIndividualStatus}
+        onDelete={handleDeleteIndividualRegistration}
       />
     </View>
   );
@@ -497,6 +579,7 @@ export default function EventRegistrations({
           loadingMembers={loadingTeamMembers}
           onClose={() => setShowTeamDetails(false)}
           onStatusUpdate={handleSaveStatus}
+          onDeleteTeam={handleDeleteTeamRegistration}
         />
       )}
 

@@ -307,12 +307,12 @@ const TeamDetailsCard: React.FC<TeamDetailsCardProps> = ({
                 lineHeight: 18,
               }}
             >
-              ⚠️ Your team needs at least {minSize} members to participate (currently {memberCount}). Share your invite code with teammates.
+              ⚠️ Complete your team first: Your team needs at least {minSize} members to participate (currently {memberCount}). Share your invite code with teammates. Payment and confirmation will be unlocked once your team meets the minimum size requirement.
             </Text>
           </View>
         )}
 
-        {isPaymentDue && (
+        {hasEnoughMembers && isPaymentDue && (
           <View
             style={{
               backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FFFBEB',

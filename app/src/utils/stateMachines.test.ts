@@ -460,3 +460,71 @@ test('isEventPaymentDue: returns false when registration fee is 0', () => {
   assert.equal(calculateEventFee(teamFlatEvent, otherUser, outsideLeaderTeam), 300);
   assert.equal(isEventPaymentDue({ event: teamFlatEvent, team: outsideLeaderTeam, user: otherUser, userId: 'u2' }), true);
 });
+
+test('Complete State Lifecycle: Pending -> Payment Pending -> Confirmed -> Late Joiner Delta -> Re-Confirmed', () => {
+  const minTeamSize = 2;
+  const maxTeamSize = 4;
+  const event = {
+    paymentRequired: true,
+    eventType: 'team',
+    paymentType: 'per_individual',
+    registrationFee: { host: 100, other: 150 },
+    minTeamSize,
+    maxTeamSize,
+  };
+
+  const leader = { userId: 'u_lead', email: 'lead@thapar.edu', isHostCollegeStudent: true };
+  const member2 = { userId: 'u_m2', email: 'm2@thapar.edu', isHostCollegeStudent: true };
+  const lateMember3 = { userId: 'u_m3', email: 'm3@other.edu', isHostCollegeStudent: false };
+
+  // Helper simulating canonical status resolver
+  function resolveStatus(memberCount: number, minSize: number, isPaid: boolean, isRejected = false) {
+    if (isRejected) return 'rejected';
+    if (memberCount < minSize) return 'pending';
+    if (!isPaid) return 'payment_pending';
+    return 'confirmed';
+  }
+
+  // Stage 1: Leader creates team (1/2 members)
+  let team: any = {
+    teamId: 't_robo',
+    leaderUserId: leader.userId,
+    paid: false,
+    paidTill: 0,
+    members: [leader],
+  };
+  assert.equal(resolveStatus(team.members.length, minTeamSize, team.paid), 'pending');
+
+  // Stage 2: Member 2 joins (2/2 members reached)
+  team.members.push(member2);
+  assert.equal(resolveStatus(team.members.length, minTeamSize, team.paid), 'payment_pending');
+
+  // Fee calculation for leader: 2 host members * 100 = 200
+  const feeStage2 = calculateEventFee(event, leader, team);
+  assert.equal(feeStage2, 200);
+
+  // Stage 3: Leader pays 200 -> team confirmed!
+  team.paidTill = 200;
+  team.paid = true;
+  assert.equal(resolveStatus(team.members.length, minTeamSize, team.paid), 'confirmed');
+  assert.equal(calculateEventFee(event, leader, team), 0);
+
+  // Stage 4: Late joiner Member 3 joins (outside student, fee = 150)
+  team.members.push(lateMember3);
+  team.paid = false; // reset because total roster (100+100+150=350) > paidTill (200)
+  assert.equal(resolveStatus(team.members.length, minTeamSize, team.paid), 'payment_pending');
+
+  // Fee calculation for leader: 350 - 200 = 150 (ONLY the difference for member 3!)
+  const feeStage4 = calculateEventFee(event, leader, team);
+  assert.equal(feeStage4, 150);
+
+  // Stage 5: Leader pays remaining 150 -> team re-confirmed with all 3 members!
+  team.paidTill += 150;
+  team.paid = true;
+  assert.equal(team.paidTill, 350);
+  assert.equal(resolveStatus(team.members.length, minTeamSize, team.paid), 'confirmed');
+  assert.equal(calculateEventFee(event, leader, team), 0);
+
+  // Stage 6: Manual rejection overrides everything
+  assert.equal(resolveStatus(team.members.length, minTeamSize, team.paid, true), 'rejected');
+});

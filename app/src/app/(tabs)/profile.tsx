@@ -207,16 +207,25 @@ const ProfileScreen = () => {
   };
 
   const handleShareApp = async () => {
-    const currentVersion = getAppVersion();
-    const result = await checkAppStatus(currentVersion);
-    const appStoreUrl =
-      Platform.OS === "ios" ? result.appLinks.appleStore : result.appLinks.playStore;
-
     try {
+      const currentVersion = getAppVersion();
+      let playStore = "https://play.google.com/store/apps/details?id=org.thapar.saturnalia";
+      let appleStore = "https://apps.apple.com/app/saturnalia/id6738927814";
+
+      try {
+        const result = await checkAppStatus(currentVersion);
+        if (result?.appLinks?.playStore) playStore = result.appLinks.playStore;
+        if (result?.appLinks?.appleStore) appleStore = result.appLinks.appleStore;
+      } catch (err) {
+        console.warn("[Profile] Failed to fetch latest app links, using defaults:", err);
+      }
+
+      const message = `Check out the official Saturnalia app! Download it now:\n\nAndroid (Play Store): ${playStore}\niOS (App Store): ${appleStore}`;
+
       await Share.share({
-        message: "Check out this amazing Saturnalia app! Download it now.",
+        message,
         title: "Saturnalia App",
-        url: appStoreUrl,
+        ...(Platform.OS === "ios" ? { url: appleStore } : {}),
       });
     } catch (error) {
       console.error("Error sharing app:", error);

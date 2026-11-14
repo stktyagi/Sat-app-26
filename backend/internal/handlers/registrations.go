@@ -49,7 +49,11 @@ func (a *API) Register(c *gin.Context) {
 	fee := event.FeeFor(user.IsHostCollegeStudent)
 	id := models.RegistrationID(event.EventID, user.UserID)
 	reg := models.NewRegistration(user.UserID, event.EventID, "", "", fee, body.Responses)
-	if event.PaymentRequired && fee == 0 {
+	if event.PaymentRequired && fee > 0 {
+		reg.Status = models.RegStatusPaymentPending
+		reg.PaymentStatus = models.RegPaymentPending
+	} else {
+		reg.Status = models.RegStatusConfirmed
 		reg.PaymentStatus = models.RegPaymentSuccess
 		reg.PaidAt = isotime.Now()
 	}
@@ -69,6 +73,13 @@ func (a *API) Register(c *gin.Context) {
 	if err != nil {
 		apierr.Respond(c, apierr.Internal("registration saved but could not be read back"))
 		return
+	}
+	if saved.Status != models.RegStatusRejected {
+		if event.PaymentRequired && saved.PaymentStatus != models.RegPaymentSuccess {
+			saved.Status = models.RegStatusPaymentPending
+		} else {
+			saved.Status = models.RegStatusConfirmed
+		}
 	}
 	saved.QRToken = a.QR.Sign(saved.ID)
 
@@ -146,6 +157,22 @@ func (a *API) GetRegistration(c *gin.Context) {
 	if reg.UserID != user.UserID && !user.IsAdmin() {
 		apierr.Respond(c, apierr.Forbidden("not_yours", "this registration belongs to someone else"))
 		return
+	}
+	if reg.Status != models.RegStatusRejected {
+		if event, err := a.Cache.Get(c.Request.Context(), reg.EventID); err == nil && event != nil {
+			if reg.TeamID != "" {
+				if team, err := a.Store.GetTeam(c.Request.Context(), reg.TeamID); err == nil && team != nil {
+					a.hydrateMembers(c.Request.Context(), team)
+					reg.Status = team.Status
+				}
+			} else {
+				if event.PaymentRequired && reg.PaymentStatus != models.RegPaymentSuccess {
+					reg.Status = models.RegStatusPaymentPending
+				} else {
+					reg.Status = models.RegStatusConfirmed
+				}
+			}
+		}
 	}
 	reg.QRToken = a.QR.Sign(reg.ID)
 
@@ -225,8 +252,7 @@ func (a *API) updateAccommodationTierOnEventRegistration(ctx context.Context, us
 	} else if user.AccommodationTier == "" {
 		_, _ = a.Store.UpdateUser(ctx, user.UserID, map[string]any{
 			"accommodationTier": models.AccommodationTierCultural,
-			})
+		})
 		user.AccommodationTier = models.AccommodationTierCultural
 	}
 }
-

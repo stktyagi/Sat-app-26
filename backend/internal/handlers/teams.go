@@ -77,10 +77,16 @@ func (a *API) CreateTeam(c *gin.Context) {
 					reg.PaymentStatus = models.RegPaymentSuccess
 					reg.PaidAt = isotime.Now()
 				} else {
+					team.Paid = false
 					reg.PaymentStatus = models.RegPaymentPending
 				}
 			}
+		} else {
+			team.Paid = true
 		}
+		teamStatus := models.ResolveTeamStatus(1, event.MinTeamSize, team.Paid)
+		team.Status = teamStatus
+		reg.Status = teamStatus
 
 		err := a.Store.CreateTeamWithLeader(ctx, team, regID, reg)
 		switch {
@@ -596,6 +602,20 @@ func (a *API) hydrateMembers(ctx context.Context, team *models.Team) {
 			team.Paid = false
 		}
 	}
+
+	// Resolve team status based on roster completeness and payment
+	if team.Status != models.TeamStatusRejected {
+		minSize := 1
+		if event != nil && event.MinTeamSize > 0 {
+			minSize = event.MinTeamSize
+		}
+		isPaid := true
+		if event != nil && event.PaymentRequired {
+			isPaid = team.Paid
+		}
+		team.Status = models.ResolveTeamStatus(len(team.MemberIDs), minSize, isPaid)
+	}
+
 	team.Members = members
 }
 

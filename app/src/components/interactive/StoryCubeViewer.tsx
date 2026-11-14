@@ -87,7 +87,7 @@ const StoryContent = React.memo(
         player.loop = false;
         player.showsTimecodes = false;
         player.preservesPitch = true;
-        player.staysActiveInBackground = true;
+        player.staysActiveInBackground = false;
         player.volume = 1.0;
       }
     });
@@ -176,12 +176,12 @@ const StoryContent = React.memo(
             console.log("Error removing status subscription:", e);
           }
         }
-        // Safely pause the video
+        // Safely pause the video if not yet released
         if (player && isVideo) {
           try {
             player.pause();
-          } catch (e) {
-            console.log("Error pausing on cleanup:", e);
+          } catch {
+            // Player may already be released by useVideoPlayer hook
           }
         }
       };
@@ -213,21 +213,7 @@ const StoryContent = React.memo(
       };
     }, [isActive, isVideo, isImageLoaded, storyIndex]);
 
-    // FIX 1: Cleanup player on unmount to prevent memory leaks
-    React.useEffect(() => {
-      return () => {
-        // FIX: Safely cleanup only if this is a video
-        if (player && isVideo) {
-          try {
-            player.pause();
-            // FIX 1: Remove any lingering listeners
-            player.removeAllListeners();
-          } catch (e) {
-            console.log("Error cleaning up player:", e);
-          }
-        }
-      };
-    }, []);
+    // Note: useVideoPlayer handles native player release internally on unmount.
 
     const animatedProgressStyle = useAnimatedStyle(() => {
       return {

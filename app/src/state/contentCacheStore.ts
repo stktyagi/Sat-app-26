@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchBanners, Banner } from '@/api/banners';
+import { fetchBanners } from '@/api/banners';
 import { fetchReels } from '@/api/reels';
 import { listStories, BackendStory } from '@/api/stories';
 import { listVenues } from '@/api/venues';
@@ -11,7 +11,7 @@ import { resolveStoryImage } from '@/hooks/useStories';
 interface ContentCacheState {
   // Banners
   banners: BannerItem[];
-  rawBanners: Banner[];
+  rawBanners: any[];
   bannersLoading: boolean;
   bannersError: string | null;
   bannersFetched: boolean;
@@ -209,13 +209,23 @@ export const useContentCacheStore = create<ContentCacheState>((set, get) => ({
               ? st.items.map((it) => it.url)
               : [];
 
-          const storyItems = rawImages.map((img, idx) => ({
-            storyId: st.items?.[idx]?.id || `${st.id || st.name}-${idx}`,
-            storyLink: resolveStoryImage(img),
-            storyUploadTime: st.createdAt ? new Date(st.createdAt).getTime() : Date.now(),
-            storyExpiryTime: Date.now() + 86400000 * 365,
-            mediaType: (st.items?.[idx]?.mediaType as 'image' | 'video') || 'image',
-          }));
+          const storyItems = rawImages.map((img, idx) => {
+            const isVid =
+              st.items?.[idx]?.mediaType === 'video' ||
+              /\.(mp4|mov|webm|m4v|3gp)/i.test(img) ||
+              img.includes('/videos/');
+            return {
+              storyId: st.items?.[idx]?.id || `${st.id || st.name}-${idx}`,
+              storyLink: resolveStoryImage(img),
+              storyUploadTime: st.items?.[idx]?.uploadedAt
+                ? new Date(st.items[idx].uploadedAt).getTime()
+                : st.createdAt
+                ? new Date(st.createdAt).getTime()
+                : Date.now(),
+              storyExpiryTime: Date.now() + 86400000 * 365,
+              mediaType: (isVid ? 'video' : 'image') as 'image' | 'video',
+            };
+          });
 
           const firstImage = rawImages.length > 0 ? resolveStoryImage(rawImages[0]) : undefined;
 

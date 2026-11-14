@@ -167,6 +167,34 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 
 	chkStatus := models.NormalizeCheckinStatus(reg.CheckingStatus)
 
+	resolveReg := func(r *models.Registration) {
+		if r == nil || r.Status == models.RegStatusRejected {
+			return
+		}
+		isTeamComplete := true
+		isPaid := true
+		if evt != nil && evt.PaymentRequired {
+			isPaid = r.PaymentStatus == models.RegPaymentSuccess
+		}
+		if r.TeamID != "" {
+			if t, err := a.Store.GetTeam(ctx, r.TeamID); err == nil && t != nil {
+				minSize := 1
+				if evt != nil && evt.MinTeamSize > 0 {
+					minSize = evt.MinTeamSize
+				}
+				isTeamComplete = t.Size >= minSize
+				if evt != nil && evt.PaymentRequired {
+					isPaid = t.Paid
+				}
+			}
+		}
+		r.Status = models.ResolveRegistrationStatus(isTeamComplete, isPaid, r.Status)
+	}
+	resolveReg(reg)
+	for _, cr := range candidateRegs {
+		resolveReg(cr)
+	}
+
 	// Build full candidate registrations list for multi-event attendee support
 	allRegsData := make([]gin.H, 0, len(candidateRegs))
 	for _, cr := range candidateRegs {

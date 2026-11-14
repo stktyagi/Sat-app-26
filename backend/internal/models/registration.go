@@ -8,8 +8,10 @@ import (
 )
 
 const (
-	RegStatusConfirmed = "confirmed"
-	RegStatusPending   = "pending"
+	RegStatusConfirmed      = "confirmed"
+	RegStatusPending        = "pending"
+	RegStatusPaymentPending = "payment_pending"
+	RegStatusRejected       = "rejected"
 
 	// Payment statuses on a registration document.
 	RegPaymentPending = "pending"
@@ -84,18 +86,43 @@ func NewRegistration(userID, eventID, teamID, inviteCode string, fee int, respon
 	if fee > 0 {
 		paymentStatus = RegPaymentPending
 	}
+	status := RegStatusConfirmed
+	if teamID != "" {
+		status = RegStatusPending
+	} else if fee > 0 {
+		status = RegStatusPaymentPending
+	}
 	return &Registration{
 		UserID:         userID,
 		EventID:        eventID,
 		TeamID:         teamID,
 		TeamInviteCode: inviteCode,
-		Status:         RegStatusConfirmed,
+		Status:         status,
 		CheckingStatus: CheckinPending,
 		PaymentStatus:  paymentStatus,
 		Responses:      responses,
 		RegisteredAt:   isotime.Now(),
 		PaymentDetails: map[string]any{"amount": fee},
 	}
+}
+
+// ResolveRegistrationStatus calculates the canonical registration status.
+// Priority:
+// 1. Rejected if manually rejected
+// 2. Pending if team size is incomplete
+// 3. Payment Pending if payment is not completed or more payment is needed
+// 4. Confirmed if all conditions are satisfied
+func ResolveRegistrationStatus(isTeamSizeComplete, isPaymentComplete bool, currentStatus string) string {
+	if currentStatus == RegStatusRejected {
+		return RegStatusRejected
+	}
+	if !isTeamSizeComplete {
+		return RegStatusPending
+	}
+	if !isPaymentComplete {
+		return RegStatusPaymentPending
+	}
+	return RegStatusConfirmed
 }
 
 func (r *Registration) Normalise() {

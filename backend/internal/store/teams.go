@@ -112,10 +112,6 @@ func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg 
 			{Path: "updatedAt", Value: now},
 		}
 
-		if minSize > 0 {
-			teamUpdates = append(teamUpdates, firestore.Update{Path: "status", Value: models.StatusFor(len(members), minSize)})
-		}
-
 		if coveredByCredit {
 			reg.PaymentStatus = models.RegPaymentSuccess
 			reg.PaidAt = now
@@ -136,6 +132,25 @@ func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg 
 			}
 		}
 
+		teamStatus := models.ResolveTeamStatus(len(members), minSize, team.Paid)
+		teamUpdates = append(teamUpdates, firestore.Update{Path: "status", Value: teamStatus})
+		reg.Status = teamStatus
+
+		for _, mID := range team.MemberIDs {
+			mRegID := models.RegistrationID(team.EventID, mID)
+			mRegRef := s.FS.Collection(ColRegistrations).Doc(mRegID)
+			mUpd := []firestore.Update{
+				{Path: "status", Value: teamStatus},
+			}
+			if coveredByCredit {
+				mUpd = append(mUpd,
+					firestore.Update{Path: "paymentStatus", Value: models.RegPaymentSuccess},
+					firestore.Update{Path: "paidAt", Value: now},
+				)
+			}
+			_ = tx.Update(mRegRef, mUpd)
+		}
+
 		if err := tx.Update(teamRef, teamUpdates); err != nil {
 			return err
 		}
@@ -145,9 +160,7 @@ func (s *Store) JoinTeam(ctx context.Context, teamID, userID, regID string, reg 
 
 		team.MemberIDs = members
 		team.UpdatedAt = now
-		if minSize > 0 {
-			team.Status = models.StatusFor(len(members), minSize)
-		}
+		team.Status = teamStatus
 		team.Normalise()
 		updated = team
 		return nil
@@ -182,8 +195,16 @@ func (s *Store) RemoveMember(ctx context.Context, teamID, memberID string, minSi
 			{Path: "memberIds", Value: kept},
 			{Path: "updatedAt", Value: isotime.Now()},
 		}
-		if minSize > 0 && len(kept) < minSize {
-			updates = append(updates, firestore.Update{Path: "status", Value: models.TeamStatusPending})
+		newStatus := models.ResolveTeamStatus(len(kept), minSize, team.Paid)
+		if newStatus != team.Status {
+			updates = append(updates, firestore.Update{Path: "status", Value: newStatus})
+			team.Status = newStatus
+			for _, mID := range kept {
+				mRegID := models.RegistrationID(team.EventID, mID)
+				_ = tx.Update(s.FS.Collection(ColRegistrations).Doc(mRegID), []firestore.Update{
+					{Path: "status", Value: newStatus},
+				})
+			}
 		}
 
 		if err := tx.Update(teamRef, updates); err != nil {
@@ -208,6 +229,31 @@ func (s *Store) DeleteTeam(ctx context.Context, teamID, leaderID string) error {
 		}
 		if !team.IsLeader(leaderID) {
 			return ErrNotLeader
+		}
+		if err := tx.Delete(teamRef); err != nil {
+			return err
+		}
+		for _, mID := range team.MemberIDs {
+			if err := tx.Delete(s.FS.Collection(ColRegistrations).Doc(models.RegistrationID(team.EventID, mID))); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// AdminDeleteTeam removes the team and all registrations without leader verification.
+func (s *Store) AdminDeleteTeam(ctx context.Context, teamID string) error {
+	teamRef := s.FS.Collection(ColTeams).Doc(teamID)
+
+	return s.FS.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		snap, err := tx.Get(teamRef)
+		if err != nil {
+			return wrap(err)
+		}
+		team, err := decodeTeam(snap)
+		if err != nil {
+			return err
 		}
 		if err := tx.Delete(teamRef); err != nil {
 			return err
@@ -248,15 +294,19 @@ func (s *Store) ConfirmTeam(ctx context.Context, teamID, leaderID string, markPa
 			return err
 		}
 
-		if markPaid {
-			for _, mID := range team.MemberIDs {
-				regID := models.RegistrationID(team.EventID, mID)
-				regRef := s.FS.Collection(ColRegistrations).Doc(regID)
-				_ = tx.Update(regRef, []firestore.Update{
-					{Path: "paymentStatus", Value: models.RegPaymentSuccess},
-					{Path: "paidAt", Value: isotime.Now()},
-				})
+		for _, mID := range team.MemberIDs {
+			regID := models.RegistrationID(team.EventID, mID)
+			regRef := s.FS.Collection(ColRegistrations).Doc(regID)
+			regUpdates := []firestore.Update{
+				{Path: "status", Value: models.RegStatusConfirmed},
 			}
+			if markPaid {
+				regUpdates = append(regUpdates,
+					firestore.Update{Path: "paymentStatus", Value: models.RegPaymentSuccess},
+					firestore.Update{Path: "paidAt", Value: isotime.Now()},
+				)
+			}
+			_ = tx.Update(regRef, regUpdates)
 		}
 		return nil
 	})
@@ -328,8 +378,15 @@ func (s *Store) CleanUserFromTeam(ctx context.Context, teamID, userID string) er
 			updates = append(updates, firestore.Update{Path: "leaderUserId", Value: kept[0]})
 		}
 
-		if minSize > 0 && len(kept) < minSize {
-			updates = append(updates, firestore.Update{Path: "status", Value: models.TeamStatusPending})
+		newStatus := models.ResolveTeamStatus(len(kept), minSize, team.Paid)
+		if newStatus != team.Status {
+			updates = append(updates, firestore.Update{Path: "status", Value: newStatus})
+			for _, mID := range kept {
+				mRegID := models.RegistrationID(team.EventID, mID)
+				_ = tx.Update(s.FS.Collection(ColRegistrations).Doc(mRegID), []firestore.Update{
+					{Path: "status", Value: newStatus},
+				})
+			}
 		}
 
 		return tx.Update(teamRef, updates)
