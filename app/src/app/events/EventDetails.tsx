@@ -237,9 +237,11 @@ const EventDetailsScreen: React.FC = () => {
     );
   }
 
+  const currentEvent = eventDetailData?.event || event;
+
   // Formatting helpers
   const formatPrize = () => {
-    const raw = event?.shortPrizes || event?.prizes;
+    const raw = currentEvent?.shortPrizes || currentEvent?.prizes || event?.shortPrizes || event?.prizes;
     if (!raw) return '1,50,000';
     const clean = raw.replace(/[*#_~]/g, '').trim();
     const match = clean.match(/(\d[\d,]*000|\d[\d,]*\s*(?:k|lakh)?)/i);
@@ -249,8 +251,9 @@ const EventDetailsScreen: React.FC = () => {
   };
 
   const formatEventDateRange = () => {
-    const start = event?.dateTime || event?.startDateTime;
-    const end = event?.endDateTime;
+    const evt = currentEvent || event;
+    const start = evt?.dateTime || evt?.startDateTime;
+    const end = evt?.endDateTime;
     if (!start) return '13-14 Nov';
     const startDate = new Date(start);
     if (isNaN(startDate.getTime())) return '13-14 Nov';
@@ -272,7 +275,40 @@ const EventDetailsScreen: React.FC = () => {
     return `${startDay} ${startMonth}`;
   };
 
-  const currentEvent = eventDetailData?.event || event;
+  const formatEventTime = () => {
+    const evt = currentEvent || event;
+    if ((evt as any)?.timeText) {
+      return (evt as any).timeText;
+    }
+    const start = evt?.dateTime || evt?.startDateTime;
+    const end = evt?.endDateTime;
+    if (!start) return null;
+
+    const startDate = new Date(start);
+    if (isNaN(startDate.getTime())) {
+      return typeof start === 'string' && start.length < 30 ? start : null;
+    }
+
+    const startTimeStr = startDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    if (end) {
+      const endDate = new Date(end);
+      if (!isNaN(endDate.getTime())) {
+        const endTimeStr = endDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+        return `${startTimeStr} - ${endTimeStr}`;
+      }
+    }
+
+    return startTimeStr;
+  };
 
   const getRegistrationCountText = () => {
     const count = currentEvent?.registeredCount ?? 0;
@@ -312,8 +348,9 @@ const EventDetailsScreen: React.FC = () => {
   };
 
   const prizeText = formatPrize();
-  const venueText = event.venueName || 'CSED';
+  const venueText = currentEvent?.venueName || event.venueName || 'CSED';
   const dateRangeText = formatEventDateRange();
+  const timeText = formatEventTime();
   const registrationCount = getRegistrationCountText();
   const buttonTitle = getButtonTitle();
 
@@ -645,6 +682,22 @@ const EventDetailsScreen: React.FC = () => {
               {dateRangeText}
             </Text>
           </View>
+
+          {/* Time */}
+          {timeText ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="time-outline" size={17} color={isDark ? '#D1D5DB' : '#555555'} />
+              <Text
+                style={{
+                  fontFamily: 'Poppins_500Medium',
+                  fontSize: 14,
+                  color: isDark ? '#FFFFFF' : '#000000',
+                }}
+              >
+                {timeText}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Team / Participation Size */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1121,6 +1174,26 @@ const EventDetailsScreen: React.FC = () => {
                 </Text>
               </Text>
             </View>
+
+            {/* Event Time */}
+            {timeText ? (
+              <View
+                style={{
+                  marginTop: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <Ionicons name="time-outline" size={18} color={isDark ? '#9CA3AF' : '#555555'} />
+                <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 14, color: isDark ? '#9CA3AF' : '#555555' }}>
+                  Event Time:{' '}
+                  <Text style={{ fontFamily: 'Poppins_600SemiBold', color: isDark ? '#FFFFFF' : '#000000' }}>
+                    {timeText}
+                  </Text>
+                </Text>
+              </View>
+            ) : null}
           </View>
         )}
 
@@ -1170,6 +1243,18 @@ const EventDetailsScreen: React.FC = () => {
 
         {activeTab === 'details' && (
           <View style={{ gap: 20, marginBottom: 16 }}>
+            {/* Event Time */}
+            {timeText ? (
+              <View style={{ gap: 4 }}>
+                <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: isDark ? '#9CA3AF' : '#555555' }}>
+                  Event Time
+                </Text>
+                <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 15, color: isDark ? '#FFFFFF' : '#000000' }}>
+                  {timeText}
+                </Text>
+              </View>
+            ) : null}
+
             {/* Registration Fee */}
             {event.paymentRequired && (
               <View style={{ gap: 4 }}>

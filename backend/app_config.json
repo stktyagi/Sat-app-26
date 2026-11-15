@@ -10,7 +10,7 @@
   },
   "versions": {
     "android": "1.1.1",
-    "ios": "1.0.0"
+    "ios": "1.4.1"
   },
   "accommodation": {
     "amount": 600,
@@ -48,5 +48,145 @@
       "day3": 300,
       "day4": 300
     }
-  }
+  },
+  "adminScreens": [
+    {
+      "key": "events_management",
+      "label": "Event Management",
+      "icon": "calendar-outline",
+      "route": "/admin/EventsManagement",
+      "requiredRoles": [
+        "admin",
+        "eb_events",
+        "event_poc"
+      ]
+    },
+    {
+      "key": "qr_scanner",
+      "label": "QR Scanner",
+      "icon": "qr-code-outline",
+      "route": "/admin/QRScanner",
+      "requiredRoles": [
+        "admin",
+        "eb_hospitality",
+        "ec_hospitality",
+        "eb_events",
+        "event_poc"
+      ]
+    },
+    {
+      "key": "venue_management",
+      "label": "Venue Management",
+      "icon": "location-outline",
+      "route": "/admin/Venue",
+      "requiredRoles": [
+        "admin",
+        "eb_events"
+      ]
+    },
+    {
+      "key": "faq_management",
+      "label": "FAQ Management",
+      "icon": "help-circle-outline",
+      "route": "/admin/FAQ",
+      "requiredRoles": [
+        "admin"
+      ]
+    },
+    {
+      "key": "accommodation",
+      "label": "Accommodation",
+      "icon": "bed-outline",
+      "route": "/admin/Accommodation",
+      "requiredRoles": [
+        "admin",
+        "eb_hospitality",
+        "ec_hospitality"
+      ]
+    },
+    {
+      "key": "meal_pass_qr",
+      "label": "Meal Pass QR",
+      "icon": "restaurant-outline",
+      "route": "/admin/MealPassQR",
+      "requiredRoles": [
+        "admin",
+        "eb_hospitality",
+        "ec_hospitality"
+      ]
+    },
+    {
+      "key": "users_management",
+      "label": "Users Management",
+      "icon": "people-outline",
+      "route": "/admin/Users",
+      "requiredRoles": [
+        "admin",
+        "eb_events",
+        "eb_outreach",
+        "eb_finance",
+        "eb_hospitality"
+      ]
+    },
+    {
+      "key": "payment_management",
+      "label": "Payment Management",
+      "icon": "card-outline",
+      "route": "/admin/Transactions",
+      "requiredRoles": [
+        "admin",
+        "eb_outreach",
+        "eb_finance"
+      ]
+    },
+    {
+      "key": "send_notification",
+      "label": "Send Notification",
+      "icon": "notifications-outline",
+      "route": "/admin/SendNotification",
+      "requiredRoles": [
+        "admin"
+      ]
+    },
+    {
+      "key": "story_management",
+      "label": "Story Management",
+      "icon": "film-outline",
+      "route": "/admin/StoryManagement",
+      "requiredRoles": [
+        "admin",
+        "eb_media"
+      ]
+    },
+    {
+      "key": "reel_management",
+      "label": "Reel Management",
+      "icon": "videocam-outline",
+      "route": "/admin/ReelsManagement",
+      "requiredRoles": [
+        "admin",
+        "eb_media"
+      ]
+    },
+    {
+      "key": "banner_management",
+      "label": "Banner Management",
+      "icon": "image-outline",
+      "route": "/admin/Banner",
+      "requiredRoles": [
+        "admin",
+        "eb_events",
+        "eb_media"
+      ]
+    },
+    {
+      "key": "app_config",
+      "label": "App Configuration",
+      "icon": "settings-outline",
+      "route": "/admin/AppConfig",
+      "requiredRoles": [
+        "admin"
+      ]
+    }
+  ]
 }

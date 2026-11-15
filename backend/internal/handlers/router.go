@@ -94,6 +94,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 
 	// Base staff group: accessible to any account holding an admin or committee role.
 	staff := v1.Group("", required, middleware.RequireUser(), middleware.RequireStaff())
+	staff.GET("/admin/navigation", api.GetAdminNavigation)
 
 	// Top-level Admin Only: App Configuration, Notifications, FAQs, Store Items, Account Deletion
 	adminOnly := staff.Group("", middleware.RequireAdmin())
@@ -116,6 +117,9 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	adminOnly.PATCH("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
 	adminOnly.PUT("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
 	adminOnly.POST("/admin/notifications", api.SendNotification)
+	adminOnly.GET("/admin/app/screens", api.AdminGetAdminScreens)
+	adminOnly.PATCH("/admin/app/screens", api.AdminUpdateAdminScreens)
+	adminOnly.PUT("/admin/app/screens", api.AdminUpdateAdminScreens)
 
 	// Events: Admin, EB_Events (coordinators can access scoped update/registrations)
 	ebEvents := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents))

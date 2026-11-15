@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/middleware"
 	"backend/internal/models"
 )
 
@@ -160,4 +161,72 @@ func (a *API) AdminUpdateAppAccommodation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"accommodation": body})
+}
+
+// GetAdminNavigation returns the admin screens filtered on the backend for the current user.
+func (a *API) GetAdminNavigation(c *gin.Context) {
+	ctx := c.Request.Context()
+	user := middleware.CurrentUser(c)
+	if user == nil || !user.IsStaffOrAdmin() {
+		apierr.Respond(c, apierr.Forbidden("not_staff", "access denied"))
+		return
+	}
+
+	screens, err := a.Store.GetAdminScreens(ctx)
+	if err != nil {
+		log.Printf("[GetAdminNavigation] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not load admin navigation"))
+		return
+	}
+
+	visible := make([]models.AdminScreenConfig, 0, len(screens))
+	for _, s := range screens {
+		if user.IsAdmin() || user.HasAnyRole(s.RequiredRoles...) {
+			visible = append(visible, s)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"items": visible})
+}
+
+// AdminGetAdminScreens returns all admin screen configs with their required roles.
+func (a *API) AdminGetAdminScreens(c *gin.Context) {
+	ctx := c.Request.Context()
+	screens, err := a.Store.GetAdminScreens(ctx)
+	if err != nil {
+		log.Printf("[AdminGetAdminScreens] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not load admin screens config"))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"screens": screens})
+}
+
+// AdminUpdateAdminScreens updates the admin screen role mappings.
+func (a *API) AdminUpdateAdminScreens(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var body struct {
+		Screens []models.AdminScreenConfig `json:"screens"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		var rawList []models.AdminScreenConfig
+		if err2 := c.ShouldBindJSON(&rawList); err2 != nil {
+			apierr.Respond(c, apierr.BadRequest("invalid_body", "screens array is required"))
+			return
+		}
+		body.Screens = rawList
+	}
+
+	if len(body.Screens) == 0 {
+		apierr.Respond(c, apierr.BadRequest("empty_screens", "screens list cannot be empty"))
+		return
+	}
+
+	if err := a.Store.SetAdminScreens(ctx, body.Screens); err != nil {
+		log.Printf("[AdminUpdateAdminScreens] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not update admin screens configuration"))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"screens": body.Screens})
 }

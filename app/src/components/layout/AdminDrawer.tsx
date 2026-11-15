@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Pressable,
   Animated,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -23,6 +24,7 @@ import {
   ROLE_EVENT_POC,
   normalizeRole,
 } from '@/utils/roles';
+import { getAdminNavigation, AdminNavigationItem } from '@/api/appConfig';
 
 interface DrawerItem {
   label: string;
@@ -61,9 +63,32 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
   const { isDark } = useThemeStore();
 
   const [isModalVisible, setIsModalVisible] = useState(visible);
+  const [navItems, setNavItems] = useState<AdminNavigationItem[]>([]);
+  const [isLoadingNav, setIsLoadingNav] = useState(false);
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pendingRouteRef = useRef<string | null>(null);
+
+  // Fetch backend-filtered navigation on mount and whenever drawer opens
+  const loadBackendNavigation = useCallback(async () => {
+    try {
+      setIsLoadingNav(true);
+      const items = await getAdminNavigation();
+      if (Array.isArray(items) && items.length > 0) {
+        setNavItems(items);
+      }
+    } catch (e) {
+      console.warn('[AdminDrawer] could not load backend nav, using fallback:', e);
+    } finally {
+      setIsLoadingNav(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (visible) {
+      loadBackendNavigation();
+    }
+  }, [visible, loadBackendNavigation]);
 
   useEffect(() => {
     if (visible) {
@@ -105,21 +130,23 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
     }
   }, [visible, slideAnim, fadeAnim]);
 
-  const visibleItems = useMemo(() => {
+  // Fallback items in case network request fails or is still loading
+  const fallbackItems = useMemo(() => {
     const normalized = (Array.isArray(userRoles) ? userRoles : []).map((r) =>
       typeof r === 'string' ? normalizeRole(r) : ''
     );
 
-    // If admin, show all items
     if (normalized.includes(ROLE_ADMIN)) {
       return ALL_ITEMS;
     }
 
-    // Filter items based on user's roles
     return ALL_ITEMS.filter((item) =>
       item.requiredRoles.some((r) => normalized.includes(normalizeRole(r)))
     );
   }, [userRoles]);
+
+  // Primary source is backend-filtered navItems; fall back to local items if empty
+  const displayItems = navItems.length > 0 ? navItems : fallbackItems;
 
   const navigate = (route: string) => {
     pendingRouteRef.current = route;
@@ -229,7 +256,7 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          {visibleItems.map((item) => (
+          {displayItems.map((item) => (
             <TouchableOpacity
               key={item.route}
               onPress={() => navigate(item.route)}
@@ -271,6 +298,11 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
               <Ionicons name="chevron-forward" size={18} color={textSecondary} />
             </TouchableOpacity>
           ))}
+          {isLoadingNav && navItems.length === 0 && (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#41B8F0" />
+            </View>
+          )}
         </ScrollView>
       </Animated.View>
     </Modal>

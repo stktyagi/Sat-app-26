@@ -43,6 +43,24 @@ func defaultAppAccommodation() models.AppAccommodation {
 	}
 }
 
+func defaultAdminScreens() []models.AdminScreenConfig {
+	return []models.AdminScreenConfig{
+		{Key: "events_management", Label: "Event Management", Icon: "calendar-outline", Route: "/admin/EventsManagement", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEventPOC}},
+		{Key: "qr_scanner", Label: "QR Scanner", Icon: "qr-code-outline", Route: "/admin/QRScanner", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleEBEvents, models.RoleEventPOC}},
+		{Key: "venue_management", Label: "Venue Management", Icon: "location-outline", Route: "/admin/Venue", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents}},
+		{Key: "faq_management", Label: "FAQ Management", Icon: "help-circle-outline", Route: "/admin/FAQ", RequiredRoles: []string{models.RoleAdmin}},
+		{Key: "accommodation", Label: "Accommodation", Icon: "bed-outline", Route: "/admin/Accommodation", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality}},
+		{Key: "meal_pass_qr", Label: "Meal Pass QR", Icon: "restaurant-outline", Route: "/admin/MealPassQR", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality}},
+		{Key: "users_management", Label: "Users Management", Icon: "people-outline", Route: "/admin/Users", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBHospitality}},
+		{Key: "payment_management", Label: "Payment Management", Icon: "card-outline", Route: "/admin/Transactions", RequiredRoles: []string{models.RoleAdmin, models.RoleEBOutreach, models.RoleEBFinance}},
+		{Key: "send_notification", Label: "Send Notification", Icon: "notifications-outline", Route: "/admin/SendNotification", RequiredRoles: []string{models.RoleAdmin}},
+		{Key: "story_management", Label: "Story Management", Icon: "film-outline", Route: "/admin/StoryManagement", RequiredRoles: []string{models.RoleAdmin, models.RoleEBMedia}},
+		{Key: "reel_management", Label: "Reel Management", Icon: "videocam-outline", Route: "/admin/ReelsManagement", RequiredRoles: []string{models.RoleAdmin, models.RoleEBMedia}},
+		{Key: "banner_management", Label: "Banner Management", Icon: "image-outline", Route: "/admin/Banner", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEBMedia}},
+		{Key: "app_config", Label: "App Configuration", Icon: "settings-outline", Route: "/admin/AppConfig", RequiredRoles: []string{models.RoleAdmin}},
+	}
+}
+
 func defaultAppConfig() models.AppConfig {
 	return models.AppConfig{
 		Links: models.AppLinks{
@@ -59,6 +77,7 @@ func defaultAppConfig() models.AppConfig {
 			IOS:     "1.0.0",
 		},
 		Accommodation: defaultAppAccommodation(),
+		AdminScreens:  defaultAdminScreens(),
 	}
 }
 
@@ -81,8 +100,23 @@ func cloneAccommodation(a models.AppAccommodation) models.AppAccommodation {
 	return a
 }
 
+func cloneAdminScreens(s []models.AdminScreenConfig) []models.AdminScreenConfig {
+	if s == nil {
+		return nil
+	}
+	out := make([]models.AdminScreenConfig, len(s))
+	for i, item := range s {
+		roles := make([]string, len(item.RequiredRoles))
+		copy(roles, item.RequiredRoles)
+		item.RequiredRoles = roles
+		out[i] = item
+	}
+	return out
+}
+
 func cloneAppConfig(c models.AppConfig) models.AppConfig {
 	c.Accommodation = cloneAccommodation(c.Accommodation)
+	c.AdminScreens = cloneAdminScreens(c.AdminScreens)
 	return c
 }
 
@@ -158,6 +192,9 @@ func (s *Store) loadAppConfigLocked() (*models.AppConfig, error) {
 	}
 	if parsed.Accommodation.FoodAmount <= 0 {
 		parsed.Accommodation.FoodAmount = 300
+	}
+	if len(parsed.AdminScreens) == 0 {
+		parsed.AdminScreens = defaultAdminScreens()
 	}
 
 	appConfigMemory = &parsed
@@ -327,4 +364,32 @@ func (s *Store) EnsureAppDefaults(ctx context.Context) error {
 
 	_, err := s.loadAppConfigLocked()
 	return err
+}
+
+// GetAdminScreens fetches the admin screen role mappings.
+func (s *Store) GetAdminScreens(ctx context.Context) ([]models.AdminScreenConfig, error) {
+	cfg, err := s.GetAppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(cfg.AdminScreens) == 0 {
+		return defaultAdminScreens(), nil
+	}
+	return cfg.AdminScreens, nil
+}
+
+// SetAdminScreens updates the admin screen role mappings and persists to JSON.
+func (s *Store) SetAdminScreens(ctx context.Context, screens []models.AdminScreenConfig) error {
+	if screens == nil {
+		return fmt.Errorf("screens cannot be nil")
+	}
+	appConfigMu.Lock()
+	defer appConfigMu.Unlock()
+
+	cfg, err := s.loadAppConfigLocked()
+	if err != nil {
+		return err
+	}
+	cfg.AdminScreens = cloneAdminScreens(screens)
+	return saveAppConfigLocked(s.configPath(), cfg)
 }

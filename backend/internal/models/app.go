@@ -21,9 +21,9 @@ type AppVersions struct {
 
 // AppAccommodation holds dynamic accommodation and food pass pricing.
 type AppAccommodation struct {
-	Amount          int `json:"amount" firestore:"amount"`
-	Price           int `json:"price,omitempty" firestore:"price,omitempty"`
-	TechnicalAmount int `json:"technicalAmount,omitempty" firestore:"technicalAmount,omitempty"`
+	Amount              int `json:"amount" firestore:"amount"`
+	Price               int `json:"price,omitempty" firestore:"price,omitempty"`
+	TechnicalAmount     int `json:"technicalAmount,omitempty" firestore:"technicalAmount,omitempty"`
 	CulturalAmount      int `json:"culturalAmount,omitempty" firestore:"culturalAmount,omitempty"`
 	FoodAmount          int `json:"foodAmount,omitempty" firestore:"foodAmount,omitempty"`
 	TechnicalFoodAmount int `json:"technicalFoodAmount,omitempty" firestore:"technicalFoodAmount,omitempty"`
@@ -37,10 +37,20 @@ type AppAccommodation struct {
 	CulturalFoodDays  map[string]int `json:"culturalFoodDays,omitempty" firestore:"culturalFoodDays,omitempty"`
 }
 
-// AppConfig is the combined configuration object containing links, maintenance, versions, and accommodation pricing.
+// AdminScreenConfig defines an admin panel screen and the roles authorized to view it.
+type AdminScreenConfig struct {
+	Key           string   `json:"key"           firestore:"key"`
+	Label         string   `json:"label"         firestore:"label"`
+	Icon          string   `json:"icon"          firestore:"icon"`
+	Route         string   `json:"route"         firestore:"route"`
+	RequiredRoles []string `json:"requiredRoles" firestore:"requiredRoles"`
+}
+
+// AppConfig is the combined configuration object containing links, maintenance, versions, accommodation pricing, and admin screen permissions.
 type AppConfig struct {
-	Links         AppLinks         `json:"links"`
-	Maintenance   AppMaintenance   `json:"maintenance"`
-	Versions      AppVersions      `json:"versions"`
-	Accommodation AppAccommodation `json:"accommodation"`
+	Links         AppLinks            `json:"links"`
+	Maintenance   AppMaintenance      `json:"maintenance"`
+	Versions      AppVersions         `json:"versions"`
+	Accommodation AppAccommodation    `json:"accommodation"`
+	AdminScreens  []AdminScreenConfig `json:"adminScreens,omitempty"`
 }
