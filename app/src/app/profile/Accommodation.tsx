@@ -20,10 +20,10 @@ interface DayInfo {
 }
 
 const FESTIVAL_DAYS: DayInfo[] = [
-  { key: 'day1', title: '20 Nov', date: 'Thursday' },
-  { key: 'day2', title: '21 Nov', date: 'Friday' },
-  { key: 'day3', title: '22 Nov', date: 'Saturday' },
-  { key: 'day4', title: '23 Nov', date: 'Sunday' },
+  { key: 'day1', title: '20 Nov', date: 'Friday' },
+  { key: 'day2', title: '21 Nov', date: 'Saturday' },
+  { key: 'day3', title: '22 Nov', date: 'Sunday' },
+  { key: 'day4', title: '23 Nov', date: 'Monday' },
 ];
 
 export default function AccommodationScreen() {

@@ -49,16 +49,20 @@ func (cf *CustomField) IsHostOnly() bool {
 }
 
 // FilterCustomFieldsFor replaces e.CustomFields with a filtered copy visible to the caller.
-// If isHost is false, host-only fields are omitted.
+// If isHost is false, host-only fields are omitted. For host students, host-only and PPT fields are marked required.
 func (e *Event) FilterCustomFieldsFor(isHost bool) {
-	if isHost || len(e.CustomFields) == 0 {
+	if len(e.CustomFields) == 0 {
 		return
 	}
 	visible := make([]CustomField, 0, len(e.CustomFields))
 	for _, f := range e.CustomFields {
-		if !f.IsHostOnly() {
-			visible = append(visible, f)
+		if !isHost && f.IsHostOnly() {
+			continue
 		}
+		if isHost && (f.IsHostOnly() || strings.Contains(strings.ToLower(f.FieldID), "ppt") || strings.Contains(strings.ToLower(f.Label), "presentation")) {
+			f.Required = true
+		}
+		visible = append(visible, f)
 	}
 	e.CustomFields = visible
 }

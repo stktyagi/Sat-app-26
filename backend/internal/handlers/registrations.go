@@ -231,7 +231,8 @@ func validateResponses(e *models.Event, user *models.User, given []models.Respon
 		if f.IsHostOnly() && !isHost {
 			continue
 		}
-		if f.Required && !supplied[f.FieldID] {
+		isRequired := f.Required || (isHost && (f.IsHostOnly() || strings.Contains(strings.ToLower(f.FieldID), "ppt") || strings.Contains(strings.ToLower(f.Label), "presentation")))
+		if isRequired && !supplied[f.FieldID] {
 			return apierr.BadRequest("missing_response", "a required answer is missing").
 				WithDetails(gin.H{"fieldId": f.FieldID, "label": f.Label})
 		}

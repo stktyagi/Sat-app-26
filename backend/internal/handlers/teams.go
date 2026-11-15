@@ -153,14 +153,20 @@ func (a *API) JoinTeam(c *gin.Context) {
 		apierr.Respond(c, err)
 		return
 	}
-	if err := validateResponses(event, user, body.Responses); err != nil {
-		apierr.Respond(c, err)
-		return
+	responses := body.Responses
+	if len(responses) == 0 && len(team.Responses) > 0 {
+		responses = team.Responses
+	}
+	if len(body.Responses) > 0 {
+		if err := validateResponses(event, user, body.Responses); err != nil {
+			apierr.Respond(c, err)
+			return
+		}
 	}
 
 	fee := event.FeeFor(user.IsHostCollegeStudent)
 	regID := models.RegistrationID(event.EventID, user.UserID)
-	reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, team.InviteCode, fee, body.Responses)
+	reg := models.NewRegistration(user.UserID, event.EventID, team.TeamID, team.InviteCode, fee, responses)
 
 	// Determine if the new roster is already covered by team's settled payments.
 	coveredByCredit := !event.PaymentRequired
