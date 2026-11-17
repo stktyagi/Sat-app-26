@@ -217,18 +217,5 @@ func (s *Store) HasUserPaidForEvent(ctx context.Context, eventID, userID string)
 		}
 	}
 
-	// 4. Query payments collection directly for a successful payment by this user for this event
-	payIter := s.FS.Collection(ColPayments).
-		Where("userId", "==", userID).
-		Where("eventId", "==", eventID).
-		Where("status", "==", models.PaymentStatusSuccess).
-		Limit(1).
-		Documents(ctx)
-	defer payIter.Stop()
-	pDoc, pErr := payIter.Next()
-	if pErr == nil && pDoc != nil && pDoc.Exists() {
-		return true, nil
-	}
-
 	return false, nil
 }
