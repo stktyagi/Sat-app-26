@@ -404,17 +404,23 @@ var (
 	availMu        sync.RWMutex
 	availCache     *models.AccommodationAvailabilityDoc
 	availCacheTime time.Time
-	availTTL       = 30 * time.Second
+	availTTL       = 1 * time.Second
 )
 
 func (s *Store) InvalidateAccommodationAvailabilityCache() {
 	availMu.Lock()
 	defer availMu.Unlock()
 	availCache = nil
+	if s.Cache != nil {
+		_ = s.Cache.Delete(context.Background(), KeyAccommodationAvailability)
+	}
 }
 
-// GetAccommodationAvailability retrieves the counter document, using a 30s cache.
-// If the document does not exist yet, it reconciles from existing user records.
+// GetAccommodationAvailability retrieves the counter document.
+// Order of priority:
+// 1. In-memory cache (instant)
+// 2. Redis cache (0 Firestore reads)
+// 3. Firestore document app/accommodation_availability (only on cold cache/restart)
 func (s *Store) GetAccommodationAvailability(ctx context.Context) (*models.AccommodationAvailabilityDoc, error) {
 	availMu.RLock()
 	if availCache != nil && time.Since(availCacheTime) < availTTL {
@@ -429,6 +435,18 @@ func (s *Store) GetAccommodationAvailability(ctx context.Context) (*models.Accom
 
 	if availCache != nil && time.Since(availCacheTime) < availTTL {
 		return availCache, nil
+	}
+
+	// 1. Check Redis first to avoid Firestore reads completely
+	if s.Cache != nil {
+		if raw, err := s.Cache.Get(ctx, KeyAccommodationAvailability); err == nil && len(raw) > 0 {
+			var data models.AccommodationAvailabilityDoc
+			if err := json.Unmarshal(raw, &data); err == nil {
+				availCache = &data
+				availCacheTime = time.Now()
+				return availCache, nil
+			}
+		}
 	}
 
 	if s.FS == nil {
@@ -446,6 +464,13 @@ func (s *Store) GetAccommodationAvailability(ctx context.Context) (*models.Accom
 	var data models.AccommodationAvailabilityDoc
 	if err := doc.DataTo(&data); err != nil {
 		return nil, err
+	}
+
+	// Populate Redis
+	if s.Cache != nil {
+		if b, err := json.Marshal(data); err == nil {
+			_ = s.Cache.Set(ctx, KeyAccommodationAvailability, b, 0)
+		}
 	}
 
 	availCache = &data
@@ -515,6 +540,13 @@ func (s *Store) reconcileAccommodationAvailabilityLocked(ctx context.Context) (*
 	_, err := s.FS.Collection(ColApp).Doc("accommodation_availability").Set(ctx, doc)
 	if err != nil {
 		log.Printf("error saving accommodation_availability: %v", err)
+	}
+
+	// Update Redis cache directly
+	if s.Cache != nil {
+		if b, err := json.Marshal(doc); err == nil {
+			_ = s.Cache.Set(ctx, KeyAccommodationAvailability, b, 0)
+		}
 	}
 
 	availCache = &doc

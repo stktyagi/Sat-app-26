@@ -409,6 +409,8 @@ func (s *Store) UpdateUserAccommodation(ctx context.Context, userID string, need
 	_, err := s.FS.Collection(ColUsers).Doc(userID).Update(ctx, updates)
 	if err == nil {
 		evictUserFromCache(userID)
+		s.InvalidateAccommodationCache()
+		_, _ = s.ReconcileAccommodationAvailability(ctx)
 	}
 	return wrap(err)
 }
