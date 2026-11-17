@@ -152,10 +152,10 @@ func (a *API) PatchMe(c *gin.Context) {
 				fields["referredBy"] = refCode
 				// Reward referrer with 100 coins
 				go func(refUserID string) {
-					_, _ = a.Store.AddCoins(context.Background(), refUserID, 100)
+					_, _ = a.Store.AddCoins(context.Background(), refUserID, 0)
 				}(referrer.UserID)
 				// Reward current user with 50 coins
-				fields["coins"] = user.Coins + 50
+				fields["coins"] = user.Coins + 0
 			} else {
 				fields["referredBy"] = refCode
 			}
