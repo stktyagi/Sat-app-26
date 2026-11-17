@@ -777,6 +777,7 @@ export const defaultColleges = [
     "Marian Engineering College",
     "Marine Engineering College - MERI",
     "Marudhar Engineering College",
+    "Masters Union",
     "Matrusri Institute of Post Graduate Studies",
     "Maulana Azad College",
     "Maulana Azad College",
