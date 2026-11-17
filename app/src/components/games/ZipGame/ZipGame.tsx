@@ -11,10 +11,19 @@ const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
 const AVAILABLE_WIDTH = width - GRID_PADDING * 2;
 
-export default function ZipGame() {
+export interface ZipGameProps {
+  initialLevelIndex?: number;
+  onComplete?: (timeSeconds: number) => void;
+  onBack?: () => void;
+  rewardClaimed?: boolean;
+}
+
+export default function ZipGame({ initialLevelIndex, onComplete, onBack, rewardClaimed }: ZipGameProps = {}) {
   const router = useRouter();
   const getRandomLevel = () => Math.floor(Math.random() * SAMPLE_LEVELS.length);
-  const [levelIndex, setLevelIndex] = useState(getRandomLevel);
+  const [levelIndex, setLevelIndex] = useState(() => 
+    typeof initialLevelIndex === 'number' ? Math.max(0, Math.min(initialLevelIndex, SAMPLE_LEVELS.length - 1)) : getRandomLevel()
+  );
   const currentLevel = SAMPLE_LEVELS[levelIndex];
 
   const {
@@ -73,7 +82,6 @@ export default function ZipGame() {
 
   const nextLevel = () => {
     let nextIdx = getRandomLevel();
-    // Ensure it picks a different level if possible
     if (SAMPLE_LEVELS.length > 1) {
       while (nextIdx === levelIndex) {
         nextIdx = getRandomLevel();
@@ -88,10 +96,18 @@ export default function ZipGame() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      router.back();
+    }
+  };
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <View className="flex-row items-center justify-between mb-4 px-6 mt-12">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4">
+        <TouchableOpacity onPress={handleBack} className="mr-4">
           <Ionicons name="arrow-back" size={24} color="#0C3572" />
         </TouchableOpacity>
         <Text style={{ fontFamily: 'Outfit_700Bold' }} className="text-[#0C3572] text-2xl">Zip Puzzle</Text>
@@ -175,6 +191,18 @@ export default function ZipGame() {
             <Text style={styles.modalTitle}>Level Complete!</Text>
             <Text style={styles.modalText}>Time: {formatTime(timer)}</Text>
             
+            {onComplete && !rewardClaimed && (
+              <TouchableOpacity
+                style={[styles.nextButton, { backgroundColor: '#F59E0B', marginBottom: 10 }]}
+                onPress={() => {
+                  setShowWinModal(false);
+                  onComplete(timer);
+                }}
+              >
+                <Text style={styles.nextButtonText}>🪙 Claim 20 Coins</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity style={styles.nextButton} onPress={nextLevel}>
               <Text style={styles.nextButtonText}>Next Puzzle</Text>
             </TouchableOpacity>
@@ -244,11 +272,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF66',
+    backgroundColor: '#FFFFFF',
     padding: 30,
     borderRadius: 20,
     alignItems: 'center',
     width: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
   modalTitle: {
     color: '#0C3572',
@@ -261,18 +294,18 @@ const styles = StyleSheet.create({
     color: '#2175C0',
     fontSize: 16,
     fontFamily: 'Outfit_500Medium',
-    marginBottom: 5,
+    marginBottom: 12,
   },
   nextButton: {
-    marginTop: 20,
+    marginTop: 8,
     backgroundColor: '#EEB170',
     paddingVertical: 12,
-    paddingHorizontal: 30,
+    paddingHorizontal: 28,
     borderRadius: 30,
   },
   nextButtonText: {
     color: '#121212',
     fontFamily: 'Outfit_700Bold',
-    fontSize: 16,
+    fontSize: 15,
   },
 });

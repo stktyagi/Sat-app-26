@@ -197,6 +197,22 @@ func (a *API) checkRegistrable(ctx context.Context, e *models.Event, u *models.U
 		return apierr.Forbidden("host_college_only", "this event is open to host college students only")
 	}
 
+	// If event title includes "[Preregistered]", user must have registered and paid for the prerequisite event.
+	const PreregRequiredEventID = "iqY8KPrQ7oau2bFB4thB"
+	lowerTitle := strings.ToLower(e.Title)
+	if e.EventID != PreregRequiredEventID && (strings.Contains(lowerTitle, "[preregistered]") || strings.Contains(lowerTitle, "[pre-registered]")) {
+		if a.Store != nil {
+			paid, err := a.Store.HasUserPaidForEvent(ctx, PreregRequiredEventID, u.UserID)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return apierr.Internal("could not verify preregistration requirements")
+			}
+			if !paid {
+				return apierr.Forbidden("preregistration_required",
+					"Registration for this event is only available to participants who have registered and paid for the prerequisite event.")
+			}
+		}
+	}
+
 	// Capacity. Without a stored counter this is a count immediately before the
 	// write, so simultaneous requests for the final seat can both pass. Adding
 	// registeredCount to the event document and incrementing it inside the

@@ -145,7 +145,23 @@ func (a *API) PatchMe(c *gin.Context) {
 		}
 	}
 	if body.ReferredBy != nil {
-		fields["referredBy"] = strings.TrimSpace(*body.ReferredBy)
+		refCode := strings.TrimSpace(*body.ReferredBy)
+		if refCode != "" && user != nil && user.ReferredBy == "" && !strings.EqualFold(refCode, user.ReferralCode) {
+			referrer, err := a.Store.GetUserByReferralCode(c.Request.Context(), refCode)
+			if err == nil && referrer != nil && referrer.UserID != user.UserID {
+				fields["referredBy"] = refCode
+				// Reward referrer with 100 coins
+				go func(refUserID string) {
+					_, _ = a.Store.AddCoins(context.Background(), refUserID, 100)
+				}(referrer.UserID)
+				// Reward current user with 50 coins
+				fields["coins"] = user.Coins + 50
+			} else {
+				fields["referredBy"] = refCode
+			}
+		} else if refCode != "" {
+			fields["referredBy"] = refCode
+		}
 	}
 
 	if len(fields) == 0 {
@@ -175,6 +191,50 @@ func (a *API) PatchMe(c *gin.Context) {
 	updated.IsHostCollegeStudent = user.IsHostCollegeStudent
 
 	c.JSON(http.StatusOK, gin.H{"user": updated})
+}
+
+type gameCompleteBody struct {
+	Game string `json:"game"`
+}
+
+// ClaimDailyGameCoins handles awarding daily coins when completing games on the frontend.
+func (a *API) ClaimDailyGameCoins(c *gin.Context) {
+	var body gameCompleteBody
+	if !bind(c, &body) {
+		return
+	}
+
+	game := strings.ToLower(strings.TrimSpace(body.Game))
+	if game == "" {
+		game = "zip"
+	}
+
+	user := middleware.CurrentUser(c)
+	if user == nil {
+		apierr.Respond(c, apierr.Unauthorized("not_authenticated", "login required"))
+		return
+	}
+
+	reward := 20
+	newCoins, awarded, alreadyClaimed, err := a.Store.ClaimDailyGame(c.Request.Context(), user.UserID, game, reward)
+	if err != nil {
+		log.Printf("ClaimDailyGameCoins error for user %s, game %s: %v", user.UserID, game, err)
+		apierr.Respond(c, apierr.Internal("failed to award game coins"))
+		return
+	}
+
+	msg := "You earned 20 Saturnalia Coins!"
+	if alreadyClaimed {
+		msg = "You have already claimed today's coins for this game. Come back tomorrow!"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":        !alreadyClaimed,
+		"alreadyClaimed": alreadyClaimed,
+		"coins":          newCoins,
+		"awarded":        awarded,
+		"message":        msg,
+	})
 }
 
 // maxIdentityImage caps the face photo and ID card uploads. Phone photos are a

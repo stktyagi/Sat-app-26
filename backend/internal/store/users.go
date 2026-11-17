@@ -95,6 +95,27 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*models.User,
 	return u, nil
 }
 
+// GetUserByReferralCode finds a user by their unique referral code.
+func (s *Store) GetUserByReferralCode(ctx context.Context, code string) (*models.User, error) {
+	q := s.FS.Collection(ColUsers).Where("referralCode", "==", code).Limit(1)
+	iter := q.Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, wrap(err)
+	}
+	u, err := decodeUser(doc)
+	if err != nil {
+		return nil, err
+	}
+	setUserInCache(u)
+	return u, nil
+}
+
 // GetUsers reads many users in one round trip. This is what replaces copying a
 // profile snapshot onto every team and registration document: rosters hydrate
 // from the source of truth instead of from a duplicate that can go stale.
@@ -163,6 +184,154 @@ func (s *Store) UpdateUser(ctx context.Context, uid string, fields map[string]an
 	return s.GetUser(ctx, uid)
 }
 
+// AddCoins atomically increments a user's coin balance by the specified amount.
+func (s *Store) AddCoins(ctx context.Context, uid string, amount int) (int, error) {
+	if amount == 0 {
+		u, err := s.GetUser(ctx, uid)
+		if err != nil {
+			return 0, err
+		}
+		return u.Coins, nil
+	}
+	updates := []firestore.Update{
+		{Path: "coins", Value: firestore.Increment(amount)},
+		{Path: "updatedAt", Value: isotime.Now()},
+	}
+	if _, err := s.FS.Collection(ColUsers).Doc(uid).Update(ctx, updates); err != nil {
+		return 0, wrap(err)
+	}
+	evictUserFromCache(uid)
+	s.InvalidateLeaderboardCache()
+
+	u, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return 0, err
+	}
+	return u.Coins, nil
+}
+
+// ClaimDailyGame checks if the user has already received the daily coins for the
+// specified game today. If not, it awards the coins and marks today as completed.
+func (s *Store) ClaimDailyGame(ctx context.Context, uid string, game string, rewardCoins int) (newCoins int, awarded int, alreadyClaimed bool, err error) {
+	todayStr := time.Now().UTC().Format("2006-01-02")
+
+	user, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return 0, 0, false, err
+	}
+
+	if user.DailyGameRewards != nil && user.DailyGameRewards[game] == todayStr {
+		return user.Coins, 0, true, nil
+	}
+
+	updates := []firestore.Update{
+		{Path: "coins", Value: firestore.Increment(rewardCoins)},
+		{Path: "dailyGameRewards." + game, Value: todayStr},
+		{Path: "updatedAt", Value: isotime.Now()},
+	}
+
+	if _, err := s.FS.Collection(ColUsers).Doc(uid).Update(ctx, updates); err != nil {
+		return 0, 0, false, wrap(err)
+	}
+
+	evictUserFromCache(uid)
+	s.InvalidateLeaderboardCache()
+
+	updated, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return 0, rewardCoins, false, nil
+	}
+	return updated.Coins, rewardCoins, false, nil
+}
+
+var (
+	leaderboardMu    sync.RWMutex
+	leaderboardCache []models.LeaderboardEntry
+	leaderboardTime  time.Time
+	leaderboardTTL   = 30 * time.Second
+)
+
+// InvalidateLeaderboardCache clears the in-memory leaderboard cache.
+func (s *Store) InvalidateLeaderboardCache() {
+	leaderboardMu.Lock()
+	leaderboardCache = nil
+	leaderboardMu.Unlock()
+}
+
+// GetLeaderboard returns the top users by coins descending.
+func (s *Store) GetLeaderboard(ctx context.Context, limit int) ([]models.LeaderboardEntry, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	leaderboardMu.RLock()
+	if leaderboardCache != nil && time.Since(leaderboardTime) < leaderboardTTL {
+		cached := leaderboardCache
+		leaderboardMu.RUnlock()
+		if len(cached) > limit {
+			return cached[:limit], nil
+		}
+		return cached, nil
+	}
+	leaderboardMu.RUnlock()
+
+	leaderboardMu.Lock()
+	defer leaderboardMu.Unlock()
+
+	if leaderboardCache != nil && time.Since(leaderboardTime) < leaderboardTTL {
+		if len(leaderboardCache) > limit {
+			return leaderboardCache[:limit], nil
+		}
+		return leaderboardCache, nil
+	}
+
+	iter := s.FS.Collection(ColUsers).OrderBy("coins", firestore.Desc).Limit(limit).Documents(ctx)
+	defer iter.Stop()
+
+	var list []models.LeaderboardEntry
+	rank := 1
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, wrap(err)
+		}
+		u, err := decodeUser(doc)
+		if err != nil {
+			continue
+		}
+		name := u.DisplayName
+		if name == "" {
+			name = "Participant"
+		}
+		college := u.CollegeName
+		if college == "" {
+			if u.IsHostCollegeStudent {
+				college = "Thapar Institute"
+			} else {
+				college = "Saturnalia"
+			}
+		}
+		photo := u.PhotoURL
+		list = append(list, models.LeaderboardEntry{
+			Rank:        rank,
+			UserID:      u.UserID,
+			DisplayName: name,
+			CollegeName: college,
+			Coins:       u.Coins,
+			PhotoURL:    photo,
+		})
+		rank++
+	}
+
+	leaderboardCache = list
+	leaderboardTime = time.Now()
+
+	return list, nil
+}
+
 // DeleteUser removes a user document, associated registrations, and cleans up team memberships
 // (handing over leadership to the next member or disbanding empty teams).
 // This is an irreversible operation that should be used with caution.
@@ -218,6 +387,7 @@ func (s *Store) DeleteUser(ctx context.Context, uid string) error {
 	// 6. Evict from memory caches
 	evictUserFromCache(uid)
 	s.InvalidateAccommodationCache()
+	s.InvalidateLeaderboardCache()
 	return nil
 }
 

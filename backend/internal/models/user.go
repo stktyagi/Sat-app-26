@@ -53,32 +53,33 @@ func NormalizeRole(r string) string {
 }
 
 type User struct {
-	UserID                      string          `json:"userId"                      firestore:"userId"`
-	Email                       string          `json:"email"                       firestore:"email"`
-	DisplayName                 string          `json:"displayName"                 firestore:"displayName"`
-	PhoneNumber                 string          `json:"phoneNumber"                 firestore:"phoneNumber"`
-	RollNumber                  string          `json:"rollNumber"                  firestore:"rollNumber"`
-	CollegeName                 string          `json:"collegeName"                 firestore:"collegeName"`
-	Roles                       []string        `json:"roles"                       firestore:"roles"`
-	Gender                      string          `json:"gender"                      firestore:"gender"`
-	Age                         string          `json:"age"                         firestore:"age"`
-	GraduationYear              string          `json:"graduationYear"              firestore:"graduationYear"`
-	Interests                   []string        `json:"interests"                   firestore:"interests"`
-	FullyRegistered             bool            `json:"fullyRegistered"             firestore:"fullyRegistered"`
-	IsVerified                  bool            `json:"isVerified"                  firestore:"isVerified"`
-	IsAmbassador                bool            `json:"isAmbassador"                firestore:"isAmbassador"`
-	AccommodationNeeded         bool            `json:"accommodationNeeded"         firestore:"accommodationNeeded"`
-	Accommodation               map[string]bool `json:"accommodation"               firestore:"accommodation"`
-	Food                        map[string]bool `json:"food"                        firestore:"food"`
-	AccommodationTransactionIds []string        `json:"accommodationTransactionIds" firestore:"accommodationTransactionIds"`
-	AccommodationTier           string          `json:"accommodationTier,omitempty" firestore:"accommodationTier,omitempty"`
-	CheckInStatus               CheckInStatus   `json:"checkInStatus"               firestore:"checkInStatus"`
-	ReferralCode                string          `json:"referralCode"                firestore:"referralCode"`
-	ReferredBy                  string          `json:"referredBy"                  firestore:"referredBy"`
-	Coins                       int             `json:"coins"                       firestore:"coins"`
-	CreatedAt                   string          `json:"createdAt"                   firestore:"createdAt"`
-	UpdatedAt                   string          `json:"updatedAt"                   firestore:"updatedAt"`
-	FCMToken                    string          `json:"fcmToken"                    firestore:"fcmToken"`
+	UserID                      string            `json:"userId"                      firestore:"userId"`
+	Email                       string            `json:"email"                       firestore:"email"`
+	DisplayName                 string            `json:"displayName"                 firestore:"displayName"`
+	PhoneNumber                 string            `json:"phoneNumber"                 firestore:"phoneNumber"`
+	RollNumber                  string            `json:"rollNumber"                  firestore:"rollNumber"`
+	CollegeName                 string            `json:"collegeName"                 firestore:"collegeName"`
+	Roles                       []string          `json:"roles"                       firestore:"roles"`
+	Gender                      string            `json:"gender"                      firestore:"gender"`
+	Age                         string            `json:"age"                         firestore:"age"`
+	GraduationYear              string            `json:"graduationYear"              firestore:"graduationYear"`
+	Interests                   []string          `json:"interests"                   firestore:"interests"`
+	FullyRegistered             bool              `json:"fullyRegistered"             firestore:"fullyRegistered"`
+	IsVerified                  bool              `json:"isVerified"                  firestore:"isVerified"`
+	IsAmbassador                bool              `json:"isAmbassador"                firestore:"isAmbassador"`
+	AccommodationNeeded         bool              `json:"accommodationNeeded"         firestore:"accommodationNeeded"`
+	Accommodation               map[string]bool   `json:"accommodation"               firestore:"accommodation"`
+	Food                        map[string]bool   `json:"food"                        firestore:"food"`
+	AccommodationTransactionIds []string          `json:"accommodationTransactionIds" firestore:"accommodationTransactionIds"`
+	AccommodationTier           string            `json:"accommodationTier,omitempty" firestore:"accommodationTier,omitempty"`
+	CheckInStatus               CheckInStatus     `json:"checkInStatus"               firestore:"checkInStatus"`
+	ReferralCode                string            `json:"referralCode"                firestore:"referralCode"`
+	ReferredBy                  string            `json:"referredBy"                  firestore:"referredBy"`
+	Coins                       int               `json:"coins"                       firestore:"coins"`
+	DailyGameRewards            map[string]string `json:"dailyGameRewards,omitempty"  firestore:"dailyGameRewards,omitempty"`
+	CreatedAt                   string            `json:"createdAt"                   firestore:"createdAt"`
+	UpdatedAt                   string            `json:"updatedAt"                   firestore:"updatedAt"`
+	FCMToken                    string            `json:"fcmToken"                    firestore:"fcmToken"`
 
 	// Face photo and college ID card. The refs are storage handles, kept
 	// server-side so the files can be replaced or deleted; only the URLs go out.
@@ -99,8 +100,19 @@ type CheckInStatus struct {
 	Fest          bool   `json:"fest"                    firestore:"fest"`
 	Remark        string `json:"remark,omitempty"        firestore:"remark"`
 	Accommodation bool   `json:"accommodation"           firestore:"accommodation"`
+	CheckedOut    bool   `json:"checkedOut"              firestore:"checkedOut"`
+	CheckedOutAt  string `json:"checkedOutAt,omitempty"  firestore:"checkedOutAt"`
 	Hostel        string `json:"Hostel,omitempty"        firestore:"Hostel"`
 	RoomNo        string `json:"RoomNo,omitempty"        firestore:"RoomNo"`
+}
+
+type LeaderboardEntry struct {
+	Rank        int    `json:"rank"`
+	UserID      string `json:"userId"`
+	DisplayName string `json:"displayName"`
+	CollegeName string `json:"collegeName"`
+	Coins       int    `json:"coins"`
+	PhotoURL    string `json:"photoUrl,omitempty"`
 }
 
 // NewUser is the document written at first sign-in. Everything else the profile

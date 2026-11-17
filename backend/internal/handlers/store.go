@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/middleware"
 	"backend/internal/models"
 	"backend/internal/store"
 )
@@ -64,20 +65,86 @@ func respondStoreItemLookup(c *gin.Context, err error) {
 	apierr.Respond(c, apierr.Internal("could not load the store item"))
 }
 
+var defaultStoreItems = []*models.StoreItem{
+	{
+		ID:          "prod-hoodie",
+		Name:        "Saturnalia Official Hoodie",
+		Price:       800,
+		Description: "Hoodie Curated in a way that you wear to feel the vibes of Saturnalia",
+		Image:       "",
+	},
+	{
+		ID:          "prod-idcard",
+		Name:        "ID Card & Lanyard",
+		Price:       150,
+		Description: "ID Card Curated in a way that you wear to feel the vibes of Saturnalia",
+		Image:       "",
+	},
+	{
+		ID:          "prod-tee",
+		Name:        "Saturnalia Fest Tee",
+		Price:       499,
+		Description: "T-Shirt Curated in a way that you wear to feel the vibes of Saturnalia",
+		Image:       "",
+	},
+}
+
 // ListStoreItems returns all store items for the public shop.
 func (a *API) ListStoreItems(c *gin.Context) {
 	items, err := a.StoreItems.All(c.Request.Context())
 	if err != nil {
 		log.Printf("ListStoreItems error: %v", err)
-		apierr.Respond(c, apierr.Internal("could not load store items"))
+		// Fallback to default items on DB error
+		c.JSON(http.StatusOK, gin.H{"items": defaultStoreItems, "total": len(defaultStoreItems)})
 		return
 	}
+	if len(items) == 0 {
+		items = defaultStoreItems
+	}
 	c.JSON(http.StatusOK, gin.H{"items": items, "total": len(items)})
+}
+
+// GetLeaderboard returns the top users by coins for the leaderboard screen.
+func (a *API) GetLeaderboard(c *gin.Context) {
+	limit := 50
+	entries, err := a.Store.GetLeaderboard(c.Request.Context(), limit)
+	if err != nil {
+		log.Printf("GetLeaderboard error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not load leaderboard"))
+		return
+	}
+
+	user := middleware.CurrentUser(c)
+	userRank := 0
+	userCoins := 0
+	if user != nil {
+		userCoins = user.Coins
+		for _, e := range entries {
+			if e.UserID == user.UserID {
+				userRank = e.Rank
+				break
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"leaderboard": entries,
+		"total":       len(entries),
+		"userRank":    userRank,
+		"userCoins":   userCoins,
+	})
 }
 
 // GetStoreItem returns details of a single item.
 func (a *API) GetStoreItem(c *gin.Context) {
 	id := c.Param("id")
+	for _, defItem := range defaultStoreItems {
+		if defItem.ID == id {
+			c.JSON(http.StatusOK, gin.H{"item": defItem})
+			return
+		}
+	}
+
 	item, err := a.Store.GetStoreItem(c.Request.Context(), id)
 	if err != nil {
 		respondStoreItemLookup(c, err)

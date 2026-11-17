@@ -12,7 +12,7 @@ import (
 	"backend/internal/models"
 )
 
-var validAccommodationDays = []string{"day0", "day1", "day2", "day3", "day4"}
+var validAccommodationDays = []string{"day0", "day1", "day2", "day3", "day4", "day5"}
 
 // AdminListAccommodation returns users filtered by accommodation day and tab (incoming/outgoing/all).
 func (a *API) AdminListAccommodation(c *gin.Context) {
@@ -27,7 +27,7 @@ func (a *API) AdminListAccommodation(c *gin.Context) {
 	}
 	dayIndex := 0
 	trimmed := strings.TrimPrefix(dayParam, "day")
-	if parsed, err := strconv.Atoi(trimmed); err == nil && parsed >= 0 && parsed <= 4 {
+	if parsed, err := strconv.Atoi(trimmed); err == nil && parsed >= 0 && parsed <= 5 {
 		dayIndex = parsed
 	}
 	targetDay := fmt.Sprintf("day%d", dayIndex)
@@ -64,14 +64,14 @@ func (a *API) AdminListAccommodation(c *gin.Context) {
 			food = make(map[string]bool)
 		}
 
-		hasDay := acc[targetDay]
-		if !hasDay {
-			continue
-		}
+		accStatus := acc[targetDay]
+		foodStatus := food[targetDay]
 
-		// Filter by tab type: incoming or outgoing
 		if tabType == "incoming" {
-			// Incoming: First day of booked stay (previous day not booked)
+			// Incoming: First day of booked stay (booked today, previous day not booked)
+			if !acc[targetDay] {
+				continue
+			}
 			if dayIndex > 0 {
 				prevDay := fmt.Sprintf("day%d", dayIndex-1)
 				if acc[prevDay] {
@@ -79,12 +79,22 @@ func (a *API) AdminListAccommodation(c *gin.Context) {
 				}
 			}
 		} else if tabType == "outgoing" {
-			// Outgoing: Last day of booked stay (next day not booked)
-			if dayIndex < 4 {
-				nextDay := fmt.Sprintf("day%d", dayIndex+1)
-				if acc[nextDay] {
-					continue
-				}
+			// Outgoing: Previous day was booked, but today is NOT booked
+			// (e.g. booked 20 Nov and 21 Nov -> on 22 Nov they need to leave and check out)
+			if dayIndex == 0 {
+				continue
+			}
+			prevDay := fmt.Sprintf("day%d", dayIndex-1)
+			if !acc[prevDay] || acc[targetDay] {
+				continue
+			}
+			// For outgoing users checking out of their stay, indicate their stay was booked
+			accStatus = acc[prevDay]
+			foodStatus = food[prevDay] || food[targetDay]
+		} else {
+			// Default / "all": user is staying on targetDay
+			if !acc[targetDay] {
+				continue
 			}
 		}
 
@@ -114,8 +124,8 @@ func (a *API) AdminListAccommodation(c *gin.Context) {
 			PhoneNumber:         u.PhoneNumber,
 			CollegeName:         u.CollegeName,
 			AccommodationNeeded: u.AccommodationNeeded,
-			AccommodationStatus: acc[targetDay],
-			FoodStatus:          food[targetDay],
+			AccommodationStatus: accStatus,
+			FoodStatus:          foodStatus,
 			Accommodation:       acc,
 			Food:                food,
 			CheckInStatus:       u.CheckInStatus,
@@ -139,34 +149,43 @@ func (a *API) AdminAccommodationStats(c *gin.Context) {
 	}
 
 	type dayStat struct {
-		Day       string `json:"day"`
-		Total     int    `json:"total"`
-		CheckedIn int    `json:"checkedIn"`
-		Pending   int    `json:"pending"`
+		Day        string `json:"day"`
+		Total      int    `json:"total"`
+		CheckedIn  int    `json:"checkedIn"`
+		CheckedOut int    `json:"checkedOut"`
+		Pending    int    `json:"pending"`
 	}
 
-	stats := make([]dayStat, 5)
-	for i := 0; i < 5; i++ {
+	stats := make([]dayStat, 6)
+	for i := 0; i < 6; i++ {
 		dayKey := fmt.Sprintf("day%d", i)
 		total := 0
 		checkedIn := 0
+		checkedOut := 0
 
 		for _, u := range users {
 			acc := u.Accommodation
 			booked := acc != nil && acc[dayKey]
+			// For day 5 (checkout day after last festival day 4), count users who stayed day 4
+			if i == 5 && acc != nil && acc["day4"] {
+				booked = true
+			}
 			if booked {
 				total++
-				if u.CheckInStatus.Accommodation {
+				if u.CheckInStatus.CheckedOut {
+					checkedOut++
+				} else if u.CheckInStatus.Accommodation {
 					checkedIn++
 				}
 			}
 		}
 
 		stats[i] = dayStat{
-			Day:       strconv.Itoa(i),
-			Total:     total,
-			CheckedIn: checkedIn,
-			Pending:   total - checkedIn,
+			Day:        strconv.Itoa(i),
+			Total:      total,
+			CheckedIn:  checkedIn,
+			CheckedOut: checkedOut,
+			Pending:    total - checkedIn - checkedOut,
 		}
 	}
 

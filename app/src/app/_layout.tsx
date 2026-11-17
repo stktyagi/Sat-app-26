@@ -123,6 +123,7 @@ function RootLayout() {
                 <Stack.Screen name="admin" />
                 <Stack.Screen name="events" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
                 <Stack.Screen name="profile" />
+                <Stack.Screen name="store" />
                 <Stack.Screen name="map" />
               </Stack>
             </SafeAreaView>

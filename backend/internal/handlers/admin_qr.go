@@ -9,6 +9,7 @@ import (
 
 	"backend/internal/apierr"
 	"backend/internal/middleware"
+	"backend/internal/isotime"
 	"backend/internal/models"
 	"backend/internal/store"
 )
@@ -27,6 +28,8 @@ type gateCheckInRequest struct {
 type hostelCheckInRequest struct {
 	UserID        *string `json:"userId"`
 	Accommodation *bool   `json:"accommodation"`
+	CheckedOut    *bool   `json:"checkedOut"`
+	Action        *string `json:"action"` // "checkin" | "checkout" | "undo_checkout" | "revert"
 	Hostel        *string `json:"hostel"`
 	RoomNo        *string `json:"roomNo"`
 	RoomNoAlt     *string `json:"RoomNo"`
@@ -313,6 +316,8 @@ func (a *API) handleUserQRScan(c *gin.Context, rawData, category string) {
 				"fest":          user.CheckInStatus.Fest,
 				"remark":        user.CheckInStatus.Remark,
 				"accommodation": user.CheckInStatus.Accommodation,
+				"checkedOut":    user.CheckInStatus.CheckedOut,
+				"checkedOutAt":  user.CheckInStatus.CheckedOutAt,
 				"Hostel":        user.CheckInStatus.Hostel,
 				"RoomNo":        user.CheckInStatus.RoomNo,
 			},
@@ -367,6 +372,8 @@ func (a *API) AdminGateCheckIn(c *gin.Context) {
 			"fest":          festStatus,
 			"remark":        remark,
 			"accommodation": u.CheckInStatus.Accommodation,
+			"checkedOut":    u.CheckInStatus.CheckedOut,
+			"checkedOutAt":  u.CheckInStatus.CheckedOutAt,
 			"Hostel":        u.CheckInStatus.Hostel,
 			"RoomNo":        u.CheckInStatus.RoomNo,
 		},
@@ -387,6 +394,8 @@ func (a *API) AdminGateCheckIn(c *gin.Context) {
 				"fest":          updatedUser.CheckInStatus.Fest,
 				"remark":        updatedUser.CheckInStatus.Remark,
 				"accommodation": updatedUser.CheckInStatus.Accommodation,
+				"checkedOut":    updatedUser.CheckInStatus.CheckedOut,
+				"checkedOutAt":  updatedUser.CheckInStatus.CheckedOutAt,
 				"Hostel":        updatedUser.CheckInStatus.Hostel,
 				"RoomNo":        updatedUser.CheckInStatus.RoomNo,
 			},
@@ -426,9 +435,8 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 	}
 
 	accommodationStatus := u.CheckInStatus.Accommodation
-	if req.Accommodation != nil {
-		accommodationStatus = *req.Accommodation
-	}
+	checkedOut := u.CheckInStatus.CheckedOut
+	checkedOutAt := u.CheckInStatus.CheckedOutAt
 
 	hostel := u.CheckInStatus.Hostel
 	if req.Hostel != nil {
@@ -440,9 +448,48 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 	} else if req.RoomNoAlt != nil {
 		roomNo = strings.TrimSpace(*req.RoomNoAlt)
 	}
-	if !accommodationStatus {
-		hostel = ""
-		roomNo = ""
+
+	if req.Action != nil {
+		action := strings.ToLower(strings.TrimSpace(*req.Action))
+		switch action {
+		case "checkout":
+			accommodationStatus = true
+			checkedOut = true
+			checkedOutAt = isotime.Now()
+		case "checkin":
+			accommodationStatus = true
+			checkedOut = false
+			checkedOutAt = ""
+		case "undo_checkout":
+			accommodationStatus = true
+			checkedOut = false
+			checkedOutAt = ""
+		case "revert":
+			accommodationStatus = false
+			checkedOut = false
+			checkedOutAt = ""
+			hostel = ""
+			roomNo = ""
+		}
+	} else {
+		if req.CheckedOut != nil {
+			checkedOut = *req.CheckedOut
+			if checkedOut {
+				accommodationStatus = true
+				checkedOutAt = isotime.Now()
+			} else {
+				checkedOutAt = ""
+			}
+		}
+		if req.Accommodation != nil {
+			accommodationStatus = *req.Accommodation
+			if !accommodationStatus {
+				checkedOut = false
+				checkedOutAt = ""
+				hostel = ""
+				roomNo = ""
+			}
+		}
 	}
 
 	fields := map[string]any{
@@ -450,6 +497,8 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 			"fest":          u.CheckInStatus.Fest,
 			"remark":        u.CheckInStatus.Remark,
 			"accommodation": accommodationStatus,
+			"checkedOut":    checkedOut,
+			"checkedOutAt":  checkedOutAt,
 			"Hostel":        hostel,
 			"RoomNo":        roomNo,
 		},
@@ -471,6 +520,8 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 				"fest":          updatedUser.CheckInStatus.Fest,
 				"remark":        updatedUser.CheckInStatus.Remark,
 				"accommodation": updatedUser.CheckInStatus.Accommodation,
+				"checkedOut":    updatedUser.CheckInStatus.CheckedOut,
+				"checkedOutAt":  updatedUser.CheckInStatus.CheckedOutAt,
 				"Hostel":        updatedUser.CheckInStatus.Hostel,
 				"RoomNo":        updatedUser.CheckInStatus.RoomNo,
 			},

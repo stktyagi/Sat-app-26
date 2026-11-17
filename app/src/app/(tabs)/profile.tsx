@@ -540,6 +540,183 @@ const ProfileScreen = () => {
           </View>
         </View>
 
+        {/* Saturnalia Coins & Rewards Card */}
+        <View
+          style={{
+            backgroundColor: isDark ? '#1C1C20' : '#FFFFFF',
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(234, 179, 8, 0.35)' : 'rgba(234, 179, 8, 0.45)',
+            padding: 20,
+            marginBottom: 16,
+            shadowColor: '#EAB308',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: isDark ? 0.15 : 0.08,
+            shadowRadius: 10,
+            elevation: 3,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 10 }}>
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
+                  backgroundColor: isDark ? 'rgba(234, 179, 8, 0.15)' : '#FEF9C3',
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(234, 179, 8, 0.3)' : 'rgba(234, 179, 8, 0.5)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 22 }}>🪙</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_700Bold',
+                    fontSize: 16,
+                    color: isDark ? '#FFFFFF' : '#111827',
+                  }}
+                >
+                  Saturnalia Coins
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_400Regular',
+                    fontSize: 11,
+                    color: isDark ? '#9CA3AF' : '#6B7280',
+                  }}
+                >
+                  Earn by playing, referring & events
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={{
+                backgroundColor: isDark ? 'rgba(234, 179, 8, 0.18)' : '#FEF08A',
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: '#EAB308',
+                alignItems: 'center',
+                minWidth: 72,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: 'Poppins_700Bold',
+                  fontSize: 18,
+                  color: isDark ? '#FACC15' : '#854D0E',
+                }}
+              >
+                {userProfile?.coins ?? 0}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: 'Poppins_500Medium',
+                  fontSize: 9,
+                  color: isDark ? '#E5E7EB' : '#713F12',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                Coins
+              </Text>
+            </View>
+          </View>
+
+          {/* Quick Action Navigation Buttons */}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/store' as any)}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 10,
+                borderRadius: 14,
+                backgroundColor: isDark ? '#27272A' : '#F3F4F6',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Ionicons name="bag-handle-outline" size={15} color={isDark ? '#FACC15' : '#CA8A04'} />
+              <Text
+                style={{
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 12,
+                  color: isDark ? '#FFFFFF' : '#111827',
+                }}
+              >
+                Store
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/store/Leaderboard' as any)}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 10,
+                borderRadius: 14,
+                backgroundColor: isDark ? '#27272A' : '#F3F4F6',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Ionicons name="trophy-outline" size={15} color={isDark ? '#38BDF8' : '#0284C7'} />
+              <Text
+                style={{
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 12,
+                  color: isDark ? '#FFFFFF' : '#111827',
+                }}
+              >
+                Leaderboard
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/store/Games' as any)}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 10,
+                borderRadius: 14,
+                backgroundColor: isDark ? '#27272A' : '#F3F4F6',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Ionicons name="game-controller-outline" size={15} color={isDark ? '#A855F7' : '#9333EA'} />
+              <Text
+                style={{
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 12,
+                  color: isDark ? '#FFFFFF' : '#111827',
+                }}
+              >
+                Games
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* ID Verification Card for Outside Students */}
         {isOutsideCollegeStudent(userProfile) && (
           <View

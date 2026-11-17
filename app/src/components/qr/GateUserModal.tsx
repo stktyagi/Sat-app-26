@@ -650,7 +650,9 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
                       paddingHorizontal: 8,
                       paddingVertical: 3,
                       borderRadius: 12,
-                      backgroundColor: currentUserData.checkInStatus.accommodation
+                      backgroundColor: currentUserData.checkInStatus.checkedOut
+                        ? "rgba(168, 85, 247, 0.2)"
+                        : currentUserData.checkInStatus.accommodation
                         ? "rgba(16, 185, 129, 0.2)"
                         : "rgba(107, 114, 128, 0.2)",
                     }}
@@ -659,10 +661,18 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
                       style={{
                         fontFamily: "Poppins_600SemiBold",
                         fontSize: 11,
-                        color: currentUserData.checkInStatus.accommodation ? "#10B981" : textSecondary,
+                        color: currentUserData.checkInStatus.checkedOut
+                          ? "#A855F7"
+                          : currentUserData.checkInStatus.accommodation
+                          ? "#10B981"
+                          : textSecondary,
                       }}
                     >
-                      {currentUserData.checkInStatus.accommodation ? "Confirmed" : "Pending"}
+                      {currentUserData.checkInStatus.checkedOut
+                        ? "Checked Out"
+                        : currentUserData.checkInStatus.accommodation
+                        ? "Confirmed"
+                        : "Pending"}
                     </Text>
                   </View>
                 </View>

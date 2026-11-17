@@ -48,6 +48,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	authed.POST("/food/scan", api.ScanFoodQR)
 	authed.POST("/me/photo", api.uploadMine("photoRef", "photoUrl", "users/photos", func(u *models.User) string { return u.PhotoRef }))
 	authed.POST("/me/college-id", api.uploadMine("collegeIdRef", "collegeIdUrl", "users/college-ids", func(u *models.User) string { return u.CollegeIDRef }))
+	authed.POST("/me/games/complete", api.ClaimDailyGameCoins)
 
 	// Public browsing. The optional token is what lets a signed-in caller see
 	// their own fee and registration without a second request.
@@ -65,7 +66,9 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	open.GET("/stories", api.ListStories)
 	open.GET("/stories/:id", api.GetStory)
 	open.GET("/store", api.ListStoreItems)
+	open.GET("/store/leaderboard", api.GetLeaderboard)
 	open.GET("/store/:id", api.GetStoreItem)
+	open.GET("/leaderboard", api.GetLeaderboard)
 	open.POST("/chatbot/ask", api.Chat)
 	open.POST("/chatbot/reset", api.ResetChat)
 	open.GET("/colleges", api.GetColleges)

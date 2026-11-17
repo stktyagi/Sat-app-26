@@ -21,6 +21,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  LogOut,
+  Undo2,
   Building,
   House,
   Search,
@@ -57,7 +59,44 @@ const dayMappings: DayMapping[] = [
   { date: 21, backendDay: "2", day: "Friday" },
   { date: 22, backendDay: "3", day: "Saturday" },
   { date: 23, backendDay: "4", day: "Sunday" },
+  { date: 24, backendDay: "5", day: "Monday" },
 ];
+
+const DAY_DATE_LABELS: Record<string, string> = {
+  day0: "19 Nov",
+  day1: "20 Nov",
+  day2: "21 Nov",
+  day3: "22 Nov",
+  day4: "23 Nov",
+};
+
+const CHECKOUT_DATE_LABELS: Record<string, string> = {
+  day0: "20 Nov",
+  day1: "21 Nov",
+  day2: "22 Nov",
+  day3: "23 Nov",
+  day4: "24 Nov",
+};
+
+function formatStaySummary(acc?: Record<string, boolean>): string {
+  if (!acc) return "No dates booked";
+  const bookedDays = ["day0", "day1", "day2", "day3", "day4"].filter((k) => acc[k]);
+  if (bookedDays.length === 0) return "No dates booked";
+  const first = DAY_DATE_LABELS[bookedDays[0]];
+  const last = DAY_DATE_LABELS[bookedDays[bookedDays.length - 1]];
+  if (bookedDays.length === 1) {
+    return first;
+  }
+  return first + " - " + last;
+}
+
+function getCheckoutDate(acc?: Record<string, boolean>): string | null {
+  if (!acc) return null;
+  const bookedDays = ["day0", "day1", "day2", "day3", "day4"].filter((k) => acc[k]);
+  if (bookedDays.length === 0) return null;
+  const last = bookedDays[bookedDays.length - 1];
+  return CHECKOUT_DATE_LABELS[last] || null;
+}
 
 const Accommodation: React.FC = () => {
   const navigation = useAdminNavigation();
@@ -93,11 +132,10 @@ const Accommodation: React.FC = () => {
     if (stats && stats[idx]) {
       return stats[idx];
     }
-    return { total: 0, checkedIn: 0, pending: 0 };
+    return { total: 0, checkedIn: 0, checkedOut: 0, pending: 0 };
   }, [stats, selectedDate]);
 
-  const handleToggleCheckIn = async (user: UserAccommodation) => {
-    const newStatus = !user.checkInStatus?.accommodation;
+  const handleCheckIn = async (user: UserAccommodation) => {
     const hostelToSave =
       editingHostelUser[user.userId] !== undefined
         ? editingHostelUser[user.userId]
@@ -109,7 +147,7 @@ const Accommodation: React.FC = () => {
 
     try {
       setUpdatingUser(user.userId);
-      await updateAccommodationCheckIn(user.userId, newStatus, hostelToSave, roomToSave);
+      await updateAccommodationCheckIn(user.userId, true, hostelToSave, roomToSave, 'checkin');
 
       setUsers((prev) =>
         prev.map((u) => {
@@ -118,7 +156,9 @@ const Accommodation: React.FC = () => {
               ...u,
               checkInStatus: {
                 ...u.checkInStatus,
-                accommodation: newStatus,
+                accommodation: true,
+                checkedOut: false,
+                checkedOutAt: null,
                 Hostel: hostelToSave,
                 RoomNo: roomToSave,
               },
@@ -128,11 +168,141 @@ const Accommodation: React.FC = () => {
         })
       );
       loadStats(true);
+      Alert.alert("Success", `${user.displayName} marked as Checked In.`);
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to update accommodation check-in");
     } finally {
       setUpdatingUser(null);
     }
+  };
+
+  const handleCheckOut = (user: UserAccommodation) => {
+    Alert.alert(
+      "Confirm Check-Out",
+      `Are you sure you want to check out ${user.displayName} from ${formatHostelDisplay(user.checkInStatus?.Hostel, user.checkInStatus?.RoomNo) || "hostel"}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Check Out",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setUpdatingUser(user.userId);
+              await updateAccommodationCheckIn(user.userId, true, undefined, undefined, 'checkout');
+
+              setUsers((prev) =>
+                prev.map((u) => {
+                  if (u.userId === user.userId) {
+                    return {
+                      ...u,
+                      checkInStatus: {
+                        ...u.checkInStatus,
+                        accommodation: true,
+                        checkedOut: true,
+                        checkedOutAt: new Date().toISOString(),
+                      },
+                    };
+                  }
+                  return u;
+                })
+              );
+              loadStats(true);
+              Alert.alert("Checked Out", `${user.displayName} has been checked out successfully.`);
+            } catch (err: any) {
+              Alert.alert("Error", err.message || "Failed to check out user");
+            } finally {
+              setUpdatingUser(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleUndoCheckOut = (user: UserAccommodation) => {
+    Alert.alert(
+      "Undo Check-Out",
+      `Restore ${user.displayName}'s status to Checked In?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Restore Check-In",
+          onPress: async () => {
+            try {
+              setUpdatingUser(user.userId);
+              await updateAccommodationCheckIn(user.userId, true, undefined, undefined, 'undo_checkout');
+
+              setUsers((prev) =>
+                prev.map((u) => {
+                  if (u.userId === user.userId) {
+                    return {
+                      ...u,
+                      checkInStatus: {
+                        ...u.checkInStatus,
+                        accommodation: true,
+                        checkedOut: false,
+                        checkedOutAt: null,
+                      },
+                    };
+                  }
+                  return u;
+                })
+              );
+              loadStats(true);
+            } catch (err: any) {
+              Alert.alert("Error", err.message || "Failed to undo check-out");
+            } finally {
+              setUpdatingUser(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleUndoCheckIn = (user: UserAccommodation) => {
+    Alert.alert(
+      "Undo Check-In",
+      `Revert ${user.displayName}'s status back to Pending? This will clear their hostel check-in and room allotment.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Undo Check-In",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setUpdatingUser(user.userId);
+              await updateAccommodationCheckIn(user.userId, false, "", "", 'revert');
+
+              setUsers((prev) =>
+                prev.map((u) => {
+                  if (u.userId === user.userId) {
+                    return {
+                      ...u,
+                      checkInStatus: {
+                        ...u.checkInStatus,
+                        accommodation: false,
+                        checkedOut: false,
+                        checkedOutAt: null,
+                        Hostel: null,
+                        RoomNo: null,
+                      },
+                    };
+                  }
+                  return u;
+                })
+              );
+              loadStats(true);
+              Alert.alert("Undone", `${user.displayName}'s check-in has been reverted to Pending.`);
+            } catch (err: any) {
+              Alert.alert("Error", err.message || "Failed to undo check-in");
+            } finally {
+              setUpdatingUser(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSaveHostel = async (user: UserAccommodation) => {
@@ -343,11 +513,45 @@ const Accommodation: React.FC = () => {
               </Text>
             </View>
           </View>
-          {isExpanded ? (
-            <ChevronUp size={20} color="#41B8F0" />
-          ) : (
-            <ChevronDown size={20} color={textSecondary} />
-          )}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 8,
+                backgroundColor: user.checkInStatus?.checkedOut
+                  ? "rgba(168, 85, 247, 0.15)"
+                  : user.checkInStatus?.accommodation
+                  ? (selectedTab === "outgoing" ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)")
+                  : "rgba(245, 158, 11, 0.15)",
+                borderWidth: selectedTab === "outgoing" && user.checkInStatus?.accommodation && !user.checkInStatus?.checkedOut ? 1 : 0,
+                borderColor: "rgba(239, 68, 68, 0.4)",
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 10,
+                  color: user.checkInStatus?.checkedOut
+                    ? "#A855F7"
+                    : user.checkInStatus?.accommodation
+                    ? (selectedTab === "outgoing" ? "#EF4444" : "#10B981")
+                    : "#F59E0B",
+                }}
+              >
+                {user.checkInStatus?.checkedOut
+                  ? "Checked Out"
+                  : user.checkInStatus?.accommodation
+                  ? (selectedTab === "outgoing" ? "Needs Checkout" : "Checked In")
+                  : "Pending"}
+              </Text>
+            </View>
+            {isExpanded ? (
+              <ChevronUp size={20} color="#41B8F0" />
+            ) : (
+              <ChevronDown size={20} color={textSecondary} />
+            )}
+          </View>
         </View>
 
         {/* Expanded View */}
@@ -382,6 +586,45 @@ const Accommodation: React.FC = () => {
                   >
                     Allotted: {formatHostelDisplay(user.checkInStatus.Hostel, user.checkInStatus.RoomNo)}
                   </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Booked Stay & Checkout Information */}
+            <View
+              style={{
+                backgroundColor: isDark ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.03)",
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 10,
+                gap: 6,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 12, color: textSecondary }}>
+                  Booked Stay:
+                </Text>
+                <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12, color: textPrimary }}>
+                  {formatStaySummary(user.accommodation)}
+                </Text>
+              </View>
+              {getCheckoutDate(user.accommodation) && (
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 12, color: textSecondary }}>
+                    Departure / Checkout:
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <LogOut size={12} color={selectedTab === "outgoing" ? "#EF4444" : "#41B8F0"} style={{ marginRight: 4 }} />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        fontSize: 12,
+                        color: selectedTab === "outgoing" ? "#EF4444" : "#41B8F0",
+                      }}
+                    >
+                      {getCheckoutDate(user.accommodation)} {selectedTab === "outgoing" ? "(Today)" : ""}
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -444,23 +687,51 @@ const Accommodation: React.FC = () => {
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Clock size={13} color={textSecondary} />
                 <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 12, marginLeft: 5, marginRight: 6 }}>
-                  Check-in:
+                  Status:
                 </Text>
-                {user.checkInStatus?.accommodation ? (
-                  <CheckCircle size={13} color="#10B981" />
+                {user.checkInStatus?.checkedOut ? (
+                  <>
+                    <LogOut size={13} color="#A855F7" />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        fontSize: 12,
+                        marginLeft: 4,
+                        color: "#A855F7",
+                      }}
+                    >
+                      Checked Out
+                    </Text>
+                  </>
+                ) : user.checkInStatus?.accommodation ? (
+                  <>
+                    <CheckCircle size={13} color="#10B981" />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        fontSize: 12,
+                        marginLeft: 4,
+                        color: "#10B981",
+                      }}
+                    >
+                      Checked In
+                    </Text>
+                  </>
                 ) : (
-                  <Clock size={13} color="#F59E0B" />
+                  <>
+                    <Clock size={13} color="#F59E0B" />
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        fontSize: 12,
+                        marginLeft: 4,
+                        color: "#F59E0B",
+                      }}
+                    >
+                      Pending
+                    </Text>
+                  </>
                 )}
-                <Text
-                  style={{
-                    fontFamily: "Poppins_600SemiBold",
-                    fontSize: 12,
-                    marginLeft: 4,
-                    color: user.checkInStatus?.accommodation ? "#10B981" : "#F59E0B",
-                  }}
-                >
-                  {user.checkInStatus?.accommodation ? "Completed" : "Pending"}
-                </Text>
               </View>
             </View>
 
@@ -552,44 +823,141 @@ const Accommodation: React.FC = () => {
               </View>
             </View>
 
-            {/* Check-In Action Button */}
-            <TouchableOpacity
-              disabled={updatingUser === user.userId}
-              onPress={() => handleToggleCheckIn(user)}
-              activeOpacity={0.8}
-              style={{
-                backgroundColor: user.checkInStatus?.accommodation ? "rgba(239, 68, 68, 0.15)" : "#10B981",
-                borderColor: user.checkInStatus?.accommodation ? "#EF4444" : "#10B981",
-                borderWidth: 1,
-                borderRadius: 12,
-                paddingVertical: 10,
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "row",
-              }}
-            >
-              {updatingUser === user.userId ? (
-                <ActivityIndicator size="small" color={user.checkInStatus?.accommodation ? "#EF4444" : "#FFFFFF"} />
-              ) : (
-                <>
-                  {user.checkInStatus?.accommodation ? (
-                    <>
-                      <XCircle size={15} color="#EF4444" style={{ marginRight: 6 }} />
-                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#EF4444" }}>
-                        Undo Check-In
-                      </Text>
-                    </>
+            {/* Check-In & Check-Out Action Buttons */}
+            {user.checkInStatus?.checkedOut ? (
+              <View style={{ gap: 8 }}>
+                <View
+                  style={{
+                    backgroundColor: "rgba(168, 85, 247, 0.15)",
+                    borderColor: "#A855F7",
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    paddingVertical: 10,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "row",
+                  }}
+                >
+                  <LogOut size={15} color="#A855F7" style={{ marginRight: 6 }} />
+                  <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#A855F7" }}>
+                    Checked Out
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  disabled={updatingUser === user.userId}
+                  onPress={() => handleUndoCheckOut(user)}
+                  activeOpacity={0.8}
+                  style={{
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "row",
+                    backgroundColor: isDark ? "rgba(168, 85, 247, 0.15)" : "rgba(168, 85, 247, 0.1)",
+                    borderWidth: 1,
+                    borderColor: "#A855F7",
+                  }}
+                >
+                  {updatingUser === user.userId ? (
+                    <ActivityIndicator size="small" color="#A855F7" />
                   ) : (
                     <>
-                      <CheckCircle size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#FFFFFF" }}>
-                        Mark Checked In
+                      <Undo2 size={15} color="#A855F7" style={{ marginRight: 6 }} />
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#A855F7" }}>
+                        Undo Check-Out (Restore Check-In)
                       </Text>
                     </>
                   )}
-                </>
-              )}
-            </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
+            ) : user.checkInStatus?.accommodation ? (
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <TouchableOpacity
+                    disabled={updatingUser === user.userId}
+                    onPress={() => handleCheckOut(user)}
+                    activeOpacity={0.8}
+                    style={{
+                      flex: 1.2,
+                      backgroundColor: "#EF4444",
+                      borderColor: "#EF4444",
+                      borderWidth: 1,
+                      borderRadius: 12,
+                      paddingVertical: 11,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexDirection: "row",
+                    }}
+                  >
+                    {updatingUser === user.userId ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <LogOut size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                        <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#FFFFFF" }}>
+                          Check Out
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    disabled={updatingUser === user.userId}
+                    onPress={() => handleUndoCheckIn(user)}
+                    activeOpacity={0.8}
+                    style={{
+                      flex: 1,
+                      backgroundColor: isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)",
+                      borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "rgba(239, 68, 68, 0.25)",
+                      borderWidth: 1,
+                      borderRadius: 12,
+                      paddingVertical: 11,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexDirection: "row",
+                    }}
+                  >
+                    {updatingUser === user.userId ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <>
+                        <Undo2 size={15} color="#EF4444" style={{ marginRight: 6 }} />
+                        <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#EF4444" }}>
+                          Undo Check-In
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                disabled={updatingUser === user.userId}
+                onPress={() => handleCheckIn(user)}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: "#10B981",
+                  borderColor: "#10B981",
+                  borderWidth: 1,
+                  borderRadius: 12,
+                  paddingVertical: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "row",
+                }}
+              >
+                {updatingUser === user.userId ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <CheckCircle size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#FFFFFF" }}>
+                      Mark Checked In
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </TouchableOpacity>
@@ -651,7 +1019,9 @@ const Accommodation: React.FC = () => {
               ? `${filteredUsers.length} ${selectedTab} users for ${
                   dayMappings.find((d) => d.backendDay === selectedDate)?.day || "selected day"
                 }`
-              : "Track hostel arrivals and departures"}
+              : selectedTab === "outgoing"
+              ? "Track hostel departures & check-outs"
+              : "Track hostel arrivals & check-ins"}
           </Text>
         </View>
       </View>
@@ -669,23 +1039,23 @@ const Accommodation: React.FC = () => {
       </View>
 
       {/* Daily Stats Overview Cards */}
-      <View style={{ flexDirection: "row", paddingHorizontal: 16, marginBottom: 14, gap: 10 }}>
+      <View style={{ flexDirection: "row", paddingHorizontal: 16, marginBottom: 14, gap: 8 }}>
         <View
           style={{
             flex: 1,
             backgroundColor: cardBg,
             borderRadius: 14,
             paddingVertical: 10,
-            paddingHorizontal: 12,
+            paddingHorizontal: 8,
             borderWidth: 1,
             borderColor: cardBorder,
             alignItems: "center",
           }}
         >
-          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: textSecondary }}>
-            Total Booked
+          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 10, color: textSecondary }}>
+            Booked
           </Text>
-          <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 18, color: "#38BDF8", marginTop: 2 }}>
+          <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: "#38BDF8", marginTop: 2 }}>
             {currentDayStats.total}
           </Text>
         </View>
@@ -696,16 +1066,16 @@ const Accommodation: React.FC = () => {
             backgroundColor: cardBg,
             borderRadius: 14,
             paddingVertical: 10,
-            paddingHorizontal: 12,
+            paddingHorizontal: 8,
             borderWidth: 1,
             borderColor: cardBorder,
             alignItems: "center",
           }}
         >
-          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: textSecondary }}>
+          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 10, color: textSecondary }}>
             Checked In
           </Text>
-          <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 18, color: "#10B981", marginTop: 2 }}>
+          <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: "#10B981", marginTop: 2 }}>
             {currentDayStats.checkedIn}
           </Text>
         </View>
@@ -716,16 +1086,36 @@ const Accommodation: React.FC = () => {
             backgroundColor: cardBg,
             borderRadius: 14,
             paddingVertical: 10,
-            paddingHorizontal: 12,
+            paddingHorizontal: 8,
             borderWidth: 1,
             borderColor: cardBorder,
             alignItems: "center",
           }}
         >
-          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: textSecondary }}>
+          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 10, color: textSecondary }}>
+            Checked Out
+          </Text>
+          <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: "#A855F7", marginTop: 2 }}>
+            {currentDayStats.checkedOut || 0}
+          </Text>
+        </View>
+
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: cardBg,
+            borderRadius: 14,
+            paddingVertical: 10,
+            paddingHorizontal: 8,
+            borderWidth: 1,
+            borderColor: cardBorder,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 10, color: textSecondary }}>
             Pending
           </Text>
-          <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 18, color: "#F59E0B", marginTop: 2 }}>
+          <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: "#F59E0B", marginTop: 2 }}>
             {currentDayStats.pending}
           </Text>
         </View>
@@ -932,7 +1322,7 @@ const Accommodation: React.FC = () => {
               <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 12, textAlign: "center", marginTop: 4 }}>
                 {selectedTab === "incoming"
                   ? "No users starting accommodation on this day"
-                  : "No users ending accommodation on this day"}
+                  : "No users scheduled to check out on this day"}
               </Text>
             </View>
           )}

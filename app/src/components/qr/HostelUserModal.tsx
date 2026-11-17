@@ -128,6 +128,8 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
           checkInStatus: {
             ...currentUserData.checkInStatus,
             accommodation: true,
+            checkedOut: false,
+            checkedOutAt: null,
             Hostel: selectedHostelCode.trim(),
             RoomNo: roomNo.trim(),
           },
@@ -158,13 +160,74 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
     }
   };
 
-  const handleRevertCheckin = async () => {
+  const handleHostelCheckout = async () => {
+    showAlert(
+      "Confirm Check-Out",
+      `Are you sure you want to check out ${currentUserData.displayName || currentUserData.name || "this user"} from the hostel?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Check Out",
+          style: "destructive",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const result = await updateHostelStatus(
+                currentUserData.userId,
+                true,
+                undefined,
+                undefined,
+                "checkout"
+              );
+
+              if (result.success) {
+                const updatedData = {
+                  ...currentUserData,
+                  checkInStatus: {
+                    ...currentUserData.checkInStatus,
+                    accommodation: true,
+                    checkedOut: true,
+                    checkedOutAt: new Date().toISOString(),
+                  },
+                };
+                setCurrentUserData(updatedData);
+
+                if (onUserDataUpdate) {
+                  onUserDataUpdate(updatedData);
+                }
+
+                setSuccessMessage("User checked out from hostel successfully!");
+                setUpdateSuccess(true);
+                setTimeout(() => setUpdateSuccess(false), 3000);
+              } else {
+                showAlert(
+                  result.error || "Check-Out Failed",
+                  result.message || "Failed to check out user"
+                );
+              }
+            } catch (error) {
+              showAlert(
+                "Error",
+                "Failed to check out user. Please try again."
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleUndoCheckout = async () => {
     setLoading(true);
     try {
       const result = await updateHostelStatus(
         currentUserData.userId,
-        false,
-        ""
+        true,
+        undefined,
+        undefined,
+        "undo_checkout"
       );
 
       if (result.success) {
@@ -172,9 +235,9 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
           ...currentUserData,
           checkInStatus: {
             ...currentUserData.checkInStatus,
-            accommodation: false,
-            Hostel: null,
-            RoomNo: null,
+            accommodation: true,
+            checkedOut: false,
+            checkedOutAt: null,
           },
         };
         setCurrentUserData(updatedData);
@@ -183,23 +246,84 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
           onUserDataUpdate(updatedData);
         }
 
-        setSuccessMessage("Hostel check-in reverted to pending!");
+        setSuccessMessage("Check-out undone. User is now Checked In.");
         setUpdateSuccess(true);
         setTimeout(() => setUpdateSuccess(false), 3000);
       } else {
         showAlert(
           result.error || "Update Failed",
-          result.message || "Failed to revert accommodation status"
+          result.message || "Failed to undo check-out"
         );
       }
     } catch (error) {
       showAlert(
         "Error",
-        "Failed to revert accommodation status. Please try again."
+        "Failed to undo check-out. Please try again."
       );
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRevertCheckin = async () => {
+    showAlert(
+      "Revert to Pending",
+      `Reset check-in status back to Pending? This will remove the hostel allotment.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset to Pending",
+          style: "destructive",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const result = await updateHostelStatus(
+                currentUserData.userId,
+                false,
+                "",
+                "",
+                "revert"
+              );
+
+              if (result.success) {
+                const updatedData = {
+                  ...currentUserData,
+                  checkInStatus: {
+                    ...currentUserData.checkInStatus,
+                    accommodation: false,
+                    checkedOut: false,
+                    checkedOutAt: null,
+                    Hostel: null,
+                    RoomNo: null,
+                  },
+                };
+                setCurrentUserData(updatedData);
+
+                if (onUserDataUpdate) {
+                  onUserDataUpdate(updatedData);
+                }
+
+                setSuccessMessage("Hostel check-in reset to pending!");
+                setUpdateSuccess(true);
+                setTimeout(() => setUpdateSuccess(false), 3000);
+              } else {
+                showAlert(
+                  result.error || "Update Failed",
+                  result.message || "Failed to revert accommodation status"
+                );
+              }
+            } catch (error) {
+              showAlert(
+                "Error",
+                "Failed to revert accommodation status. Please try again."
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const bookedDays = Object.entries(currentUserData.accommodation || {})
@@ -601,7 +725,9 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                       paddingHorizontal: 10,
                       paddingVertical: 4,
                       borderRadius: 20,
-                      backgroundColor: currentUserData.checkInStatus.accommodation
+                      backgroundColor: currentUserData.checkInStatus.checkedOut
+                        ? "rgba(168, 85, 247, 0.2)"
+                        : currentUserData.checkInStatus.accommodation
                         ? "rgba(16, 185, 129, 0.2)"
                         : "rgba(234, 179, 8, 0.2)",
                     }}
@@ -610,10 +736,18 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                       style={{
                         fontFamily: "Poppins_600SemiBold",
                         fontSize: 12,
-                        color: currentUserData.checkInStatus.accommodation ? "#10B981" : "#FBBF24",
+                        color: currentUserData.checkInStatus.checkedOut
+                          ? "#A855F7"
+                          : currentUserData.checkInStatus.accommodation
+                          ? "#10B981"
+                          : "#FBBF24",
                       }}
                     >
-                      {currentUserData.checkInStatus.accommodation ? "Checked In" : "Pending"}
+                      {currentUserData.checkInStatus.checkedOut
+                        ? "Checked Out"
+                        : currentUserData.checkInStatus.accommodation
+                        ? "Checked In"
+                        : "Pending"}
                     </Text>
                   </View>
                 </View>
@@ -630,9 +764,47 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                   </View>
                 )}
 
-                {/* Check-in Action Button */}
+                {/* Action Buttons */}
                 {currentUserData.checkInStatus.fest ? (
-                  !currentUserData.checkInStatus.accommodation ? (
+                  currentUserData.checkInStatus.checkedOut ? (
+                    <View style={{ gap: 8, marginTop: 4 }}>
+                      <View
+                        style={{
+                          backgroundColor: "rgba(168, 85, 247, 0.12)",
+                          borderColor: "rgba(168, 85, 247, 0.3)",
+                          borderWidth: 1,
+                          borderRadius: 12,
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#A855F7", fontSize: 13 }}>
+                          ✓ User Has Checked Out
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={{
+                          backgroundColor: isDark ? "rgba(168, 85, 247, 0.15)" : "rgba(168, 85, 247, 0.1)",
+                          borderColor: "#A855F7",
+                          borderWidth: 1,
+                          paddingVertical: 11,
+                          borderRadius: 12,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexDirection: "row",
+                        }}
+                        onPress={handleUndoCheckout}
+                        disabled={loading}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="arrow-undo-outline" size={15} color="#A855F7" style={{ marginRight: 6 }} />
+                        <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#A855F7", fontSize: 13 }}>
+                          {loading ? "Updating..." : "Undo Check-Out (Restore Check-In)"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : !currentUserData.checkInStatus.accommodation ? (
                     <TouchableOpacity
                       style={{
                         backgroundColor: "#41B8F0",
@@ -651,23 +823,51 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({
                       </Text>
                     </TouchableOpacity>
                   ) : (
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: "#EF4444",
-                        paddingVertical: 12,
-                        borderRadius: 12,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginTop: 4,
-                      }}
-                      onPress={handleRevertCheckin}
-                      disabled={loading}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>
-                        {loading ? "Updating..." : "Revert to Pending"}
-                      </Text>
-                    </TouchableOpacity>
+                    <View style={{ gap: 8, marginTop: 4 }}>
+                      <View style={{ flexDirection: "row", gap: 10 }}>
+                        <TouchableOpacity
+                          style={{
+                            flex: 1.2,
+                            backgroundColor: "#EF4444",
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexDirection: "row",
+                          }}
+                          onPress={handleHostelCheckout}
+                          disabled={loading}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="log-out-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>
+                            {loading ? "Updating..." : "Check Out"}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            backgroundColor: isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)",
+                            borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "rgba(239, 68, 68, 0.25)",
+                            borderWidth: 1,
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexDirection: "row",
+                          }}
+                          onPress={handleRevertCheckin}
+                          disabled={loading}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="arrow-undo-outline" size={15} color="#EF4444" style={{ marginRight: 6 }} />
+                          <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#EF4444", fontSize: 13 }}>
+                            Undo Check-In
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   )
                 ) : (
                   <View

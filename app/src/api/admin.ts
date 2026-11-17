@@ -163,6 +163,7 @@ export interface AdminBanner {
 export interface AccommodationStats {
   total: number;
   checkedIn: number;
+  checkedOut?: number;
   pending: number;
 }
 
@@ -173,8 +174,10 @@ export interface UserAccommodation {
   phoneNumber?: string;
   collegeName?: string;
   accommodationNeeded: boolean;
-  accommodationStatus?: Record<string, boolean>;
-  foodStatus?: Record<string, boolean>;
+  accommodationStatus?: boolean;
+  foodStatus?: boolean;
+  accommodation?: Record<string, boolean>;
+  food?: Record<string, boolean>;
   checkInStatus?: Record<string, any>;
 }
 
@@ -334,12 +337,16 @@ export async function updateAccommodationCheckIn(
   userId: string,
   status: boolean,
   hostel?: string,
-  roomNo?: string
+  roomNo?: string,
+  action?: 'checkin' | 'checkout' | 'undo_checkout' | 'revert'
 ): Promise<void> {
   const body: Record<string, any> = {
     userId,
     accommodation: status,
   };
+  if (action !== undefined) {
+    body.action = action;
+  }
   if (hostel !== undefined) {
     body.hostel = hostel;
     body.Hostel = hostel;
@@ -356,6 +363,12 @@ export async function updateAccommodationCheckIn(
     throw new Error(await readError(res, 'Failed to update accommodation check-in'));
   }
   await clearAccommodationCache();
+}
+
+export async function checkoutAccommodation(
+  userId: string
+): Promise<void> {
+  return updateAccommodationCheckIn(userId, true, undefined, undefined, 'checkout');
 }
 
 
@@ -1130,6 +1143,8 @@ export interface UserGateData {
     fest: boolean;
     remark?: string | null;
     accommodation: boolean;
+    checkedOut?: boolean;
+    checkedOutAt?: string | null;
     Hostel?: string | null;
     RoomNo?: string | null;
   };
@@ -1221,18 +1236,23 @@ export const updateHostelStatus = async (
   userId: string,
   accommodation: boolean,
   hostel?: string,
-  roomNo?: string
+  roomNo?: string,
+  action?: 'checkin' | 'checkout' | 'undo_checkout' | 'revert'
 ): Promise<{ success: boolean; error?: string; message?: string; data?: any }> => {
   try {
+    const body: Record<string, any> = {
+      accommodation,
+      hostel,
+      Hostel: hostel,
+      roomNo,
+      RoomNo: roomNo,
+    };
+    if (action) {
+      body.action = action;
+    }
     const res = await apiFetch(`/admin/qr/hostel/${userId}`, {
       method: 'PATCH',
-      body: JSON.stringify({
-        accommodation,
-        hostel,
-        Hostel: hostel,
-        roomNo,
-        RoomNo: roomNo,
-      }),
+      body: JSON.stringify(body),
     }, 'required');
 
     if (!res.ok) {

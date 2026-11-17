@@ -10,13 +10,21 @@ const { width } = Dimensions.get('window');
 const GRID_PADDING = 20;
 const AVAILABLE_WIDTH = width - GRID_PADDING * 2;
 
-export default function PatchesGame() {
+export interface PatchesGameProps {
+  initialLevelIndex?: number;
+  onComplete?: (timeSeconds: number) => void;
+  onBack?: () => void;
+  rewardClaimed?: boolean;
+}
+
+export default function PatchesGame({ initialLevelIndex, onComplete, onBack, rewardClaimed }: PatchesGameProps = {}) {
   const router = useRouter();
   const getRandomLevel = () => {
-    console.log("TOTAL PATCHES LEVELS:", SAMPLE_PATCHES_LEVELS.length);
     return Math.floor(Math.random() * SAMPLE_PATCHES_LEVELS.length);
   };
-  const [levelIndex, setLevelIndex] = useState(getRandomLevel);
+  const [levelIndex, setLevelIndex] = useState(() =>
+    typeof initialLevelIndex === 'number' ? Math.max(0, Math.min(initialLevelIndex, SAMPLE_PATCHES_LEVELS.length - 1)) : getRandomLevel()
+  );
   const currentLevel = SAMPLE_PATCHES_LEVELS[levelIndex];
 
   const {
@@ -64,8 +72,8 @@ export default function PatchesGame() {
   };
 
   const onDragEnd = () => {
-    handleDragRelease();
     setDragStart(null);
+    handleDragRelease();
   };
 
   const panGesture = Gesture.Pan()
@@ -110,10 +118,18 @@ export default function PatchesGame() {
     }
   };
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      router.back();
+    }
+  };
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <View className="flex-row items-center justify-between mb-4 px-6 mt-12">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4">
+        <TouchableOpacity onPress={handleBack} className="mr-4">
           <Ionicons name="arrow-back" size={24} color="#0C3572" />
         </TouchableOpacity>
         <Text style={{ fontFamily: 'Outfit_700Bold' }} className="text-[#0C3572] text-2xl">Patches</Text>
@@ -129,22 +145,18 @@ export default function PatchesGame() {
 
       <View style={styles.gridWrapper}>
         <GestureDetector gesture={panGesture}>
-          <View key={currentLevel.id} style={{ width: AVAILABLE_WIDTH, height: CELL_SIZE * currentLevel.rows, backgroundColor: '#FFFFFF66', borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+          <View style={{ width: AVAILABLE_WIDTH, height: CELL_SIZE * currentLevel.rows, backgroundColor: '#FFFFFF66', borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
             
-            {/* Base Grid with Clues */}
-            {Array.from({ length: currentLevel.rows }).map((_, rIdx) => (
-              <View key={`row-${rIdx}`} style={styles.row}>
-                {Array.from({ length: currentLevel.cols }).map((_, cIdx) => {
-                  const id = `${rIdx},${cIdx}`;
-                  const clue = currentLevel.clues[id];
-                  
+            {/* Background Grid Cells */}
+            {Array.from({ length: currentLevel.rows }).map((_, r) => (
+              <View key={r} style={styles.row}>
+                {Array.from({ length: currentLevel.cols }).map((_, c) => {
+                  const clue = currentLevel.clues[`${r},${c}`];
+
                   return (
                     <View 
-                      key={id} 
-                      style={[
-                        styles.cell, 
-                        { width: CELL_SIZE, height: CELL_SIZE }
-                      ]}
+                      key={`${r}-${c}`} 
+                      style={[styles.cell, { width: CELL_SIZE, height: CELL_SIZE }]}
                     >
                       {clue && (
                         <View style={styles.clueContainer}>
@@ -158,33 +170,28 @@ export default function PatchesGame() {
               </View>
             ))}
 
-            {/* Render Patches (Overlays) */}
-            {patches.map(patch => {
-              const { minRow, maxRow, minCol, maxCol } = patch.bounds;
-              const w = (maxCol - minCol + 1) * CELL_SIZE;
-              const h = (maxRow - minRow + 1) * CELL_SIZE;
-              return (
-                <TouchableOpacity
-                  key={patch.id}
-                  activeOpacity={0.8}
-                  onPress={() => removePatch(patch.id)}
-                  style={[
-                    styles.patchOverlay,
-                    {
-                      left: minCol * CELL_SIZE,
-                      top: minRow * CELL_SIZE,
-                      width: w,
-                      height: h,
-                      backgroundColor: patch.color,
-                    }
-                  ]}
-                />
-              );
-            })}
+            {/* Placed Patches Overlay */}
+            {patches.map(patch => (
+              <TouchableOpacity
+                key={patch.id}
+                activeOpacity={0.7}
+                onPress={() => removePatch(patch.id)}
+                style={[
+                  styles.patchOverlay,
+                  {
+                    left: patch.bounds.minCol * CELL_SIZE,
+                    top: patch.bounds.minRow * CELL_SIZE,
+                    width: (patch.bounds.maxCol - patch.bounds.minCol + 1) * CELL_SIZE,
+                    height: (patch.bounds.maxRow - patch.bounds.minRow + 1) * CELL_SIZE,
+                    backgroundColor: patch.color,
+                  }
+                ]}
+              />
+            ))}
 
             {/* Active Drag Overlay */}
             {activeDrag && (
-              <View 
+              <View
                 pointerEvents="none"
                 style={[
                   styles.activeDragOverlay,
@@ -194,7 +201,7 @@ export default function PatchesGame() {
                     width: (activeDrag.maxCol - activeDrag.minCol + 1) * CELL_SIZE,
                     height: (activeDrag.maxRow - activeDrag.minRow + 1) * CELL_SIZE,
                   }
-                ]} 
+                ]}
               />
             )}
 
@@ -214,6 +221,18 @@ export default function PatchesGame() {
             <Text style={styles.modalTitle}>Level Complete!</Text>
             <Text style={styles.modalText}>Time: {formatTime(timer)}</Text>
             
+            {onComplete && !rewardClaimed && (
+              <TouchableOpacity
+                style={[styles.nextButton, { backgroundColor: '#F59E0B', marginBottom: 10 }]}
+                onPress={() => {
+                  setShowWinModal(false);
+                  onComplete(timer);
+                }}
+              >
+                <Text style={styles.nextButtonText}>🪙 Claim 20 Coins</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity style={styles.nextButton} onPress={nextLevel}>
               <Text style={styles.nextButtonText}>Next Puzzle</Text>
             </TouchableOpacity>
@@ -297,11 +316,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF66',
+    backgroundColor: '#FFFFFF',
     padding: 30,
     borderRadius: 20,
     alignItems: 'center',
     width: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
   modalTitle: {
     color: '#0C3572',
@@ -314,18 +338,18 @@ const styles = StyleSheet.create({
     color: '#2175C0',
     fontSize: 16,
     fontFamily: 'Outfit_500Medium',
-    marginBottom: 5,
+    marginBottom: 12,
   },
   nextButton: {
-    marginTop: 20,
+    marginTop: 8,
     backgroundColor: '#EEB170',
     paddingVertical: 12,
-    paddingHorizontal: 30,
+    paddingHorizontal: 28,
     borderRadius: 30,
   },
   nextButtonText: {
     color: '#121212',
     fontFamily: 'Outfit_700Bold',
-    fontSize: 16,
+    fontSize: 15,
   },
 });
