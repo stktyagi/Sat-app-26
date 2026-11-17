@@ -203,9 +203,18 @@ export default function CartScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginRight: 14,
+                    overflow: 'hidden',
                   }}
                 >
-                  <Ionicons name="shirt-outline" size={28} color="#38BDF8" />
+                  {cartItem.image ? (
+                    <Image
+                      source={{ uri: cartItem.image }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Ionicons name="help" size={26} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  )}
                 </View>
 
                 {/* Details */}
@@ -399,7 +408,7 @@ export default function CartScreen() {
               paddingVertical: 15,
               alignItems: 'center',
               justifyContent: 'center',
-              shadowColor: '#38BDF8',
+              shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.35,
               shadowRadius: 8,

@@ -37,6 +37,10 @@ func (a *API) Register(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if isPreregisteredEvent(event.Title) && !isAllowedWebsiteDomain(c) && !user.IsAdmin() {
+		apierr.Respond(c, apierr.BadRequest("website_only", "Registration for this event is only open via the official website."))
+		return
+	}
 	if err := a.checkRegistrable(ctx, event, user, models.EventTypeIndividual); err != nil {
 		apierr.Respond(c, err)
 		return

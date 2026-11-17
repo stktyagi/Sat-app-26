@@ -3,6 +3,7 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,33 @@ const (
 	maxLimit     = 200
 )
 
+const websiteDomain = "saturnalia.in"
+
+// isAllowedWebsiteDomain checks if the request originates from saturnalia.in
+// via Origin or Referer headers.
+func isAllowedWebsiteDomain(c *gin.Context) bool {
+	origin := strings.TrimSpace(c.GetHeader("Origin"))
+	referer := strings.TrimSpace(c.GetHeader("Referer"))
+
+	checkMatch := func(rawURL string) bool {
+		if rawURL == "" {
+			return false
+		}
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return false
+		}
+		host := strings.ToLower(u.Hostname())
+		return host == websiteDomain || strings.HasSuffix(host, "."+websiteDomain)
+	}
+
+	return checkMatch(origin) || checkMatch(referer)
+}
+
+func isPreregisteredEvent(title string) bool {
+	return strings.Contains(strings.ToLower(title), "[preregistered]")
+}
+
 // ListEvents is the single endpoint for browsing, filtering and searching.
 // Everything runs against the in-memory cache, which is why q is a genuine
 // case-insensitive substring match rather than the whole-word-only match a
@@ -34,6 +62,7 @@ func (a *API) ListEvents(c *gin.Context) {
 
 	user := middleware.CurrentUser(c)
 	isAdmin := user.IsAdmin()
+	isFromWebsite := isAllowedWebsiteDomain(c)
 
 	var (
 		category  = c.Query("category")
@@ -49,6 +78,10 @@ func (a *API) ListEvents(c *gin.Context) {
 	for _, e := range all {
 		// Drafts and cancelled events are admin-only.
 		if !e.IsPublic && !isAdmin {
+			continue
+		}
+		// Preregistered events are only shown on the website (or for admins), not on the mobile app.
+		if isPreregisteredEvent(e.Title) && !isFromWebsite && !isAdmin {
 			continue
 		}
 		if category != "" && !strings.EqualFold(e.Category, category) {
@@ -136,6 +169,13 @@ func (a *API) GetEvent(c *gin.Context) {
 		return
 	}
 
+	isAdmin := middleware.CurrentUser(c).IsAdmin()
+	isFromWebsite := isAllowedWebsiteDomain(c)
+	if isPreregisteredEvent(event.Title) && !isFromWebsite && !isAdmin {
+		apierr.Respond(c, apierr.NotFound("event_not_found", "no such event"))
+		return
+	}
+
 	body := gin.H{"event": event}
 
 	isHost := false
@@ -205,10 +245,14 @@ func (a *API) GetCategories(c *gin.Context) {
 	}
 
 	isAdmin := middleware.CurrentUser(c).IsAdmin()
+	isFromWebsite := isAllowedWebsiteDomain(c)
 	seen := map[string]bool{}
 	out := []string{}
 	for _, e := range all {
 		if (!e.IsPublic && !isAdmin) || e.Category == "" || seen[e.Category] {
+			continue
+		}
+		if isPreregisteredEvent(e.Title) && !isFromWebsite && !isAdmin {
 			continue
 		}
 		seen[e.Category] = true

@@ -549,7 +549,7 @@ const ProfileScreen = () => {
             borderColor: isDark ? 'rgba(234, 179, 8, 0.35)' : 'rgba(234, 179, 8, 0.45)',
             padding: 20,
             marginBottom: 16,
-            shadowColor: '#EAB308',
+            shadowColor: '#000',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: isDark ? 0.15 : 0.08,
             shadowRadius: 10,

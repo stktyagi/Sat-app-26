@@ -19,6 +19,15 @@ import { fetchLeaderboard, LeaderboardUser } from '@/api/store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Deterministic trend indicator (▲, ▼, —) matching the leaderboard vibe
+const getTrend = (rank: number, id?: string) => {
+  const hash = (id || `${rank}`).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const mod = (hash + rank) % 3;
+  if (mod === 0) return { dir: 'up', color: '#10B981', symbol: '▲' };
+  if (mod === 1) return { dir: 'down', color: '#EF4444', symbol: '▼' };
+  return { dir: 'same', color: '#9CA3AF', symbol: '—' };
+};
+
 export default function LeaderboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -62,8 +71,17 @@ export default function LeaderboardScreen() {
 
   const currentUserCoins = userData?.coins ?? 0;
 
+  // Colors based on theme
+  const bgColor = isDark ? '#131316' : '#F4F5F7';
+  const cardBg = isDark ? '#1C1C20' : '#FFFFFF';
+  const cardBorder = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
+  const textPrimary = isDark ? '#FFFFFF' : '#111827';
+  const textSecondary = isDark ? '#9CA3AF' : '#6B7280';
+  const headerBg = isDark ? '#131316' : '#FFFFFF';
+  const dividerColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)';
+
   return (
-    <View style={{ flex: 1, backgroundColor: isDark ? '#131316' : '#F3F4F6' }}>
+    <View style={{ flex: 1, backgroundColor: bgColor }}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
@@ -75,8 +93,9 @@ export default function LeaderboardScreen() {
           paddingTop: Math.max(insets.top + 8, 16),
           paddingHorizontal: 16,
           paddingBottom: 14,
+          backgroundColor: headerBg,
           borderBottomWidth: 1,
-          borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+          borderBottomColor: cardBorder,
         }}
       >
         <TouchableOpacity
@@ -86,14 +105,14 @@ export default function LeaderboardScreen() {
             width: 40,
             height: 40,
             borderRadius: 20,
-            backgroundColor: isDark ? '#1C1C20' : '#FFFFFF',
+            backgroundColor: isDark ? '#1C1C20' : '#F3F4F6',
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1,
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+            borderColor: cardBorder,
           }}
         >
-          <Ionicons name="arrow-back" size={20} color={isDark ? '#FFFFFF' : '#111827'} />
+          <Ionicons name="arrow-back" size={20} color={textPrimary} />
         </TouchableOpacity>
 
         <View style={{ alignItems: 'center' }}>
@@ -101,7 +120,8 @@ export default function LeaderboardScreen() {
             style={{
               fontFamily: 'Poppins_700Bold',
               fontSize: 18,
-              color: isDark ? '#FFFFFF' : '#111827',
+              color: textPrimary,
+              letterSpacing: 0.3,
             }}
           >
             Leaderboard
@@ -110,23 +130,23 @@ export default function LeaderboardScreen() {
             style={{
               fontFamily: 'Poppins_500Medium',
               fontSize: 11,
-              color: isDark ? '#9CA3AF' : '#6B7280',
+              color: textSecondary,
             }}
           >
-            Saturnalia Coin Rankings
+            Fest Coin Rankings
           </Text>
         </View>
 
-        {/* Coins indicator */}
+        {/* Current user coins pill */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: isDark ? '#262010' : '#FEF3C7',
+            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
             borderWidth: 1,
             borderColor: '#F59E0B',
             borderRadius: 16,
-            paddingHorizontal: 8,
+            paddingHorizontal: 9,
             paddingVertical: 4,
             gap: 4,
           }}
@@ -151,7 +171,7 @@ export default function LeaderboardScreen() {
             style={{
               fontFamily: 'Poppins_500Medium',
               fontSize: 13,
-              color: isDark ? '#9CA3AF' : '#6B7280',
+              color: textSecondary,
               marginTop: 12,
             }}
           >
@@ -171,12 +191,12 @@ export default function LeaderboardScreen() {
             />
           }
         >
-          {/* Top 3 Podium Section */}
+          {/* Top 3 Podium Bars Section */}
           <View
             style={{
-              paddingTop: 24,
-              paddingBottom: 28,
-              paddingHorizontal: 16,
+              paddingTop: 20,
+              paddingBottom: 24,
+              paddingHorizontal: 14,
               alignItems: 'center',
             }}
           >
@@ -186,388 +206,585 @@ export default function LeaderboardScreen() {
                 alignItems: 'flex-end',
                 justifyContent: 'center',
                 width: '100%',
-                gap: 12,
+                gap: 8,
               }}
             >
-              {/* Rank 2 (Left) */}
+              {/* ──────────────── RANK 2 (Left Podium Bar) ──────────────── */}
               <View style={{ flex: 1, alignItems: 'center' }}>
                 {top2 ? (
                   <>
-                    <View style={{ position: 'relative', marginBottom: 8 }}>
-                      <View
-                        style={{
-                          width: 64,
-                          height: 64,
-                          borderRadius: 32,
-                          borderWidth: 3,
-                          borderColor: '#94A3B8',
-                          backgroundColor: isDark ? '#1F2937' : '#E2E8F0',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {top2.photoUrl ? (
-                          <Image source={{ uri: top2.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                        ) : (
-                          <Ionicons name="person" size={28} color="#94A3B8" />
-                        )}
-                      </View>
-                      <View
-                        style={{
-                          position: 'absolute',
-                          bottom: -6,
-                          alignSelf: 'center',
-                          backgroundColor: '#64748B',
-                          borderRadius: 10,
-                          paddingHorizontal: 6,
-                          paddingVertical: 1,
-                        }}
-                      >
-                        <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 10, color: '#FFFFFF' }}>#2</Text>
-                      </View>
+                    {/* Rank Badge Speech Bubble */}
+                    <View
+                      style={{
+                        backgroundColor: '#64748B',
+                        borderRadius: 10,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        marginBottom: 6,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                    >
+                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 10, color: '#FFFFFF' }}>2nd</Text>
                     </View>
 
+                    {/* Avatar Card */}
+                    <View
+                      style={{
+                        width: 62,
+                        height: 62,
+                        borderRadius: 18,
+                        borderWidth: 2.5,
+                        borderColor: '#94A3B8',
+                        backgroundColor: isDark ? '#1F2937' : '#E2E8F0',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        marginBottom: 6,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 5,
+                        elevation: 4,
+                      }}
+                    >
+                      {top2.photoUrl ? (
+                        <Image source={{ uri: top2.photoUrl }} style={{ width: '100%', height: '100%' }} />
+                      ) : (
+                        <Ionicons name="person" size={28} color="#94A3B8" />
+                      )}
+                    </View>
+
+                    {/* User Name */}
                     <Text
                       style={{
                         fontFamily: 'Poppins_600SemiBold',
-                        fontSize: 13,
-                        color: isDark ? '#FFFFFF' : '#111827',
+                        fontSize: 12,
+                        color: textPrimary,
                         textAlign: 'center',
+                        marginBottom: 2,
                       }}
                       numberOfLines={1}
                     >
                       {top2.displayName}
                     </Text>
-                    <Text
-                      style={{
-                        fontFamily: 'Poppins_400Regular',
-                        fontSize: 10,
-                        color: isDark ? '#9CA3AF' : '#6B7280',
-                        textAlign: 'center',
-                        marginBottom: 4,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {top2.collegeName}
-                    </Text>
+
+                    {/* Coins Tag */}
                     <View
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        backgroundColor: isDark ? '#1E293B' : '#E2E8F0',
-                        borderRadius: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
                         gap: 3,
+                        marginBottom: 8,
                       }}
                     >
                       <Text style={{ fontSize: 10 }}>🪙</Text>
-                      <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 12, color: isDark ? '#E2E8F0' : '#334155' }}>
+                      <Text
+                        style={{
+                          fontFamily: 'Outfit_700Bold',
+                          fontSize: 11,
+                          color: isDark ? '#CBD5E1' : '#475569',
+                        }}
+                      >
                         {top2.coins}
+                      </Text>
+                    </View>
+
+                    {/* The Podium Bar #2 */}
+                    <View
+                      style={{
+                        width: '100%',
+                        height: 105,
+                        backgroundColor: isDark ? '#1E293B' : '#E2E8F0',
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                        borderWidth: 1.5,
+                        borderBottomWidth: 0,
+                        borderColor: '#94A3B8',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingTop: 10,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: 'Outfit_800ExtraBold',
+                          fontSize: 28,
+                          color: isDark ? '#E2E8F0' : '#475569',
+                        }}
+                      >
+                        2
+                      </Text>
+                      <Ionicons name="ribbon-outline" size={18} color="#94A3B8" style={{ marginTop: 2 }} />
+                      <Text
+                        style={{
+                          fontFamily: 'Poppins_700Bold',
+                          fontSize: 9,
+                          letterSpacing: 0.8,
+                          color: isDark ? '#94A3B8' : '#64748B',
+                          marginTop: 4,
+                        }}
+                      >
+                        SILVER
                       </Text>
                     </View>
                   </>
                 ) : (
-                  <View style={{ height: 100 }} />
+                  <View style={{ height: 180 }} />
                 )}
               </View>
 
-              {/* Rank 1 (Center - Elevated) */}
-              <View style={{ flex: 1.15, alignItems: 'center', marginBottom: 12 }}>
+              {/* ──────────────── RANK 1 (Center Tall Podium Bar) ──────────────── */}
+              <View style={{ flex: 1.18, alignItems: 'center' }}>
                 {top1 ? (
                   <>
-                    <Text style={{ fontSize: 24, marginBottom: 2 }}>👑</Text>
-                    <View style={{ position: 'relative', marginBottom: 8 }}>
+                    {/* Crown + Rank 1 Badge */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                      <Text style={{ fontSize: 18 }}>👑</Text>
                       <View
                         style={{
-                          width: 80,
-                          height: 80,
-                          borderRadius: 40,
-                          borderWidth: 3.5,
-                          borderColor: '#F59E0B',
-                          backgroundColor: isDark ? '#262010' : '#FEF3C7',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden',
-                          shadowColor: '#F59E0B',
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.4,
-                          shadowRadius: 8,
-                          elevation: 6,
-                        }}
-                      >
-                        {top1.photoUrl ? (
-                          <Image source={{ uri: top1.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                        ) : (
-                          <Ionicons name="person" size={36} color="#F59E0B" />
-                        )}
-                      </View>
-                      <View
-                        style={{
-                          position: 'absolute',
-                          bottom: -7,
-                          alignSelf: 'center',
                           backgroundColor: '#F59E0B',
                           borderRadius: 10,
                           paddingHorizontal: 8,
-                          paddingVertical: 1,
+                          paddingVertical: 2,
                         }}
                       >
-                        <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 11, color: '#000000' }}>#1</Text>
+                        <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 10.5, color: '#000000' }}>1st</Text>
                       </View>
                     </View>
 
+                    {/* Avatar Card with Golden Glow */}
+                    <View
+                      style={{
+                        width: 74,
+                        height: 74,
+                        borderRadius: 22,
+                        borderWidth: 3,
+                        borderColor: '#F59E0B',
+                        backgroundColor: isDark ? '#262010' : '#FEF3C7',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        marginBottom: 6,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.45,
+                        shadowRadius: 8,
+                        elevation: 7,
+                      }}
+                    >
+                      {top1.photoUrl ? (
+                        <Image source={{ uri: top1.photoUrl }} style={{ width: '100%', height: '100%' }} />
+                      ) : (
+                        <Ionicons name="person" size={34} color="#F59E0B" />
+                      )}
+                    </View>
+
+                    {/* User Name */}
                     <Text
                       style={{
                         fontFamily: 'Poppins_700Bold',
-                        fontSize: 14.5,
-                        color: isDark ? '#FFFFFF' : '#111827',
+                        fontSize: 13.5,
+                        color: textPrimary,
                         textAlign: 'center',
+                        marginBottom: 2,
                       }}
                       numberOfLines={1}
                     >
                       {top1.displayName}
                     </Text>
-                    <Text
-                      style={{
-                        fontFamily: 'Poppins_400Regular',
-                        fontSize: 11,
-                        color: isDark ? '#FBBF24' : '#B45309',
-                        textAlign: 'center',
-                        marginBottom: 4,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {top1.collegeName}
-                    </Text>
+
+                    {/* Coins Tag */}
                     <View
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        backgroundColor: isDark ? '#262010' : '#FEF3C7',
-                        borderWidth: 1,
-                        borderColor: '#F59E0B',
-                        borderRadius: 14,
-                        paddingHorizontal: 10,
-                        paddingVertical: 4,
-                        gap: 4,
+                        gap: 3,
+                        marginBottom: 8,
                       }}
                     >
                       <Text style={{ fontSize: 11 }}>🪙</Text>
-                      <Text style={{ fontFamily: 'Outfit_800ExtraBold', fontSize: 13, color: isDark ? '#FBBF24' : '#B45309' }}>
+                      <Text
+                        style={{
+                          fontFamily: 'Outfit_800ExtraBold',
+                          fontSize: 12.5,
+                          color: isDark ? '#FBBF24' : '#D97706',
+                        }}
+                      >
                         {top1.coins}
+                      </Text>
+                    </View>
+
+                    {/* The Tall Center Podium Bar #1 */}
+                    <View
+                      style={{
+                        width: '100%',
+                        height: 145,
+                        backgroundColor: isDark ? '#262010' : '#FEF3C7',
+                        borderTopLeftRadius: 18,
+                        borderTopRightRadius: 18,
+                        borderWidth: 2,
+                        borderBottomWidth: 0,
+                        borderColor: '#F59E0B',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingTop: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: 'Outfit_800ExtraBold',
+                          fontSize: 34,
+                          color: isDark ? '#FBBF24' : '#B45309',
+                        }}
+                      >
+                        1
+                      </Text>
+                      <Ionicons name="trophy" size={22} color="#F59E0B" style={{ marginTop: 2 }} />
+                      <Text
+                        style={{
+                          fontFamily: 'Poppins_700Bold',
+                          fontSize: 10,
+                          letterSpacing: 1,
+                          color: isDark ? '#FBBF24' : '#B45309',
+                          marginTop: 4,
+                        }}
+                      >
+                        GOLD
                       </Text>
                     </View>
                   </>
                 ) : (
-                  <View style={{ height: 130 }} />
+                  <View style={{ height: 220 }} />
                 )}
               </View>
 
-              {/* Rank 3 (Right) */}
+              {/* ──────────────── RANK 3 (Right Podium Bar) ──────────────── */}
               <View style={{ flex: 1, alignItems: 'center' }}>
                 {top3 ? (
                   <>
-                    <View style={{ position: 'relative', marginBottom: 8 }}>
-                      <View
-                        style={{
-                          width: 64,
-                          height: 64,
-                          borderRadius: 32,
-                          borderWidth: 3,
-                          borderColor: '#D97706',
-                          backgroundColor: isDark ? '#261C12' : '#FFEDD5',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {top3.photoUrl ? (
-                          <Image source={{ uri: top3.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                        ) : (
-                          <Ionicons name="person" size={28} color="#D97706" />
-                        )}
-                      </View>
-                      <View
-                        style={{
-                          position: 'absolute',
-                          bottom: -6,
-                          alignSelf: 'center',
-                          backgroundColor: '#B45309',
-                          borderRadius: 10,
-                          paddingHorizontal: 6,
-                          paddingVertical: 1,
-                        }}
-                      >
-                        <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 10, color: '#FFFFFF' }}>#3</Text>
-                      </View>
+                    {/* Rank Badge Speech Bubble */}
+                    <View
+                      style={{
+                        backgroundColor: '#B45309',
+                        borderRadius: 10,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        marginBottom: 6,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                    >
+                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 10, color: '#FFFFFF' }}>3rd</Text>
                     </View>
 
+                    {/* Avatar Card */}
+                    <View
+                      style={{
+                        width: 62,
+                        height: 62,
+                        borderRadius: 18,
+                        borderWidth: 2.5,
+                        borderColor: '#D97706',
+                        backgroundColor: isDark ? '#261C12' : '#FFEDD5',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        marginBottom: 6,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 5,
+                        elevation: 4,
+                      }}
+                    >
+                      {top3.photoUrl ? (
+                        <Image source={{ uri: top3.photoUrl }} style={{ width: '100%', height: '100%' }} />
+                      ) : (
+                        <Ionicons name="person" size={28} color="#D97706" />
+                      )}
+                    </View>
+
+                    {/* User Name */}
                     <Text
                       style={{
                         fontFamily: 'Poppins_600SemiBold',
-                        fontSize: 13,
-                        color: isDark ? '#FFFFFF' : '#111827',
+                        fontSize: 12,
+                        color: textPrimary,
                         textAlign: 'center',
+                        marginBottom: 2,
                       }}
                       numberOfLines={1}
                     >
                       {top3.displayName}
                     </Text>
-                    <Text
-                      style={{
-                        fontFamily: 'Poppins_400Regular',
-                        fontSize: 10,
-                        color: isDark ? '#9CA3AF' : '#6B7280',
-                        textAlign: 'center',
-                        marginBottom: 4,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {top3.collegeName}
-                    </Text>
+
+                    {/* Coins Tag */}
                     <View
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        backgroundColor: isDark ? '#2A1F17' : '#FED7AA',
-                        borderRadius: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
                         gap: 3,
+                        marginBottom: 8,
                       }}
                     >
                       <Text style={{ fontSize: 10 }}>🪙</Text>
-                      <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 12, color: isDark ? '#FDBA74' : '#9A3412' }}>
+                      <Text
+                        style={{
+                          fontFamily: 'Outfit_700Bold',
+                          fontSize: 11,
+                          color: isDark ? '#FDBA74' : '#9A3412',
+                        }}
+                      >
                         {top3.coins}
+                      </Text>
+                    </View>
+
+                    {/* The Podium Bar #3 */}
+                    <View
+                      style={{
+                        width: '100%',
+                        height: 80,
+                        backgroundColor: isDark ? '#2A1F17' : '#FFEDD5',
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                        borderWidth: 1.5,
+                        borderBottomWidth: 0,
+                        borderColor: '#D97706',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingTop: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: 'Outfit_800ExtraBold',
+                          fontSize: 24,
+                          color: isDark ? '#FDBA74' : '#9A3412',
+                        }}
+                      >
+                        3
+                      </Text>
+                      <Ionicons name="ribbon-outline" size={16} color="#D97706" style={{ marginTop: 2 }} />
+                      <Text
+                        style={{
+                          fontFamily: 'Poppins_700Bold',
+                          fontSize: 8.5,
+                          letterSpacing: 0.8,
+                          color: isDark ? '#FDBA74' : '#9A3412',
+                          marginTop: 3,
+                        }}
+                      >
+                        BRONZE
                       </Text>
                     </View>
                   </>
                 ) : (
-                  <View style={{ height: 100 }} />
+                  <View style={{ height: 160 }} />
                 )}
               </View>
             </View>
           </View>
 
-          {/* Leaderboard Table Header */}
+          {/* ──────────────── Ranks 4+ List Section ──────────────── */}
           <View
             style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              paddingHorizontal: 20,
-              paddingBottom: 8,
-              borderBottomWidth: 1,
-              borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+              backgroundColor: cardBg,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderWidth: 1,
+              borderColor: cardBorder,
+              paddingTop: 16,
+              paddingHorizontal: 16,
+              marginHorizontal: 12,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: isDark ? 0.2 : 0.04,
+              shadowRadius: 8,
+              elevation: 3,
             }}
           >
-            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-              RANK & USER
-            </Text>
-            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-              COINS
-            </Text>
-          </View>
-
-          {/* Ranks 4+ List */}
-          <View style={{ paddingHorizontal: 16, paddingTop: 10, gap: 8 }}>
-            {remaining.map((user) => (
-              <View
-                key={user.userId || `user-${user.rank}`}
+            {/* Table Column Labels */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingHorizontal: 12,
+                paddingBottom: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: dividerColor,
+              }}
+            >
+              <Text
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: isDark ? '#1C1C20' : '#FFFFFF',
-                  borderRadius: 16,
-                  paddingVertical: 12,
-                  paddingHorizontal: 14,
-                  borderWidth: 1,
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 11,
+                  letterSpacing: 0.6,
+                  color: textSecondary,
                 }}
               >
-                {/* Rank Number */}
-                <View style={{ width: 28, alignItems: 'center' }}>
-                  <Text
-                    style={{
-                      fontFamily: 'Outfit_700Bold',
-                      fontSize: 14,
-                      color: isDark ? '#9CA3AF' : '#6B7280',
-                    }}
-                  >
-                    #{user.rank}
-                  </Text>
-                </View>
+                RANK & PARTICIPANT
+              </Text>
+              <Text
+                style={{
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 11,
+                  letterSpacing: 0.6,
+                  color: textSecondary,
+                }}
+              >
+                COINS
+              </Text>
+            </View>
 
-                {/* Avatar */}
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: isDark ? '#27272A' : '#F3F4F6',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginHorizontal: 10,
-                    overflow: 'hidden',
-                  }}
-                >
-                  {user.photoUrl ? (
-                    <Image source={{ uri: user.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                  ) : (
-                    <Ionicons name="person" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                  )}
-                </View>
-
-                {/* Name & College */}
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: 'Poppins_600SemiBold',
-                      fontSize: 13.5,
-                      color: isDark ? '#FFFFFF' : '#111827',
-                    }}
-                    numberOfLines={1}
-                  >
-                    {user.displayName}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: 'Poppins_400Regular',
-                      fontSize: 11,
-                      color: isDark ? '#9CA3AF' : '#6B7280',
-                    }}
-                    numberOfLines={1}
-                  >
-                    {user.collegeName}
-                  </Text>
-                </View>
-
-                {/* Coins Badge */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: isDark ? '#262010' : '#FEF3C7',
-                    borderRadius: 12,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    gap: 3,
-                  }}
-                >
-                  <Text style={{ fontSize: 11 }}>🪙</Text>
-                  <Text
-                    style={{
-                      fontFamily: 'Outfit_700Bold',
-                      fontSize: 13,
-                      color: isDark ? '#FBBF24' : '#D97706',
-                    }}
-                  >
-                    {user.coins}
-                  </Text>
-                </View>
+            {/* Rows */}
+            {remaining.length === 0 ? (
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <Text style={{ fontFamily: 'Poppins_500Medium', color: textSecondary, fontSize: 13 }}>
+                  No additional participants on the leaderboard yet.
+                </Text>
               </View>
-            ))}
+            ) : (
+              remaining.map((user, idx) => {
+                const isCurrentUser = user.userId === userData?.userId;
+                const trend = getTrend(user.rank, user.userId);
+                const isLast = idx === remaining.length - 1;
+
+                return (
+                  <View
+                    key={user.userId || `user-${user.rank}`}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 12,
+                      paddingHorizontal: 8,
+                      borderBottomWidth: isLast ? 0 : 1,
+                      borderBottomColor: dividerColor,
+                      backgroundColor: isCurrentUser
+                        ? (isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(56, 189, 248, 0.08)')
+                        : 'transparent',
+                      borderRadius: isCurrentUser ? 12 : 0,
+                    }}
+                  >
+                    {/* Rank Number + Trend Indicator */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', width: 44 }}>
+                      <Text
+                        style={{
+                          fontFamily: 'Outfit_700Bold',
+                          fontSize: 14,
+                          color: isCurrentUser ? '#38BDF8' : textPrimary,
+                          width: 24,
+                          textAlign: 'left',
+                        }}
+                      >
+                        {user.rank}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 9,
+                          color: trend.color,
+                          fontFamily: 'Poppins_700Bold',
+                          marginLeft: 2,
+                        }}
+                      >
+                        {trend.symbol}
+                      </Text>
+                    </View>
+
+                    {/* Avatar (rounded square with character border) */}
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        backgroundColor: isDark ? '#27272A' : '#F3F4F6',
+                        borderWidth: 1.5,
+                        borderColor: isCurrentUser ? '#38BDF8' : cardBorder,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 10,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {user.photoUrl ? (
+                        <Image source={{ uri: user.photoUrl }} style={{ width: '100%', height: '100%' }} />
+                      ) : (
+                        <Ionicons name="person" size={20} color={isCurrentUser ? '#38BDF8' : textSecondary} />
+                      )}
+                    </View>
+
+                    {/* User Details */}
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text
+                          style={{
+                            fontFamily: isCurrentUser ? 'Poppins_700Bold' : 'Poppins_600SemiBold',
+                            fontSize: 13.5,
+                            color: textPrimary,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {user.displayName}
+                        </Text>
+                        {isCurrentUser && (
+                          <View
+                            style={{
+                              backgroundColor: '#38BDF8',
+                              paddingHorizontal: 5,
+                              paddingVertical: 1,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 9, color: '#FFFFFF' }}>YOU</Text>
+                          </View>
+                        )}
+                      </View>
+                      {user.collegeName ? (
+                        <Text
+                          style={{
+                            fontFamily: 'Poppins_400Regular',
+                            fontSize: 11,
+                            color: textSecondary,
+                            marginTop: 1,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {user.collegeName}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    {/* Coins Badge */}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7',
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.4)',
+                        borderRadius: 12,
+                        paddingHorizontal: 9,
+                        paddingVertical: 4,
+                        gap: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11 }}>🪙</Text>
+                      <Text
+                        style={{
+                          fontFamily: 'Outfit_700Bold',
+                          fontSize: 13,
+                          color: isDark ? '#FBBF24' : '#D97706',
+                        }}
+                      >
+                        {user.coins}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )}
           </View>
         </ScrollView>
       )}
@@ -579,9 +796,9 @@ export default function LeaderboardScreen() {
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: isDark ? '#1C1C20' : '#FFFFFF',
+          backgroundColor: cardBg,
           borderTopWidth: 1,
-          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+          borderTopColor: cardBorder,
           paddingTop: 12,
           paddingBottom: Math.max(insets.bottom, 14),
           paddingHorizontal: 20,
@@ -619,7 +836,7 @@ export default function LeaderboardScreen() {
                 style={{
                   fontFamily: 'Poppins_700Bold',
                   fontSize: 14,
-                  color: isDark ? '#FFFFFF' : '#111827',
+                  color: textPrimary,
                 }}
                 numberOfLines={1}
               >
@@ -641,7 +858,7 @@ export default function LeaderboardScreen() {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: isDark ? '#262010' : '#FEF3C7',
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
               borderWidth: 1,
               borderColor: '#F59E0B',
               borderRadius: 16,

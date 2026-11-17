@@ -30,29 +30,7 @@ const SIDE_OVERFLOW = 42;
 const SIDE_GAP = 14;
 const SIDE_CARD_WIDTH = Math.max((SCREEN_WIDTH - CENTER_CARD_WIDTH - (SIDE_GAP * 2)) / 2 + SIDE_OVERFLOW, 85);
 
-const FALLBACK_PRODUCTS: StoreProduct[] = [
-  {
-    id: 'prod-hoodie',
-    name: 'Hoodie',
-    price: 800,
-    priceText: 'Rs. 800',
-    description: 'Hoodie Curated in a way that you wear to feel the vibes of Saturnalia',
-  },
-  {
-    id: 'prod-idcard',
-    name: 'ID Card',
-    price: 150,
-    priceText: 'Rs. 150',
-    description: 'ID Card Curated in a way that you wear to feel the vibes of Saturnalia',
-  },
-  {
-    id: 'prod-tee',
-    name: 'T-Shirt',
-    price: 499,
-    priceText: 'Rs. 499',
-    description: 'T-Shirt Curated in a way that you wear to feel the vibes of Saturnalia',
-  },
-];
+
 
 /**
  * Geometric Jaali / Lattice pattern overlay matching the reference mockup
@@ -108,92 +86,36 @@ const JaaliOverlay: React.FC<{
 };
 
 /**
- * Visual Mockup Graphic for items when image URL isn't set
+ * Placeholder when product image is missing
  */
-const ProductMockupIllustration: React.FC<{ name: string }> = ({ name }) => {
-  const lower = name.toLowerCase();
-
-  if (lower.includes('id') || lower.includes('card') || lower.includes('lanyard')) {
-    return (
-      <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-        {/* Lanyard strap */}
-        <View style={{ width: 14, height: 28, backgroundColor: '#111827', borderRadius: 2 }} />
-        {/* Clip */}
-        <View style={{ width: 20, height: 8, backgroundColor: '#D1D5DB', borderRadius: 2, marginBottom: 2 }} />
-        {/* Badge Card */}
-        <View
-          style={{
-            width: 90,
-            height: 140,
-            backgroundColor: '#1E293B',
-            borderRadius: 10,
-            borderWidth: 2,
-            borderColor: '#F59E0B',
-            alignItems: 'center',
-            padding: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.35,
-            shadowRadius: 6,
-          }}
-        >
-          <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#F59E0B', marginBottom: 8, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="person" size={24} color="#1E293B" />
-          </View>
-          <View style={{ width: 60, height: 6, backgroundColor: '#FFFFFF', borderRadius: 3, marginBottom: 4 }} />
-          <View style={{ width: 44, height: 5, backgroundColor: '#94A3B8', borderRadius: 3, marginBottom: 8 }} />
-          <View style={{ width: 70, height: 35, backgroundColor: '#0F172A', borderRadius: 4, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="qr-code" size={24} color="#F59E0B" />
-          </View>
-        </View>
-      </View>
-    );
-  }
-
-  // Hoodie or Tee
-  const isHoodie = lower.includes('hoodie');
+const ProductMissingImagePlaceholder: React.FC = () => {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       <View
         style={{
-          width: 120,
-          height: 150,
-          backgroundColor: '#111827',
-          borderRadius: 16,
+          width: 76,
+          height: 76,
+          borderRadius: 38,
+          backgroundColor: 'rgba(0, 0, 0, 0.28)',
           borderWidth: 1.5,
-          borderColor: 'rgba(255, 255, 255, 0.15)',
+          borderColor: 'rgba(255, 255, 255, 0.25)',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.4,
-          shadowRadius: 8,
+          marginBottom: 8,
         }}
       >
-        <Ionicons name={isHoodie ? 'shirt' : 'shirt-outline'} size={60} color="#E0E7FF" />
-        <Text
-          style={{
-            fontFamily: 'Outfit_700Bold',
-            fontSize: 11,
-            color: '#38BDF8',
-            marginTop: 4,
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-          }}
-        >
-          SATURNALIA
-        </Text>
-        <Text
-          style={{
-            fontFamily: 'Poppins_500Medium',
-            fontSize: 9,
-            color: '#94A3B8',
-          }}
-        >
-          Official Fest Merch
-        </Text>
+        <Ionicons name="help" size={44} color="#F3F4F6" />
       </View>
+      <Text
+        style={{
+          fontFamily: 'Poppins_500Medium',
+          fontSize: 12,
+          color: 'rgba(255, 255, 255, 0.9)',
+          letterSpacing: 0.2,
+        }}
+      >
+        No image
+      </Text>
     </View>
   );
 };
@@ -206,8 +128,8 @@ const StoreScreen: React.FC = () => {
   const { userData, refreshUserProfile } = useUserStore();
   const { items: cartItems, addToCart, getTotalCount } = useCartStore();
 
-  const [products, setProducts] = useState<StoreProduct[]>(FALLBACK_PRODUCTS);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
@@ -215,12 +137,14 @@ const StoreScreen: React.FC = () => {
   // Load products from backend
   const loadProducts = useCallback(async () => {
     try {
+      setLoading(true);
       const data = await fetchStoreItems();
-      if (data && data.length > 0) {
-        setProducts(data);
-      }
+      setProducts(data || []);
     } catch (err) {
-      console.warn('Failed to load products, using fallback:', err);
+      console.warn('Failed to load products:', err);
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -622,18 +546,39 @@ const StoreScreen: React.FC = () => {
         </View>
 
         {/* Products List */}
-        {filteredProducts.length === 0 ? (
+        {loading && products.length === 0 ? (
           <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
-            <Ionicons name="search-outline" size={48} color="#71717A" />
+            <ActivityIndicator size="large" color="#38BDF8" />
+            <Text
+              style={{
+                fontFamily: 'Poppins_500Medium',
+                color: isDark ? '#9CA3AF' : '#6B7280',
+                fontSize: 14,
+                marginTop: 12,
+              }}
+            >
+              Loading store items...
+            </Text>
+          </View>
+        ) : filteredProducts.length === 0 ? (
+          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
+            <Ionicons
+              name={searchQuery.trim() ? "search-outline" : "bag-outline"}
+              size={48}
+              color="#71717A"
+            />
             <Text
               style={{
                 fontFamily: 'Poppins_500Medium',
                 color: '#9CA3AF',
                 fontSize: 15,
                 marginTop: 12,
+                textAlign: 'center',
               }}
             >
-              No products found matching "{searchQuery}"
+              {searchQuery.trim()
+                ? `No products found matching "${searchQuery}"`
+                : "No store items available yet"}
             </Text>
           </View>
         ) : (
@@ -758,7 +703,7 @@ const StoreScreen: React.FC = () => {
                           resizeMode="contain"
                         />
                       ) : (
-                        <ProductMockupIllustration name={product.name} />
+                        <ProductMissingImagePlaceholder />
                       )}
                     </TouchableOpacity>
 
@@ -825,7 +770,7 @@ const StoreScreen: React.FC = () => {
                       paddingVertical: 9,
                       borderRadius: 20,
                       gap: 6,
-                      shadowColor: '#38BDF8',
+                      shadowColor: '#000',
                       shadowOffset: { width: 0, height: 3 },
                       shadowOpacity: 0.3,
                       shadowRadius: 5,

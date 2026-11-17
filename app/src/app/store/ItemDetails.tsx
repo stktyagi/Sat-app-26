@@ -220,7 +220,7 @@ const ItemDetailsScreen = () => {
             justifyContent: 'center',
             position: 'relative',
             marginBottom: 20,
-            shadowColor: '#F472B6',
+            shadowColor: '#000',
             shadowOffset: { width: 0, height: 6 },
             shadowOpacity: isDark ? 0.25 : 0.12,
             shadowRadius: 14,
@@ -262,8 +262,29 @@ const ItemDetailsScreen = () => {
             />
           ) : (
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 90 }}>
-                {isApparel ? '👕' : '🎟️'}
+              <View
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: 48,
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                  borderWidth: 1.5,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 10,
+                }}
+              >
+                <Ionicons name="help" size={52} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </View>
+              <Text
+                style={{
+                  fontFamily: 'Poppins_500Medium',
+                  fontSize: 13,
+                  color: isDark ? '#9CA3AF' : '#6B7280',
+                }}
+              >
+                No image available
               </Text>
             </View>
           )}
@@ -527,7 +548,7 @@ const ItemDetailsScreen = () => {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 8,
-            shadowColor: '#38BDF8',
+            shadowColor: '#000',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.3,
             shadowRadius: 8,

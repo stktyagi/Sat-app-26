@@ -65,41 +65,16 @@ func respondStoreItemLookup(c *gin.Context, err error) {
 	apierr.Respond(c, apierr.Internal("could not load the store item"))
 }
 
-var defaultStoreItems = []*models.StoreItem{
-	{
-		ID:          "prod-hoodie",
-		Name:        "Saturnalia Official Hoodie",
-		Price:       800,
-		Description: "Hoodie Curated in a way that you wear to feel the vibes of Saturnalia",
-		Image:       "",
-	},
-	{
-		ID:          "prod-idcard",
-		Name:        "ID Card & Lanyard",
-		Price:       150,
-		Description: "ID Card Curated in a way that you wear to feel the vibes of Saturnalia",
-		Image:       "",
-	},
-	{
-		ID:          "prod-tee",
-		Name:        "Saturnalia Fest Tee",
-		Price:       499,
-		Description: "T-Shirt Curated in a way that you wear to feel the vibes of Saturnalia",
-		Image:       "",
-	},
-}
-
 // ListStoreItems returns all store items for the public shop.
 func (a *API) ListStoreItems(c *gin.Context) {
 	items, err := a.StoreItems.All(c.Request.Context())
 	if err != nil {
 		log.Printf("ListStoreItems error: %v", err)
-		// Fallback to default items on DB error
-		c.JSON(http.StatusOK, gin.H{"items": defaultStoreItems, "total": len(defaultStoreItems)})
+		c.JSON(http.StatusOK, gin.H{"items": []*models.StoreItem{}, "total": 0})
 		return
 	}
-	if len(items) == 0 {
-		items = defaultStoreItems
+	if items == nil {
+		items = []*models.StoreItem{}
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items, "total": len(items)})
 }
@@ -138,13 +113,6 @@ func (a *API) GetLeaderboard(c *gin.Context) {
 // GetStoreItem returns details of a single item.
 func (a *API) GetStoreItem(c *gin.Context) {
 	id := c.Param("id")
-	for _, defItem := range defaultStoreItems {
-		if defItem.ID == id {
-			c.JSON(http.StatusOK, gin.H{"item": defItem})
-			return
-		}
-	}
-
 	item, err := a.Store.GetStoreItem(c.Request.Context(), id)
 	if err != nil {
 		respondStoreItemLookup(c, err)
