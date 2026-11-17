@@ -1,5 +1,7 @@
 package models
 
+import "strings"
+
 // AppLinks contains store links for Android (Play Store) and iOS (App Store).
 type AppLinks struct {
 	AppleStore string `json:"appleStore" firestore:"appleStore"`
@@ -53,4 +55,37 @@ type AppConfig struct {
 	Versions      AppVersions         `json:"versions"`
 	Accommodation AppAccommodation    `json:"accommodation"`
 	AdminScreens  []AdminScreenConfig `json:"adminScreens,omitempty"`
+}
+
+const (
+	MaxMaleAccommodation   = 300
+	MaxFemaleAccommodation = 130
+)
+
+type DayAvailability struct {
+	Male   int `json:"male"   firestore:"male"`
+	Female int `json:"female" firestore:"female"`
+}
+
+type AccommodationAvailabilityDoc struct {
+	Day0      DayAvailability `json:"day0"      firestore:"day0"`
+	Day1      DayAvailability `json:"day1"      firestore:"day1"`
+	Day2      DayAvailability `json:"day2"      firestore:"day2"`
+	Day3      DayAvailability `json:"day3"      firestore:"day3"`
+	Day4      DayAvailability `json:"day4"      firestore:"day4"`
+	UpdatedAt string          `json:"updatedAt" firestore:"updatedAt"`
+}
+
+type DayRemaining struct {
+	Remaining int  `json:"remaining"`
+	Total     int  `json:"total"`
+	IsSoldOut bool `json:"isSoldOut"`
+}
+
+func NormalizeGender(g string) string {
+	lower := strings.ToLower(strings.TrimSpace(g))
+	if strings.HasPrefix(lower, "f") || strings.Contains(lower, "female") {
+		return "female"
+	}
+	return "male"
 }

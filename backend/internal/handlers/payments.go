@@ -576,6 +576,18 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		}
 	}
 
+	// Check fixed capacity (300 male, 130 female)
+	if len(accommodationMap) > 0 && a.Store != nil {
+		userGender := "male"
+		if user != nil {
+			userGender = user.Gender
+		}
+		if err := a.Store.CheckAccommodationCapacity(ctx, accommodationMap, userGender, user); err != nil {
+			apierr.Respond(c, err)
+			return
+		}
+	}
+
 	if accFee > 0 && body.EventID == "" && a.Store != nil {
 		regs, err := a.Store.ListUserRegistrations(ctx, user.UserID)
 		if err != nil || len(regs) == 0 {

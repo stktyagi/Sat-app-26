@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/firestore"
+
+	"backend/internal/apierr"
+	"backend/internal/isotime"
 	"backend/internal/models"
 )
 
@@ -392,4 +397,183 @@ func (s *Store) SetAdminScreens(ctx context.Context, screens []models.AdminScree
 	}
 	cfg.AdminScreens = cloneAdminScreens(screens)
 	return saveAppConfigLocked(s.configPath(), cfg)
+}
+
+
+var (
+	availMu        sync.RWMutex
+	availCache     *models.AccommodationAvailabilityDoc
+	availCacheTime time.Time
+	availTTL       = 30 * time.Second
+)
+
+func (s *Store) InvalidateAccommodationAvailabilityCache() {
+	availMu.Lock()
+	defer availMu.Unlock()
+	availCache = nil
+}
+
+// GetAccommodationAvailability retrieves the counter document, using a 30s cache.
+// If the document does not exist yet, it reconciles from existing user records.
+func (s *Store) GetAccommodationAvailability(ctx context.Context) (*models.AccommodationAvailabilityDoc, error) {
+	availMu.RLock()
+	if availCache != nil && time.Since(availCacheTime) < availTTL {
+		cached := availCache
+		availMu.RUnlock()
+		return cached, nil
+	}
+	availMu.RUnlock()
+
+	availMu.Lock()
+	defer availMu.Unlock()
+
+	if availCache != nil && time.Since(availCacheTime) < availTTL {
+		return availCache, nil
+	}
+
+	if s.FS == nil {
+		return &models.AccommodationAvailabilityDoc{}, nil
+	}
+
+	doc, err := s.FS.Collection(ColApp).Doc("accommodation_availability").Get(ctx)
+	if err != nil {
+		if errors.Is(wrap(err), ErrNotFound) {
+			return s.reconcileAccommodationAvailabilityLocked(ctx)
+		}
+		return nil, err
+	}
+
+	var data models.AccommodationAvailabilityDoc
+	if err := doc.DataTo(&data); err != nil {
+		return nil, err
+	}
+
+	availCache = &data
+	availCacheTime = time.Now()
+	return availCache, nil
+}
+
+// ReconcileAccommodationAvailability recalculates counts by querying the users collection
+// and updates app/accommodation_availability.
+func (s *Store) ReconcileAccommodationAvailability(ctx context.Context) (*models.AccommodationAvailabilityDoc, error) {
+	availMu.Lock()
+	defer availMu.Unlock()
+	return s.reconcileAccommodationAvailabilityLocked(ctx)
+}
+
+func (s *Store) reconcileAccommodationAvailabilityLocked(ctx context.Context) (*models.AccommodationAvailabilityDoc, error) {
+	if s.FS == nil {
+		return &models.AccommodationAvailabilityDoc{}, nil
+	}
+
+	iter := s.FS.Collection(ColUsers).WhereEntity(firestore.OrFilter{
+		Filters: []firestore.EntityFilter{
+			firestore.PropertyFilter{Path: "accommodation.day0", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day1", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day2", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day3", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day4", Operator: "==", Value: true},
+		},
+	}).Documents(ctx)
+	defer iter.Stop()
+
+	var doc models.AccommodationAvailabilityDoc
+	for {
+		snap, err := iter.Next()
+		if err != nil {
+			break
+		}
+		var u models.User
+		if err := snap.DataTo(&u); err != nil {
+			continue
+		}
+		if u.Accommodation == nil {
+			continue
+		}
+
+		gender := models.NormalizeGender(u.Gender)
+		isFemale := gender == "female"
+
+		if u.Accommodation["day0"] {
+			if isFemale { doc.Day0.Female++ } else { doc.Day0.Male++ }
+		}
+		if u.Accommodation["day1"] {
+			if isFemale { doc.Day1.Female++ } else { doc.Day1.Male++ }
+		}
+		if u.Accommodation["day2"] {
+			if isFemale { doc.Day2.Female++ } else { doc.Day2.Male++ }
+		}
+		if u.Accommodation["day3"] {
+			if isFemale { doc.Day3.Female++ } else { doc.Day3.Male++ }
+		}
+		if u.Accommodation["day4"] {
+			if isFemale { doc.Day4.Female++ } else { doc.Day4.Male++ }
+		}
+	}
+
+	doc.UpdatedAt = isotime.Now()
+	_, err := s.FS.Collection(ColApp).Doc("accommodation_availability").Set(ctx, doc)
+	if err != nil {
+		log.Printf("error saving accommodation_availability: %v", err)
+	}
+
+	availCache = &doc
+	availCacheTime = time.Now()
+	return &doc, nil
+}
+
+// CheckAccommodationCapacity validates that requested days do not exceed capacity for the user's gender.
+func (s *Store) CheckAccommodationCapacity(ctx context.Context, requestedDays map[string]any, gender string, user *models.User) error {
+	avail, err := s.GetAccommodationAvailability(ctx)
+	if err != nil {
+		log.Printf("CheckAccommodationCapacity: error getting availability: %v", err)
+		return nil
+	}
+
+	gender = models.NormalizeGender(gender)
+	isFemale := gender == "female"
+	limit := models.MaxMaleAccommodation
+	if isFemale {
+		limit = models.MaxFemaleAccommodation
+	}
+
+	checkDay := func(day string, bookedCount int) error {
+		if user != nil && user.Accommodation != nil && user.Accommodation[day] {
+			return nil
+		}
+		if bookedCount+1 > limit {
+			return apierr.BadRequest("accommodation_sold_out", fmt.Sprintf("Accommodation is sold out for %s", day))
+		}
+		return nil
+	}
+
+	for day, v := range requestedDays {
+		on, _ := v.(bool)
+		if !on {
+			continue
+		}
+		switch day {
+		case "day0":
+			count := avail.Day0.Male
+			if isFemale { count = avail.Day0.Female }
+			if err := checkDay("day0", count); err != nil { return err }
+		case "day1":
+			count := avail.Day1.Male
+			if isFemale { count = avail.Day1.Female }
+			if err := checkDay("day1", count); err != nil { return err }
+		case "day2":
+			count := avail.Day2.Male
+			if isFemale { count = avail.Day2.Female }
+			if err := checkDay("day2", count); err != nil { return err }
+		case "day3":
+			count := avail.Day3.Male
+			if isFemale { count = avail.Day3.Female }
+			if err := checkDay("day3", count); err != nil { return err }
+		case "day4":
+			count := avail.Day4.Male
+			if isFemale { count = avail.Day4.Female }
+			if err := checkDay("day4", count); err != nil { return err }
+		}
+	}
+	return nil
 }

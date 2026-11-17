@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -180,5 +181,84 @@ func TestAdminUpdateAdminScreens_UpdatesOnTheFly(t *testing.T) {
 	}
 	if resp.Items[1].Key != "payment_management" {
 		t.Errorf("expected payment_management on the fly, got %s", resp.Items[1].Key)
+	}
+}
+
+
+func TestGetAccommodationAvailability_GenderPrivacy(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	s := &store.Store{}
+	api := &API{Store: s}
+
+	// 1. Male user: should see 300 total, NO female fields
+	{
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/app/accommodation/availability", nil)
+		c.Set("auth.user", &models.User{UserID: "male_1", Gender: "male"})
+
+		api.GetAccommodationAvailability(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", w.Code)
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+
+		days, ok := resp["days"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected 'days' key in response")
+		}
+		day1, ok := days["day1"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected 'day1' in days")
+		}
+		if day1["total"] != float64(300) {
+			t.Errorf("expected total 300 for male, got %v", day1["total"])
+		}
+		// Confirm female is not mentioned in response at all
+		bodyStr := w.Body.String()
+		if strings.Contains(strings.ToLower(bodyStr), "female") {
+			t.Errorf("response disclosed female data to male user: %s", bodyStr)
+		}
+	}
+
+	// 2. Female user: should see 130 total
+	{
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/app/accommodation/availability", nil)
+		c.Set("auth.user", &models.User{UserID: "female_1", Gender: "female"})
+
+		api.GetAccommodationAvailability(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", w.Code)
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+
+		days := resp["days"].(map[string]any)
+		day1 := days["day1"].(map[string]any)
+		if day1["total"] != float64(130) {
+			t.Errorf("expected total 130 for female, got %v", day1["total"])
+		}
+	}
+
+	// 3. Admin user: should see both male and female
+	{
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/app/accommodation/availability", nil)
+		c.Set("auth.user", &models.User{UserID: "admin_1", Roles: []string{models.RoleAdmin}})
+
+		api.GetAccommodationAvailability(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", w.Code)
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+
+		if resp["limits"] == nil || resp["remaining"] == nil {
+			t.Errorf("expected admin response to contain limits and remaining breakdown: %s", w.Body.String())
+		}
 	}
 }

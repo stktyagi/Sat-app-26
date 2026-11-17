@@ -79,6 +79,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	open.GET("/app/maintenance", api.GetAppMaintenance)
 	open.GET("/app/versions", api.GetAppVersions)
 	open.GET("/app/accommodation", api.GetAppAccommodation)
+	open.GET("/app/accommodation/availability", api.GetAccommodationAvailability)
 
 	registered.POST("/events/:id/register", api.Register)
 	authed.DELETE("/events/:id/register", api.Unregister)
@@ -119,6 +120,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	adminOnly.PUT("/admin/app/versions", api.AdminUpdateAppVersions)
 	adminOnly.PATCH("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
 	adminOnly.PUT("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
+	adminOnly.POST("/admin/app/accommodation/reconcile", api.AdminReconcileAccommodation)
 	adminOnly.POST("/admin/notifications", api.SendNotification)
 	adminOnly.GET("/admin/app/screens", api.AdminGetAdminScreens)
 	adminOnly.PATCH("/admin/app/screens", api.AdminUpdateAdminScreens)
