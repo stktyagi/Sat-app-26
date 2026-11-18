@@ -35,6 +35,7 @@ import {
   fetchIncomingUsers,
   fetchOutgoingUsers,
   updateAccommodationCheckIn,
+  allotHostel,
   clearAccommodationCache,
 } from "@/api/admin";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
@@ -317,8 +318,14 @@ const Accommodation: React.FC = () => {
 
     try {
       setUpdatingUser(user.userId);
-      const currentStatus = !!user.checkInStatus?.accommodation;
-      await updateAccommodationCheckIn(user.userId, currentStatus, hostelToSave, roomToSave);
+      // A changed hostel goes through the desk allotment so the per-hostel
+      // counters move; a room-only change is a plain field update.
+      if (hostelToSave && hostelToSave !== (user.checkInStatus?.Hostel || "")) {
+        const res = await allotHostel(user.userId, hostelToSave, roomToSave);
+        if (!res.success) throw new Error(res.error || "Failed to allot hostel");
+      } else {
+        await updateAccommodationCheckIn(user.userId, true, undefined, roomToSave, "items");
+      }
 
       setUsers((prev) =>
         prev.map((u) => {

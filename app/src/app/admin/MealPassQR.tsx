@@ -27,14 +27,14 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import QRCodeLib from 'qrcode';
+import MealCodeEntry from '@/components/qr/MealCodeEntry';
 
 import { useAdminNavigation } from '@/hooks/useAdminNavigation';
 import { useThemeStore } from '@/state/themeStore';
 import { useUserStore } from '@/state/userStore';
 import {
   ROLE_ADMIN,
-  ROLE_EB_HOSPITALITY,
-  ROLE_EC_HOSPITALITY,
+  HOSPITALITY_ROLES,
   hasAnyRole,
 } from '@/utils/roles';
 import { adminGenerateFoodQR } from '@/api/admin';
@@ -79,7 +79,7 @@ export default function MealPassQRScreen() {
 
   // Check elevated permission
   const isAllowed = useMemo(() => {
-    return hasAnyRole(userData, [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY]);
+    return hasAnyRole(userData, [ROLE_ADMIN, ...HOSPITALITY_ROLES]);
   }, [userData]);
 
   const selectedDay = useMemo(() => {
@@ -755,6 +755,8 @@ export default function MealPassQRScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <MealCodeEntry />
 
         {/* Note info */}
         <View

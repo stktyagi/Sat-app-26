@@ -338,7 +338,7 @@ export async function updateAccommodationCheckIn(
   status: boolean,
   hostel?: string,
   roomNo?: string,
-  action?: 'checkin' | 'checkout' | 'undo_checkout' | 'revert'
+  action?: 'checkin' | 'checkout' | 'undo_checkout' | 'revert' | 'items'
 ): Promise<void> {
   const body: Record<string, any> = {
     userId,
