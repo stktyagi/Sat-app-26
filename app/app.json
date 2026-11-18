@@ -122,7 +122,8 @@
       "expo-web-browser",
       "./plugins/withSceneLifecycle.js",
       "./plugins/withSwift5Pods.js",
-      "./plugins/withGradleMemory.js"
+      "./plugins/withGradleMemory.js",
+      "./plugins/withHardwareFeatures.js"
     ],
     "experiments": {
       "typedRoutes": true,
