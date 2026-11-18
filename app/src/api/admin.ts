@@ -1467,3 +1467,27 @@ export const adminGenerateFoodQR = async (
   if (!res.ok) throw new Error(await readError(res, 'Failed to generate food QR'));
   return res.json();
 };
+
+export const adminGenerateCheckoutQR = async (): Promise<{ qr: string; type: string }> => {
+  const res = await apiFetch("/admin/checkout/generate", {
+    method: "POST",
+  }, "required");
+  if (!res.ok) throw new Error(await readError(res, "Failed to generate checkout QR"));
+  return res.json();
+};
+
+export const submitUserCheckout = async (data: string): Promise<{
+  success: boolean;
+  message: string;
+  hostel?: string;
+  roomNo?: string;
+  already?: boolean;
+  unreturned?: string[];
+}> => {
+  const res = await apiFetch("/hostel/checkout", {
+    method: "POST",
+    body: JSON.stringify({ data }),
+  }, "required");
+  if (!res.ok) throw new Error(await readError(res, "Failed to complete checkout"));
+  return res.json();
+};

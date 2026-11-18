@@ -58,6 +58,7 @@ func defaultAdminScreens() []models.AdminScreenConfig {
 		{Key: "accommodation", Label: "Accommodation", Icon: "bed-outline", Route: "/admin/Accommodation", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality}},
 		{Key: "hospitality_eb", Label: "Hospitality Control", Icon: "business-outline", Route: "/admin/HospitalityEB", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality}},
 		{Key: "meal_pass_qr", Label: "Meal Pass QR", Icon: "restaurant-outline", Route: "/admin/MealPassQR", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality}},
+		{Key: "checkout_qr", Label: "Checkout QR", Icon: "log-out-outline", Route: "/admin/CheckoutQR", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality}},
 		{Key: "users_management", Label: "Users Management", Icon: "people-outline", Route: "/admin/Users", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBHospitality}},
 		{Key: "payment_management", Label: "Payment Management", Icon: "card-outline", Route: "/admin/Transactions", RequiredRoles: []string{models.RoleAdmin, models.RoleEBOutreach, models.RoleEBFinance}},
 		{Key: "send_notification", Label: "Send Notification", Icon: "notifications-outline", Route: "/admin/SendNotification", RequiredRoles: []string{models.RoleAdmin}},

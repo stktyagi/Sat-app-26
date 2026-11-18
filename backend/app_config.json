@@ -119,6 +119,18 @@
       ]
     },
     {
+      "key": "checkout_qr",
+      "label": "Checkout QR",
+      "icon": "log-out-outline",
+      "route": "/admin/CheckoutQR",
+      "requiredRoles": [
+        "admin",
+        "eb_hospitality",
+        "ec_hospitality",
+        "core_hospitality"
+      ]
+    },
+    {
       "key": "users_management",
       "label": "Users Management",
       "icon": "people-outline",

@@ -1016,11 +1016,20 @@ const ProfileScreen = () => {
 
         {/* Menu Items List matching reference UI */}
         {!isHostCollegeStudent && (
-          <ProfileMenuItem
-            icon="bed-outline"
-            label="Accommodation & Hostel"
-            onPress={() => router.push("/profile/Accommodation")}
-          />
+          <>
+            <ProfileMenuItem
+              icon="bed-outline"
+              label="Accommodation & Hostel"
+              onPress={() => router.push("/profile/Accommodation")}
+            />
+            {hasPaidAccommodation && (
+              <ProfileMenuItem
+                icon="log-out-outline"
+                label="Hostel Checkout"
+                onPress={() => router.push("/profile/CheckoutScan" as any)}
+              />
+            )}
+          </>
         )}
 
         {mealPassScannerEnabled && hasPaidMeal && (
