@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,26 +6,30 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeStore } from "@/state/themeStore";
-import {
-  HOSTEL_LIST,
-  BOYS_HOSTELS,
-  GIRLS_HOSTELS,
-  HostelOption,
-  findHostel,
-  formatHostelName,
-  getHostelItemLabels,
-} from "@/data/hostels";
+import { AdminHostel, getHostels } from "@/api/admin";
 
 export interface HostelPickerModalProps {
   visible: boolean;
   onClose: () => void;
   selectedCode?: string | null;
-  onSelect: (hostelCode: string) => void;
+  onSelect: (hostelId: string) => void;
   title?: string;
+  /** Pre-loaded hostels; when omitted the list is fetched on open. */
+  hostels?: AdminHostel[];
+  /** Participant gender; hostels that don't accept it are hidden. */
+  userGender?: string;
+  allowClear?: boolean;
 }
+
+const normGender = (g?: string) => {
+  const v = (g || "").trim().toLowerCase();
+  if (!v) return "";
+  return v.startsWith("f") ? "female" : "male";
+};
 
 export const HostelPickerModal: React.FC<HostelPickerModalProps> = ({
   visible,
@@ -33,10 +37,16 @@ export const HostelPickerModal: React.FC<HostelPickerModalProps> = ({
   selectedCode,
   onSelect,
   title = "Select Hostel",
+  hostels: providedHostels,
+  userGender,
+  allowClear = false,
 }) => {
   const { isDark } = useThemeStore();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeGender, setActiveGender] = useState<"all" | "boys" | "girls">("all");
+  const [activeGender, setActiveGender] = useState<"all" | "male" | "female">("all");
+  const [fetched, setFetched] = useState<AdminHostel[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const modalBg = isDark ? "#1C1C20" : "#FFFFFF";
   const modalBorder = isDark ? "#2A2A30" : "#E5E7EB";
@@ -47,41 +57,53 @@ export const HostelPickerModal: React.FC<HostelPickerModalProps> = ({
   const inputBg = isDark ? "#18181C" : "#F3F4F6";
   const accentBlue = "#41B8F0";
 
-  // Filter hostels based on search and gender tab
-  const filteredBoys = useMemo(() => {
-    if (activeGender === "girls") return [];
-    return BOYS_HOSTELS.filter((h) => matchHostel(h, searchQuery));
-  }, [searchQuery, activeGender]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getHostels();
+      setFetched(res.hostels);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load hostels");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const filteredGirls = useMemo(() => {
-    if (activeGender === "boys") return [];
-    return GIRLS_HOSTELS.filter((h) => matchHostel(h, searchQuery));
-  }, [searchQuery, activeGender]);
+  useEffect(() => {
+    if (visible && !providedHostels) load();
+  }, [visible, providedHostels, load]);
 
-  const handleSelect = (code: string) => {
-    onSelect(code);
+  const ug = normGender(userGender);
+  const all = providedHostels ?? fetched ?? [];
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return all.filter((h) => {
+      if (!h.active) return false;
+      if (ug && h.gender !== "any" && h.gender !== ug) return false;
+      if (activeGender !== "all" && h.gender !== "any" && h.gender !== activeGender) return false;
+      if (q && !h.name.toLowerCase().includes(q) && !h.id.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [all, searchQuery, activeGender, ug]);
+
+  const handleSelect = (id: string) => {
+    onSelect(id);
     setSearchQuery("");
     onClose();
   };
 
-  const handleClear = () => {
-    onSelect("");
-    setSearchQuery("");
-    onClose();
-  };
-
-  const currentSelectedHostel = useMemo(
-    () => findHostel(selectedCode),
-    [selectedCode]
-  );
+  const tabs: { key: "all" | "male" | "female"; label: string }[] = ug
+    ? [{ key: "all", label: ug === "female" ? "Girls" : "Boys" }]
+    : [
+        { key: "all", label: "All" },
+        { key: "male", label: "Boys" },
+        { key: "female", label: "Girls" },
+      ];
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View
         style={{
           flex: 1,
@@ -102,59 +124,15 @@ export const HostelPickerModal: React.FC<HostelPickerModalProps> = ({
             maxHeight: "85%",
             borderWidth: 1,
             borderColor: modalBorder,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.35,
-            shadowRadius: 16,
-            elevation: 8,
           }}
         >
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 14,
-            }}
-          >
-            <View>
-              <Text
-                style={{
-                  fontFamily: "Poppins_700Bold",
-                  color: textPrimary,
-                  fontSize: 18,
-                }}
-              >
-                {title}
-              </Text>
-              <Text
-                style={{
-                  fontFamily: "Poppins_400Regular",
-                  color: textSecondary,
-                  fontSize: 12,
-                }}
-              >
-                Choose from allotted campus hostels
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={onClose}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="close" size={18} color={textSecondary} />
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <Text style={{ color: textPrimary, fontSize: 18, fontWeight: "700" }}>{title}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={10}>
+              <Ionicons name="close" size={22} color={textSecondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Search Bar */}
           <View
             style={{
               flexDirection: "row",
@@ -162,193 +140,98 @@ export const HostelPickerModal: React.FC<HostelPickerModalProps> = ({
               backgroundColor: inputBg,
               borderRadius: 12,
               paddingHorizontal: 12,
-              paddingVertical: 9,
-              borderWidth: 1,
-              borderColor: cardBorder,
-              marginBottom: 10,
+              marginBottom: 12,
             }}
           >
-            <Ionicons name="search-outline" size={16} color={accentBlue} />
+            <Ionicons name="search" size={16} color={textSecondary} />
             <TextInput
-              style={{
-                fontFamily: "Poppins_400Regular",
-                fontSize: 13,
-                color: textPrimary,
-                flex: 1,
-                marginLeft: 8,
-              }}
-              placeholder="Search by new name, old name or code..."
-              placeholderTextColor={textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
+              placeholder="Search hostel"
+              placeholderTextColor={textSecondary}
+              style={{ flex: 1, color: textPrimary, paddingVertical: 10, paddingHorizontal: 8 }}
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={16} color={textSecondary} />
-              </TouchableOpacity>
-            )}
           </View>
 
-          {/* Gender Filter Tabs */}
-          <View style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}>
-            {(["all", "boys", "girls"] as const).map((tab) => {
-              const isSelected = activeGender === tab;
-              const label =
-                tab === "all"
-                  ? "All"
-                  : tab === "boys"
-                  ? "Boys' Hostels"
-                  : "Girls' Hostels";
-              return (
-                <TouchableOpacity
-                  key={tab}
-                  onPress={() => setActiveGender(tab)}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 7,
-                    borderRadius: 8,
-                    alignItems: "center",
-                    backgroundColor: isSelected
-                      ? accentBlue
-                      : isDark
-                      ? "rgba(255, 255, 255, 0.06)"
-                      : "#F1F5F9",
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_600SemiBold",
-                      fontSize: 11,
-                      color: isSelected ? "#FFFFFF" : textSecondary,
-                    }}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Hostel Items List */}
-          <ScrollView
-            style={{ maxHeight: 340 }}
-            showsVerticalScrollIndicator={true}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Boys' Section */}
-            {filteredBoys.length > 0 && (
-              <View style={{ marginBottom: 14 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_700Bold",
-                      fontSize: 11,
-                      color: accentBlue,
-                      letterSpacing: 0.5,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Boys' Hostels ({filteredBoys.length})
-                  </Text>
-                </View>
-                {filteredBoys.map((hostel) => (
-                  <HostelRowItem
-                    key={hostel.code}
-                    hostel={hostel}
-                    isSelected={
-                      selectedCode === hostel.code ||
-                      currentSelectedHostel?.code === hostel.code
-                    }
-                    onSelect={() => handleSelect(hostel.code)}
-                    cardBg={cardBg}
-                    cardBorder={cardBorder}
-                    textPrimary={textPrimary}
-                    textSecondary={textSecondary}
-                    accentBlue={accentBlue}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* Girls' Section */}
-            {filteredGirls.length > 0 && (
-              <View style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_700Bold",
-                      fontSize: 11,
-                      color: "#EC4899",
-                      letterSpacing: 0.5,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Girls' Hostels ({filteredGirls.length})
-                  </Text>
-                </View>
-                {filteredGirls.map((hostel) => (
-                  <HostelRowItem
-                    key={hostel.code}
-                    hostel={hostel}
-                    isSelected={
-                      selectedCode === hostel.code ||
-                      currentSelectedHostel?.code === hostel.code
-                    }
-                    onSelect={() => handleSelect(hostel.code)}
-                    cardBg={cardBg}
-                    cardBorder={cardBorder}
-                    textPrimary={textPrimary}
-                    textSecondary={textSecondary}
-                    accentBlue={accentBlue}
-                  />
-                ))}
-              </View>
-            )}
-
-            {filteredBoys.length === 0 && filteredGirls.length === 0 && (
-              <View style={{ alignItems: "center", paddingVertical: 30 }}>
-                <Ionicons name="search" size={32} color={textSecondary} />
-                <Text
-                  style={{
-                    fontFamily: "Poppins_500Medium",
-                    fontSize: 13,
-                    color: textSecondary,
-                    marginTop: 8,
-                  }}
-                >
-                  No hostels matching "{searchQuery}"
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-
-          {/* Clear Selection Button if currently selected */}
-          {selectedCode ? (
-            <TouchableOpacity
-              onPress={handleClear}
-              style={{
-                marginTop: 10,
-                paddingVertical: 9,
-                borderRadius: 10,
-                alignItems: "center",
-                backgroundColor: isDark ? "rgba(239, 68, 68, 0.12)" : "#FEE2E2",
-                borderWidth: 1,
-                borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "#FCA5A5",
-              }}
-              activeOpacity={0.7}
-            >
-              <Text
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+            {tabs.map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => setActiveGender(t.key)}
                 style={{
-                  fontFamily: "Poppins_600SemiBold",
-                  fontSize: 12,
-                  color: "#EF4444",
+                  paddingVertical: 6,
+                  paddingHorizontal: 14,
+                  borderRadius: 999,
+                  backgroundColor: activeGender === t.key ? accentBlue : cardBg,
+                  borderWidth: 1,
+                  borderColor: activeGender === t.key ? accentBlue : cardBorder,
                 }}
               >
-                Clear Hostel Allotment
-              </Text>
+                <Text style={{ color: activeGender === t.key ? "#fff" : textSecondary, fontWeight: "600", fontSize: 13 }}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {loading ? (
+            <ActivityIndicator color={accentBlue} style={{ marginVertical: 24 }} />
+          ) : error ? (
+            <TouchableOpacity onPress={load} style={{ paddingVertical: 20, alignItems: "center" }}>
+              <Text style={{ color: "#EF4444", marginBottom: 6 }}>{error}</Text>
+              <Text style={{ color: accentBlue, fontWeight: "600" }}>Tap to retry</Text>
+            </TouchableOpacity>
+          ) : (
+            <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8 }}>
+              {filtered.length === 0 && (
+                <Text style={{ color: textSecondary, textAlign: "center", paddingVertical: 20 }}>
+                  No hostels available. EB can add hostels in Hospitality Control.
+                </Text>
+              )}
+              {filtered.map((h) => {
+                const selected = h.id === selectedCode;
+                const disabled = h.isFull && !selected;
+                const pct = h.capacity > 0 ? Math.min(1, h.occupied / h.capacity) : 1;
+                const barColor = pct >= 1 ? "#EF4444" : pct >= 0.85 ? "#F59E0B" : "#22C55E";
+                return (
+                  <TouchableOpacity
+                    key={h.id}
+                    disabled={disabled}
+                    onPress={() => handleSelect(h.id)}
+                    style={{
+                      backgroundColor: cardBg,
+                      borderRadius: 14,
+                      padding: 12,
+                      borderWidth: 1.5,
+                      borderColor: selected ? accentBlue : cardBorder,
+                      opacity: disabled ? 0.45 : 1,
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: textPrimary, fontWeight: "700", fontSize: 15 }}>{h.name}</Text>
+                        <Text style={{ color: textSecondary, fontSize: 12, marginTop: 2 }}>
+                          {h.gender === "any" ? "Any gender" : h.gender === "female" ? "Girls" : "Boys"} ·{" "}
+                          {h.isFull ? "Full" : `${h.remaining} beds left`}
+                        </Text>
+                      </View>
+                      <Text style={{ color: textPrimary, fontWeight: "700" }}>
+                        {h.occupied}/{h.capacity}
+                      </Text>
+                      {selected && <Ionicons name="checkmark-circle" size={20} color={accentBlue} style={{ marginLeft: 8 }} />}
+                    </View>
+                    <View style={{ height: 4, borderRadius: 2, backgroundColor: cardBorder, marginTop: 8, overflow: "hidden" }}>
+                      <View style={{ width: `${pct * 100}%`, height: 4, backgroundColor: barColor }} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {allowClear && selectedCode ? (
+            <TouchableOpacity onPress={() => handleSelect("")} style={{ marginTop: 12, alignItems: "center" }}>
+              <Text style={{ color: "#EF4444", fontWeight: "600" }}>Clear selection</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -357,84 +240,4 @@ export const HostelPickerModal: React.FC<HostelPickerModalProps> = ({
   );
 };
 
-const HostelRowItem: React.FC<{
-  hostel: HostelOption;
-  isSelected: boolean;
-  onSelect: () => void;
-  cardBg: string;
-  cardBorder: string;
-  textPrimary: string;
-  textSecondary: string;
-  accentBlue: string;
-}> = ({
-  hostel,
-  isSelected,
-  onSelect,
-  cardBg,
-  cardBorder,
-  textPrimary,
-  textSecondary,
-  accentBlue,
-}) => {
-  const { primary, secondary } = getHostelItemLabels(hostel);
-
-  return (
-    <TouchableOpacity
-      onPress={onSelect}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: isSelected ? "rgba(65, 184, 240, 0.14)" : cardBg,
-        borderRadius: 12,
-        paddingVertical: 9,
-        paddingHorizontal: 12,
-        marginBottom: 6,
-        borderWidth: 1,
-        borderColor: isSelected ? accentBlue : cardBorder,
-      }}
-      activeOpacity={0.7}
-    >
-      <View style={{ flex: 1, marginRight: 8 }}>
-        <Text
-          style={{
-            fontFamily: "Poppins_600SemiBold",
-            fontSize: 13,
-            color: isSelected ? accentBlue : textPrimary,
-          }}
-          numberOfLines={1}
-        >
-          {primary}
-        </Text>
-        <Text
-          style={{
-            fontFamily: "Poppins_400Regular",
-            fontSize: 11,
-            color: textSecondary,
-            marginTop: 1,
-          }}
-        >
-          {secondary ? `${secondary} • ` : ""}Code: {hostel.code}
-        </Text>
-      </View>
-
-      {isSelected ? (
-        <Ionicons name="checkmark-circle" size={18} color={accentBlue} />
-      ) : (
-        <Ionicons name="chevron-forward" size={14} color={textSecondary} />
-      )}
-    </TouchableOpacity>
-  );
-};
-
-function matchHostel(hostel: HostelOption, query: string): boolean {
-  if (!query.trim()) return true;
-  const q = query.toLowerCase().trim();
-  if (hostel.code.toLowerCase().includes(q)) return true;
-  if (hostel.oldName.toLowerCase().includes(q)) return true;
-  if (hostel.newName && hostel.newName.toLowerCase().includes(q)) return true;
-  // Match single letter e.g. "A" -> "Hostel A"
-  const letter = hostel.oldName.replace(/hostel/i, "").trim().toLowerCase();
-  if (letter === q) return true;
-  return false;
-}
+export default HostelPickerModal;

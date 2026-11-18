@@ -11,6 +11,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../index";
 import { useThemeStore } from "@/state/themeStore";
+import { useUserStore } from "@/state/userStore";
+import { hasAnyRole, HOSPITALITY_LEAD_ROLES } from "@/utils/roles";
 import { formatHostelDisplay } from "@/data/hostels";
 import {
   UserGateData,
@@ -32,6 +34,9 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
   onUserDataUpdate,
 }) => {
   const { isDark } = useThemeStore();
+  const { userData: me } = useUserStore();
+  // Only EB/EC hospitality can undo a wrong gate check-in.
+  const isLead = hasAnyRole(me, HOSPITALITY_LEAD_ROLES);
   const [loading, setLoading] = useState(false);
   const [currentUserData, setCurrentUserData] = useState<UserGateData | null>(
     userData
@@ -351,6 +356,22 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
                         {loading ? "Updating..." : "Confirm Entry"}
                       </Text>
                     </TouchableOpacity>
+                  ) : !isLead ? (
+                    <View
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 1,
+                        borderColor: cardBorder,
+                      }}
+                    >
+                      <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, fontSize: 12, textAlign: "center" }}>
+                        Already entered. Ask EB/EC to revert a wrong check-in.
+                      </Text>
+                    </View>
                   ) : (
                     <TouchableOpacity
                       style={{
@@ -361,12 +382,21 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
                         alignItems: "center",
                         justifyContent: "center",
                       }}
-                      onPress={() => handleFestStatusUpdate(false)}
+                      onPress={() =>
+                        showAlert(
+                          "Return to pending?",
+                          "Use this only to undo a wrong gate check-in.",
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Return to pending", style: "destructive", onPress: () => handleFestStatusUpdate(false) },
+                          ]
+                        )
+                      }
                       disabled={loading}
                       activeOpacity={0.7}
                     >
                       <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>
-                        {loading ? "Updating..." : "Revert to Pending"}
+                        {loading ? "Updating..." : "Return to Pending"}
                       </Text>
                     </TouchableOpacity>
                   )}

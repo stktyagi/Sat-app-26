@@ -48,6 +48,7 @@ const ROLE_COLORS: Record<string, string> = {
   eb_media: "#EC4899",
   eb_hospitality: "#14B8A6",
   ec_hospitality: "#22D3EE",
+  core_hospitality: "#38BDF8",
   event_poc: "#10B981",
   user: "#6B7280",
 };
@@ -60,6 +61,7 @@ const availableRoles = [
   { id: "eb_media", label: "EB_Media" },
   { id: "eb_hospitality", label: "EB_Hospitality" },
   { id: "ec_hospitality", label: "EC_Hospitality" },
+  { id: "core_hospitality", label: "Core_Hospitality" },
   { id: "event_poc", label: "Event_POC / Coordinator" },
   { id: "user", label: "User" },
 ];

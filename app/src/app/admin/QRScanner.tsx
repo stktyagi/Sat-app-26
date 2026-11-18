@@ -18,6 +18,7 @@ import {
 } from "@/api/admin";
 import GateUserModal from "@/components/qr/GateUserModal";
 import HostelUserModal from "@/components/qr/HostelUserModal";
+import RegistrationDeskModal from "@/components/qr/RegistrationDeskModal";
 import { showAlert } from "@/components";
 import {
   ArrowLeft,
@@ -25,6 +26,7 @@ import {
   Home,
   Building,
   Calendar,
+  IdCard,
 } from "lucide-react-native";
 import { useUserStore } from "@/state/userStore";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
@@ -34,10 +36,9 @@ import {
   getUserRoles,
   isFullAdmin,
   ROLE_ADMIN,
-  ROLE_EB_HOSPITALITY,
-  ROLE_EC_HOSPITALITY,
   ROLE_EB_EVENTS,
   ROLE_EVENT_POC,
+  HOSPITALITY_ROLES,
 } from "@/utils/roles";
 
 // Dimensions available if needed
@@ -57,12 +58,13 @@ export default function QRScanner({
   const [scanned, setScanned] = useState(false);
   const [cameraKey, setCameraKey] = useState(Date.now());
   const [cameraReady, setCameraReady] = useState(false);
-  const [activeModal, setActiveModal] = useState<'none' | 'gate' | 'hostel' | 'event'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'gate' | 'hostel' | 'desk' | 'event'>('none');
   const [userData, setUserData] = useState<UserRegistrationData | null>(null);
   const [gateUserData, setGateUserData] = useState<UserGateData | null>(null);
   const [hostelUserData, setHostelUserData] = useState<UserGateData | null>(
     null
   );
+  const [deskUserData, setDeskUserData] = useState<UserGateData | null>(null);
   const [loading, setLoading] = useState(false);
   const [showCategorySelection, setShowCategorySelection] = useState(true);
   const { userData: userProfile } = useUserStore();
@@ -70,17 +72,9 @@ export default function QRScanner({
   const roles = getUserRoles(userProfile);
   const isSuperOrAdmin = isFullAdmin(userProfile);
 
-  const gateAllowedRoles = [
-    ROLE_ADMIN,
-    ROLE_EB_HOSPITALITY,
-    ROLE_EC_HOSPITALITY,
-  ];
-
-  const hostelAllowedRoles = [
-    ROLE_ADMIN,
-    ROLE_EB_HOSPITALITY,
-    ROLE_EC_HOSPITALITY,
-  ];
+  // Gate, registration desk and hostel are open to every hospitality role.
+  const gateAllowedRoles = [ROLE_ADMIN, ...HOSPITALITY_ROLES];
+  const hostelAllowedRoles = gateAllowedRoles;
 
   const eventAllowedRoles = [
     ROLE_ADMIN,
@@ -140,6 +134,16 @@ export default function QRScanner({
       borderColor: "border-green-500/30",
       description: "Scan QR codes for fest entry verification",
       isAllowed: isGateAccessAllowed,
+    },
+    {
+      id: "desk",
+      name: "Registration Desk",
+      icon: IdCard,
+      color: "#F59E0B",
+      bgColor: "bg-amber-500/20",
+      borderColor: "border-amber-500/30",
+      description: "Verify participant details and allot a hostel",
+      isAllowed: isHostelAccessAllowed,
     },
     {
       id: "hostel",
@@ -239,6 +243,7 @@ export default function QRScanner({
     setUserData(null);
     setGateUserData(null);
     setHostelUserData(null);
+    setDeskUserData(null);
     setScanned(false);
   };
 
@@ -258,6 +263,9 @@ export default function QRScanner({
         } else if (selectedCategory === "hostel") {
           setHostelUserData(result.data as UserGateData);
           setActiveModal("hostel");
+        } else if (selectedCategory === "desk") {
+          setDeskUserData(result.data as UserGateData);
+          setActiveModal("desk");
         } else {
           setUserData(result.data as UserRegistrationData);
           setActiveModal("event");
@@ -1011,6 +1019,14 @@ export default function QRScanner({
         onClose={closeModal}
         userData={hostelUserData}
         onUserDataUpdate={(updatedData) => setHostelUserData(updatedData)}
+      />
+
+      {/* Registration Desk Modal */}
+      <RegistrationDeskModal
+        visible={activeModal === "desk"}
+        onClose={closeModal}
+        userData={deskUserData}
+        onUserDataUpdate={(updatedData) => setDeskUserData(updatedData)}
       />
     </View>
   );

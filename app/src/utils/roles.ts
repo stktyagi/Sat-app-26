@@ -7,6 +7,7 @@ export const ROLE_EB_FINANCE = 'eb_finance';
 export const ROLE_EB_MEDIA = 'eb_media';
 export const ROLE_EB_HOSPITALITY = 'eb_hospitality';
 export const ROLE_EC_HOSPITALITY = 'ec_hospitality';
+export const ROLE_CORE_HOSPITALITY = 'core_hospitality';
 export const ROLE_EVENT_POC = 'event_poc';
 export const ROLE_USER = 'user';
 
@@ -18,8 +19,16 @@ export const ADMIN_ROLES = [
   ROLE_EB_MEDIA,
   ROLE_EB_HOSPITALITY,
   ROLE_EC_HOSPITALITY,
+  ROLE_CORE_HOSPITALITY,
   ROLE_EVENT_POC,
 ] as const;
+
+/** Gate, registration desk, hostel check-in/out and meals. */
+export const HOSPITALITY_ROLES = [ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_CORE_HOSPITALITY];
+/** May revert gate/hostel check-ins. */
+export const HOSPITALITY_LEAD_ROLES = [ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY];
+/** EB-only hospitality tools. */
+export const HOSPITALITY_EB_ROLES = [ROLE_EB_HOSPITALITY];
 
 /**
  * Normalizes role names and handles aliases/typos gracefully.
@@ -52,6 +61,10 @@ export function normalizeRole(role: string): string {
     case 'ec_hospitality':
     case 'hospitality_member':
       return ROLE_EC_HOSPITALITY;
+    case 'core_hospitality':
+    case 'hospitality_core':
+    case 'core':
+      return ROLE_CORE_HOSPITALITY;
     case 'event_poc':
     case 'coordinator':
     case 'event_coordinator':

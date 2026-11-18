@@ -59,7 +59,7 @@ const DAY_LIST = [
 
 type TabKey = 'accommodation' | 'maintenance' | 'versions' | 'links' | 'screens';
 
-const ALL_STAFF_ROLES = ['admin', 'eb_events', 'eb_hospitality', 'ec_hospitality', 'eb_outreach', 'eb_finance', 'eb_media', 'event_poc'];
+const ALL_STAFF_ROLES = ['admin', 'eb_events', 'eb_hospitality', 'ec_hospitality', 'core_hospitality', 'eb_outreach', 'eb_finance', 'eb_media', 'event_poc'];
 
 export default function AppConfigScreen() {
   const navigation = useAdminNavigation();

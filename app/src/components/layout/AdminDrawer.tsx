@@ -21,6 +21,7 @@ import {
   ROLE_EB_MEDIA,
   ROLE_EB_HOSPITALITY,
   ROLE_EC_HOSPITALITY,
+  ROLE_CORE_HOSPITALITY,
   ROLE_EVENT_POC,
   normalizeRole,
 } from '@/utils/roles';
@@ -35,11 +36,12 @@ interface DrawerItem {
 
 const ALL_ITEMS: DrawerItem[] = [
   { label: 'Event Management', icon: 'calendar-outline', route: '/admin/EventsManagement', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EVENT_POC] },
-  { label: 'QR Scanner', icon: 'qr-code-outline', route: '/admin/QRScanner', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_EB_EVENTS, ROLE_EVENT_POC] },
+  { label: 'QR Scanner', icon: 'qr-code-outline', route: '/admin/QRScanner', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_CORE_HOSPITALITY, ROLE_EB_EVENTS, ROLE_EVENT_POC] },
   { label: 'Venue Management', icon: 'location-outline', route: '/admin/Venue', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS] },
   { label: 'FAQ Management', icon: 'help-circle-outline', route: '/admin/FAQ', requiredRoles: [ROLE_ADMIN] },
-  { label: 'Accommodation', icon: 'bed-outline', route: '/admin/Accommodation', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY] },
-  { label: 'Meal Pass QR', icon: 'restaurant-outline', route: '/admin/MealPassQR', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY] },
+  { label: 'Accommodation', icon: 'bed-outline', route: '/admin/Accommodation', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_CORE_HOSPITALITY] },
+  { label: 'Hospitality Control', icon: 'business-outline', route: '/admin/HospitalityEB', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY] },
+  { label: 'Meal Pass QR', icon: 'restaurant-outline', route: '/admin/MealPassQR', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_CORE_HOSPITALITY] },
   { label: 'Users Management', icon: 'people-outline', route: '/admin/Users', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EB_OUTREACH, ROLE_EB_FINANCE, ROLE_EB_HOSPITALITY] },
   { label: 'Payment Management', icon: 'card-outline', route: '/admin/Transactions', requiredRoles: [ROLE_ADMIN, ROLE_EB_OUTREACH, ROLE_EB_FINANCE] },
   { label: 'Send Notification', icon: 'notifications-outline', route: '/admin/SendNotification', requiredRoles: [ROLE_ADMIN] },
