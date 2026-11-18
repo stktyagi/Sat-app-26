@@ -51,11 +51,12 @@ func defaultAppAccommodation() models.AppAccommodation {
 func defaultAdminScreens() []models.AdminScreenConfig {
 	return []models.AdminScreenConfig{
 		{Key: "events_management", Label: "Event Management", Icon: "calendar-outline", Route: "/admin/EventsManagement", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEventPOC}},
-		{Key: "qr_scanner", Label: "QR Scanner", Icon: "qr-code-outline", Route: "/admin/QRScanner", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleEBEvents, models.RoleEventPOC}},
+		{Key: "qr_scanner", Label: "QR Scanner", Icon: "qr-code-outline", Route: "/admin/QRScanner", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality, models.RoleEBEvents, models.RoleEventPOC}},
 		{Key: "venue_management", Label: "Venue Management", Icon: "location-outline", Route: "/admin/Venue", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents}},
 		{Key: "faq_management", Label: "FAQ Management", Icon: "help-circle-outline", Route: "/admin/FAQ", RequiredRoles: []string{models.RoleAdmin}},
-		{Key: "accommodation", Label: "Accommodation", Icon: "bed-outline", Route: "/admin/Accommodation", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality}},
-		{Key: "meal_pass_qr", Label: "Meal Pass QR", Icon: "restaurant-outline", Route: "/admin/MealPassQR", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality}},
+		{Key: "accommodation", Label: "Accommodation", Icon: "bed-outline", Route: "/admin/Accommodation", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality}},
+		{Key: "hospitality_eb", Label: "Hospitality Control", Icon: "business-outline", Route: "/admin/HospitalityEB", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality}},
+		{Key: "meal_pass_qr", Label: "Meal Pass QR", Icon: "restaurant-outline", Route: "/admin/MealPassQR", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality}},
 		{Key: "users_management", Label: "Users Management", Icon: "people-outline", Route: "/admin/Users", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBHospitality}},
 		{Key: "payment_management", Label: "Payment Management", Icon: "card-outline", Route: "/admin/Transactions", RequiredRoles: []string{models.RoleAdmin, models.RoleEBOutreach, models.RoleEBFinance}},
 		{Key: "send_notification", Label: "Send Notification", Icon: "notifications-outline", Route: "/admin/SendNotification", RequiredRoles: []string{models.RoleAdmin}},
@@ -200,11 +201,41 @@ func (s *Store) loadAppConfigLocked() (*models.AppConfig, error) {
 	}
 	if len(parsed.AdminScreens) == 0 {
 		parsed.AdminScreens = defaultAdminScreens()
+	} else {
+		parsed.AdminScreens = mergeDefaultScreens(parsed.AdminScreens)
 	}
 
 	appConfigMemory = &parsed
 	appConfigFileMod = stat.ModTime()
 	return appConfigMemory, nil
+}
+
+// mergeDefaultScreens adds default screens missing from a persisted list and
+// unions each default's roles into the persisted entry, so new screens and
+// newly introduced roles show up without hand-editing the config file.
+func mergeDefaultScreens(screens []models.AdminScreenConfig) []models.AdminScreenConfig {
+	out := cloneAdminScreens(screens)
+	idx := make(map[string]int, len(out))
+	for i, sc := range out {
+		idx[sc.Key] = i
+	}
+	for _, def := range defaultAdminScreens() {
+		i, ok := idx[def.Key]
+		if !ok {
+			out = append(out, def)
+			continue
+		}
+		have := make(map[string]bool, len(out[i].RequiredRoles))
+		for _, r := range out[i].RequiredRoles {
+			have[models.NormalizeRole(r)] = true
+		}
+		for _, r := range def.RequiredRoles {
+			if !have[r] {
+				out[i].RequiredRoles = append(out[i].RequiredRoles, r)
+			}
+		}
+	}
+	return out
 }
 
 func saveAppConfigLocked(filePath string, cfg *models.AppConfig) error {

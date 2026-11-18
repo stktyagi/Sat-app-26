@@ -2,13 +2,16 @@ package handlers
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/config"
 	"backend/internal/models"
 )
 
@@ -192,4 +195,100 @@ func (a *API) AdminAccommodationStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"stats": stats,
 	})
+}
+
+// festDayIndex counts IST calendar days since day0 (may be negative or past day4).
+func festDayIndex(day0, now time.Time) int {
+	n := now.In(config.IST)
+	today := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, config.IST)
+	d0 := day0.In(config.IST)
+	start := time.Date(d0.Year(), d0.Month(), d0.Day(), 0, 0, 0, 0, config.IST)
+	return int(math.Round(today.Sub(start).Hours() / 24))
+}
+
+// lastStayDay returns the highest booked accommodation day index, or -1.
+func lastStayDay(acc map[string]bool) int {
+	last := -1
+	for i := 0; i <= 5; i++ {
+		if acc[fmt.Sprintf("day%d", i)] {
+			last = i
+		}
+	}
+	return last
+}
+
+func hospitalityRow(u *models.User) gin.H {
+	return gin.H{
+		"userId":        u.UserID,
+		"displayName":   u.DisplayName,
+		"email":         u.Email,
+		"phoneNumber":   u.PhoneNumber,
+		"collegeName":   u.CollegeName,
+		"gender":        u.Gender,
+		"accommodation": u.Accommodation,
+		"food":          u.Food,
+		"hostel":        u.CheckInStatus.Hostel,
+		"roomNo":        u.CheckInStatus.RoomNo,
+		"checkedInAt":   u.CheckInStatus.CheckedInAt,
+		"checkInStatus": checkInStatusJSON(u.CheckInStatus),
+		"unreturned":    u.CheckInStatus.Items.Unreturned(),
+		"lastStayDay":   lastStayDay(u.Accommodation),
+	}
+}
+
+// AdminInHouse lists participants currently checked into a hostel (EB only).
+func (a *API) AdminInHouse(c *gin.Context) {
+	hostel := strings.TrimSpace(c.Query("hostel"))
+	users, err := a.Store.ListAccommodationUsers(c.Request.Context())
+	if err != nil {
+		apierr.Respond(c, apierr.Internal("could not load accommodation users"))
+		return
+	}
+	out := make([]gin.H, 0)
+	for _, u := range users {
+		st := u.CheckInStatus
+		if !st.Accommodation || st.CheckedOut {
+			continue
+		}
+		if hostel != "" && st.Hostel != hostel {
+			continue
+		}
+		out = append(out, hospitalityRow(u))
+	}
+	c.JSON(http.StatusOK, gin.H{"users": out, "count": len(out)})
+}
+
+// AdminCheckoutsToday lists participants whose stay ends today, i.e. whose
+// last booked night was yesterday, and who have not checked out yet (EB only).
+// ?day=N overrides today's fest-day index.
+func (a *API) AdminCheckoutsToday(c *gin.Context) {
+	today := -1
+	if d := strings.TrimPrefix(strings.TrimSpace(c.Query("day")), "day"); d != "" {
+		if n, err := strconv.Atoi(d); err == nil {
+			today = n
+		}
+	} else if !a.Cfg.FestDay0.IsZero() {
+		today = festDayIndex(a.Cfg.FestDay0, a.clock())
+	}
+	if today < 0 {
+		apierr.Respond(c, apierr.BadRequest("not_fest_day", "today is not within the fest; pass ?day=N"))
+		return
+	}
+
+	users, err := a.Store.ListAccommodationUsers(c.Request.Context())
+	if err != nil {
+		apierr.Respond(c, apierr.Internal("could not load accommodation users"))
+		return
+	}
+	out := make([]gin.H, 0)
+	for _, u := range users {
+		if u.CheckInStatus.CheckedOut {
+			continue
+		}
+		if lastStayDay(u.Accommodation)+1 != today {
+			continue
+		}
+		out = append(out, hospitalityRow(u))
+	}
+	c.JSON(http.StatusOK, gin.H{"day": today, "users": out, "count": len(out)})
 }

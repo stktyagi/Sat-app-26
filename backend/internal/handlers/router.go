@@ -46,6 +46,8 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	authed.GET("/me/events", api.GetMyEvents)
 	authed.POST("/me/fcm-token", api.UpdateFCMToken)
 	authed.POST("/food/scan", api.ScanFoodQR)
+	authed.GET("/me/meal-code", api.GetMyMealCode)
+	authed.GET("/food/slots", api.GetMealSlots)
 	authed.POST("/me/photo", api.uploadMine("photoRef", "photoUrl", "users/photos", func(u *models.User) string { return u.PhotoRef }))
 	authed.POST("/me/college-id", api.uploadMine("collegeIdRef", "collegeIdUrl", "users/college-ids", func(u *models.User) string { return u.CollegeIDRef }))
 	authed.POST("/me/games/complete", api.ClaimDailyGameCoins)
@@ -192,22 +194,28 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	users.GET("/admin/users/:id", api.AdminGetUserByID)
 	users.GET("/admin/users/:id/events", api.AdminGetUserEventsByID)
 
-	// Accommodation: Admin, EB_Hospitality, EC_Hospitality
-	accom := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality))
-	accom.GET("/admin/accommodation", api.AdminListAccommodation)
-	accom.GET("/admin/accommodation/stats", api.AdminAccommodationStats)
-	accom.POST("/admin/accommodation/checkin", api.AdminHostelCheckIn)
-	accom.POST("/admin/food/generate", api.AdminGenerateFoodQR)
+	// Hospitality desks: Admin, EB/EC/Core Hospitality. Reverts are further
+	// restricted to EB/EC inside the handlers.
+	hosp := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality))
+	hosp.GET("/admin/accommodation", api.AdminListAccommodation)
+	hosp.GET("/admin/accommodation/stats", api.AdminAccommodationStats)
+	hosp.POST("/admin/accommodation/checkin", api.AdminHostelCheckIn)
+	hosp.POST("/admin/food/generate", api.AdminGenerateFoodQR)
+	hosp.POST("/admin/food/verify-code", api.AdminVerifyMealCode)
+	hosp.POST("/admin/qr/gate-checkin", api.AdminGateCheckIn)
+	hosp.PATCH("/admin/qr/gate/:userId", api.AdminGateCheckIn)
+	hosp.POST("/admin/qr/hostel-checkin", api.AdminHostelCheckIn)
+	hosp.PATCH("/admin/qr/hostel/:userId", api.AdminHostelCheckIn)
+	hosp.GET("/admin/hostels", api.AdminListHostels)
+	hosp.POST("/admin/desk/allot", api.AdminDeskAllot)
 
-	// QR Gate: Admin, EB_Hospitality, EC_Hospitality
-	gateQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality))
-	gateQR.POST("/admin/qr/gate-checkin", api.AdminGateCheckIn)
-	gateQR.PATCH("/admin/qr/gate/:userId", api.AdminGateCheckIn)
-
-	// QR Hostel: Admin, EB_Hospitality, EC_Hospitality
-	hostelQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality))
-	hostelQR.POST("/admin/qr/hostel-checkin", api.AdminHostelCheckIn)
-	hostelQR.PATCH("/admin/qr/hostel/:userId", api.AdminHostelCheckIn)
+	// Hospitality EB-only tools: Admin, EB_Hospitality
+	hospEB := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality))
+	hospEB.POST("/admin/hostels", api.AdminCreateHostel)
+	hospEB.PATCH("/admin/hostels/:id", api.AdminUpdateHostel)
+	hospEB.GET("/admin/accommodation/inhouse", api.AdminInHouse)
+	hospEB.GET("/admin/accommodation/checkouts-today", api.AdminCheckoutsToday)
+	hospEB.GET("/admin/food/logs", api.AdminListMealLogs)
 
 	// QR Event: Admin, EB_Events, Event_POC
 	eventQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEventPOC))
@@ -215,7 +223,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	eventQR.PATCH("/admin/qr/registrations/:id/status", api.AdminEventCheckIn)
 
 	// Unified Scan Endpoint: accessible to any QR role (category validation enforced in handler)
-	scanQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality, models.RoleEBEvents, models.RoleEventPOC))
+	scanQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality, models.RoleEBEvents, models.RoleEventPOC))
 	scanQR.POST("/admin/qr/scan", api.AdminQRScan)
 
 	// Coupons

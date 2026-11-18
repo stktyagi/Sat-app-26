@@ -3,9 +3,11 @@ package handlers
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"backend/internal/config"
 	"backend/internal/models"
 )
 
@@ -178,5 +180,32 @@ func TestAdminAccommodationStats_CalculatesRealTotals(t *testing.T) {
 				t.Errorf("day%d: expected total 0; got total %d", dayIdx, total)
 			}
 		}
+	}
+}
+
+func TestLastStayDay(t *testing.T) {
+	cases := []struct {
+		acc  map[string]bool
+		want int
+	}{
+		{nil, -1},
+		{map[string]bool{"day0": true}, 0},
+		{map[string]bool{"day1": true, "day2": true}, 2},
+		{map[string]bool{"day0": true, "day3": false, "day4": true}, 4},
+	}
+	for _, tc := range cases {
+		if got := lastStayDay(tc.acc); got != tc.want {
+			t.Errorf("lastStayDay(%v) = %d, want %d", tc.acc, got, tc.want)
+		}
+	}
+}
+
+func TestFestDayIndex(t *testing.T) {
+	day0 := time.Date(2026, 11, 19, 0, 0, 0, 0, config.IST)
+	if got := festDayIndex(day0, time.Date(2026, 11, 24, 9, 0, 0, 0, config.IST)); got != 5 {
+		t.Errorf("festDayIndex day5 = %d, want 5", got)
+	}
+	if got := festDayIndex(day0, time.Date(2026, 11, 18, 23, 0, 0, 0, config.IST)); got != -1 {
+		t.Errorf("festDayIndex before = %d, want -1", got)
 	}
 }

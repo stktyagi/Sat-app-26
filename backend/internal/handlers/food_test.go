@@ -39,11 +39,14 @@ func TestFestDay(t *testing.T) {
 
 func setupFoodTestAPI(day0 time.Time) *API {
 	signer := qr.New([]byte("test_secret_for_qr_signing_12345678"))
+	// Pin the clock to lunch on day0 so slot checks are deterministic.
+	lunch := day0.Add(13 * time.Hour)
 	return &API{
 		QR: signer,
 		Cfg: &config.Config{
 			FestDay0: day0,
 		},
+		Now: func() time.Time { return lunch },
 	}
 }
 
@@ -352,5 +355,70 @@ func TestScanFoodQR_DeniedWrongDay(t *testing.T) {
 	}
 	if resp.Reason != "wrong_day" {
 		t.Errorf("expected reason 'wrong_day', got %q", resp.Reason)
+	}
+}
+
+func TestCurrentMealSlot(t *testing.T) {
+	d := func(h, m int) time.Time { return time.Date(2026, 11, 20, h, m, 0, 0, config.IST) }
+	cases := []struct {
+		now  time.Time
+		want string
+		ok   bool
+	}{
+		{d(6, 59), "", false},
+		{d(7, 0), "breakfast", true},
+		{d(10, 29), "breakfast", true},
+		{d(10, 30), "", false},
+		{d(12, 0), "lunch", true},
+		{d(15, 30), "", false},
+		{d(19, 0), "dinner", true},
+		{d(22, 29), "dinner", true},
+		{d(22, 30), "", false},
+		{time.Date(2026, 11, 20, 7, 30, 0, 0, time.UTC), "lunch", true}, // 13:00 IST
+	}
+	for _, tc := range cases {
+		got, ok := currentMealSlot(tc.now)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("currentMealSlot(%v) = %q,%v want %q,%v", tc.now, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+func TestScanFoodQR_NoActiveSlot(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	day0 := time.Date(2026, 11, 20, 0, 0, 0, 0, config.IST)
+	api := setupFoodTestAPI(day0)
+	api.Now = func() time.Time { return day0.Add(17 * time.Hour) } // 17:00, between lunch and dinner
+
+	u := &models.User{UserID: "u1", Food: map[string]bool{"day0": true}}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("auth.user", u)
+	body, _ := json.Marshal(map[string]string{"data": api.QR.Sign("food:day0")})
+	c.Request, _ = http.NewRequest("POST", "/food/scan", bytes.NewBuffer(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	api.ScanFoodQR(c)
+
+	var resp struct {
+		Allowed bool   `json:"allowed"`
+		Reason  string `json:"reason"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Allowed || resp.Reason != "no_active_slot" {
+		t.Fatalf("expected no_active_slot, got allowed=%v reason=%q", resp.Allowed, resp.Reason)
+	}
+}
+
+func TestMealCodeDeterministic(t *testing.T) {
+	api := setupFoodTestAPI(time.Date(2026, 11, 20, 0, 0, 0, 0, config.IST))
+	a1, a2, b := api.mealCodeFor("alice"), api.mealCodeFor("alice"), api.mealCodeFor("bob")
+	if a1 != a2 {
+		t.Errorf("meal code not deterministic: %q vs %q", a1, a2)
+	}
+	if a1 == b {
+		t.Errorf("meal codes collide for different users: %q", a1)
+	}
+	if len(a1) != 8 {
+		t.Errorf("meal code length = %d, want 8", len(a1))
 	}
 }
