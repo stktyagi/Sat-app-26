@@ -32,6 +32,7 @@ import {
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
 import { verifyMealPassQR, MealVerificationResult, getMyMealCode } from "@/api/mealPass";
+import { getMealPassScannerStatus } from "@/api/appConfig";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SCANNER_SIZE = Math.min(SCREEN_WIDTH * 0.72, 280);
@@ -46,6 +47,25 @@ export default function MealPassScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraKey, setCameraKey] = useState(Date.now());
   const [torchOn, setTorchOn] = useState(false);
+  const [scannerActive, setScannerActive] = useState<boolean>(true);
+  const [checkingScanner, setCheckingScanner] = useState<boolean>(true);
+
+  useEffect(() => {
+    let mounted = true;
+    getMealPassScannerStatus()
+      .then((active) => {
+        if (mounted) {
+          setScannerActive(active);
+          setCheckingScanner(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setCheckingScanner(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Scanning & verification state
   const [scanned, setScanned] = useState(false);
@@ -345,6 +365,114 @@ export default function MealPassScreen() {
     inputRange: [0, 1],
     outputRange: [0, SCANNER_SIZE - 6],
   });
+
+  const hasPaidMeal = Boolean(
+    (user?.food && typeof user.food === "object" && Object.values(user.food).some(Boolean)) ||
+    (user as any)?.hasPaidMeal ||
+    (user as any)?.mealPaid
+  );
+
+  if (!checkingScanner && (!scannerActive || !hasPaidMeal)) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: bgColor,
+          paddingTop: Math.max(insets.top + 16, 24),
+          paddingHorizontal: 24,
+          justifyContent: "space-between",
+          paddingBottom: Math.max(insets.bottom + 20, 24),
+        }}
+      >
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.75}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: cardBg,
+              borderWidth: 1,
+              borderColor: cardBorder,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ArrowLeft size={20} color={textPrimary} />
+          </TouchableOpacity>
+          <Text style={{ fontFamily: "Talina", fontSize: 22, color: textPrimary }}>
+            Meal Pass
+          </Text>
+        </View>
+
+        <View
+          style={{
+            backgroundColor: cardBg,
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: cardBorder,
+            padding: 24,
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: "rgba(239, 68, 68, 0.15)",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 16,
+            }}
+          >
+            <AlertCircle size={32} color="#EF4444" />
+          </View>
+          <Text
+            style={{
+              fontFamily: "Poppins_600SemiBold",
+              fontSize: 18,
+              color: textPrimary,
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            {!hasPaidMeal ? "No Meal Pass Found" : "Scanner Inactive"}
+          </Text>
+          <Text
+            style={{
+              fontFamily: "Poppins_400Regular",
+              fontSize: 13,
+              color: textSecondary,
+              textAlign: "center",
+              lineHeight: 20,
+            }}
+          >
+            {!hasPaidMeal
+              ? "You do not have a paid meal pass for Saturnalia. Please purchase a meal pass with your accommodation to avail meals."
+              : "The participant meal pass scanner is currently disabled by hospitality administrators. Please try again later or reach out to the hospitality desk."}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+          style={{
+            backgroundColor: "#41B8F0",
+            borderRadius: 16,
+            paddingVertical: 16,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 16 }}>
+            Back to Profile
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // Camera Permission Handling
   if (!permission) {

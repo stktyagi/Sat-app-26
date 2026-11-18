@@ -83,8 +83,9 @@ func defaultAppConfig() models.AppConfig {
 			Android: "1.0.1",
 			IOS:     "1.0.0",
 		},
-		Accommodation: defaultAppAccommodation(),
-		AdminScreens:  defaultAdminScreens(),
+		Accommodation:       defaultAppAccommodation(),
+		AdminScreens:        defaultAdminScreens(),
+		UserMealPassScanner: true,
 	}
 }
 
@@ -428,6 +429,31 @@ func (s *Store) SetAdminScreens(ctx context.Context, screens []models.AdminScree
 		return err
 	}
 	cfg.AdminScreens = cloneAdminScreens(screens)
+	return saveAppConfigLocked(s.configPath(), cfg)
+}
+
+// GetUserMealPassScanner returns whether the user meal pass scanner is active.
+func (s *Store) GetUserMealPassScanner(ctx context.Context) (bool, error) {
+	appConfigMu.RLock()
+	defer appConfigMu.RUnlock()
+
+	cfg, err := s.loadAppConfigLocked()
+	if err != nil {
+		return false, err
+	}
+	return cfg.UserMealPassScanner, nil
+}
+
+// SetUserMealPassScanner updates whether the user meal pass scanner is active and persists to JSON.
+func (s *Store) SetUserMealPassScanner(ctx context.Context, enabled bool) error {
+	appConfigMu.Lock()
+	defer appConfigMu.Unlock()
+
+	cfg, err := s.loadAppConfigLocked()
+	if err != nil {
+		return err
+	}
+	cfg.UserMealPassScanner = enabled
 	return saveAppConfigLocked(s.configPath(), cfg)
 }
 

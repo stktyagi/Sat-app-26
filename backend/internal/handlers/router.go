@@ -78,6 +78,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 
 	// App status, links, maintenance, versions
 	open.GET("/app/status", api.GetAppConfig)
+	open.GET("/food/meal-pass-scanner", api.GetMealPassScannerStatus)
 	open.GET("/app/links", api.GetAppLinks)
 	open.GET("/app/maintenance", api.GetAppMaintenance)
 	open.GET("/app/versions", api.GetAppVersions)
@@ -129,6 +130,8 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	adminOnly.GET("/admin/app/screens", api.AdminGetAdminScreens)
 	adminOnly.PATCH("/admin/app/screens", api.AdminUpdateAdminScreens)
 	adminOnly.PUT("/admin/app/screens", api.AdminUpdateAdminScreens)
+	adminOnly.PATCH("/admin/app/meal-pass-scanner", api.AdminUpdateMealPassScanner)
+	adminOnly.PUT("/admin/app/meal-pass-scanner", api.AdminUpdateMealPassScanner)
 
 	// Events: Admin, EB_Events (coordinators can access scoped update/registrations)
 	ebEvents := staff.Group("", middleware.RequireScreenOrRoles(s, "events_management", models.RoleEBEvents))
@@ -204,6 +207,9 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	hosp.POST("/admin/accommodation/checkin", api.AdminHostelCheckIn)
 	hosp.POST("/admin/food/generate", api.AdminGenerateFoodQR)
 	hosp.POST("/admin/food/verify-code", api.AdminVerifyMealCode)
+	hosp.GET("/admin/food/meal-pass-scanner", api.GetMealPassScannerStatus)
+	hosp.PATCH("/admin/food/meal-pass-scanner", api.AdminUpdateMealPassScanner)
+	hosp.PUT("/admin/food/meal-pass-scanner", api.AdminUpdateMealPassScanner)
 	hosp.POST("/admin/qr/gate-checkin", api.AdminGateCheckIn)
 	hosp.PATCH("/admin/qr/gate/:userId", api.AdminGateCheckIn)
 	hosp.POST("/admin/qr/hostel-checkin", api.AdminHostelCheckIn)

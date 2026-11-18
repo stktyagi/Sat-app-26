@@ -28,6 +28,7 @@ import { runAllDebugChecks } from "@/utils/debugVersion";
 import { promptAndUploadIdentity, isOutsideCollegeStudent, isIdentityVerificationComplete } from "@/utils/identityUpload";
 import { isHostStudent } from "@/utils/paymentHelpers";
 import { formatHostelDisplay } from "@/data/hostels";
+import { getMealPassScannerStatus } from "@/api/appConfig";
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -38,6 +39,8 @@ const ProfileScreen = () => {
   const { openDrawer } = useAdminDrawerStore();
   const [showQRModal, setShowQRModal] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [mealPassScannerEnabled, setMealPassScannerEnabled] = useState<boolean>(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -80,7 +83,16 @@ const ProfileScreen = () => {
   useFocusEffect(
     useCallback(() => {
       refreshUserProfile().catch(() => {});
+      getMealPassScannerStatus()
+        .then((enabled) => setMealPassScannerEnabled(enabled))
+        .catch(() => {});
     }, [refreshUserProfile])
+  );
+
+  const hasPaidMeal = Boolean(
+    (userProfile?.food && typeof userProfile.food === "object" && Object.values(userProfile.food).some(Boolean)) ||
+    (userProfile as any)?.hasPaidMeal ||
+    (userProfile as any)?.mealPaid
   );
 
   const hasPaidAccommodation = Boolean(
@@ -153,6 +165,7 @@ const ProfileScreen = () => {
         {
           text: "Log Out",
           onPress: async () => {
+            setLoggingOut(true);
             try {
               const { handleSignOut } = await import('@/api/auth');
               await handleSignOut();
@@ -161,6 +174,8 @@ const ProfileScreen = () => {
             } catch (error) {
               console.error('Logout error:', error);
               showAlert('Error', 'Failed to log out properly');
+            } finally {
+              setLoggingOut(false);
             }
           },
           style: "destructive",
@@ -603,6 +618,7 @@ const ProfileScreen = () => {
             {/* Logout Button */}
             <TouchableOpacity
               activeOpacity={0.8}
+              disabled={loggingOut || deletingAccount}
               onPress={handleSignOutPress}
               style={{
                 flexDirection: 'row',
@@ -614,19 +630,24 @@ const ProfileScreen = () => {
                 backgroundColor: isDark ? '#1F2228' : '#FEE2E2',
                 borderWidth: 1,
                 borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FCA5A5',
+                opacity: loggingOut ? 0.6 : 1,
               }}
             >
-              <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+              {loggingOut ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+              )}
               <Text
                 style={{
                   fontFamily: 'Poppins_600SemiBold',
                   fontSize: 13,
                   color: '#EF4444',
-                  }}
-                >
-                  Logout
-                </Text>
-              </TouchableOpacity>
+                }}
+              >
+                {loggingOut ? 'Logging out...': 'Logout'}
+              </Text>
+            </TouchableOpacity>
 
               {/* Delete Account Button */}
               <TouchableOpacity
@@ -1002,11 +1023,13 @@ const ProfileScreen = () => {
           />
         )}
 
-        <ProfileMenuItem
-          icon="restaurant-outline"
-          label="Meal Pass"
-          onPress={() => router.push("/profile/MealPass" as any)}
-        />
+        {mealPassScannerEnabled && hasPaidMeal && (
+          <ProfileMenuItem
+            icon="restaurant-outline"
+            label="Meal Pass"
+            onPress={() => router.push("/profile/MealPass" as any)}
+          />
+        )}
 
         <ProfileMenuItem
           icon="calendar-outline"

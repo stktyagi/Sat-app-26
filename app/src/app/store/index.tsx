@@ -196,9 +196,9 @@ const StoreScreen: React.FC = () => {
           gap: 10,
         }}
       >
-        {/* Hamburger Menu */}
+        {/* Back Button */}
         <TouchableOpacity
-          onPress={openDrawer}
+          onPress={() => router.back()}
           activeOpacity={0.75}
           style={{
             width: 42,
@@ -216,7 +216,7 @@ const StoreScreen: React.FC = () => {
             elevation: 2,
           }}
         >
-          <Ionicons name="menu" size={22} color={isDark ? '#FFFFFF' : '#000000'} />
+          <Ionicons name="arrow-back" size={22} color={isDark ? '#FFFFFF' : '#000000'} />
         </TouchableOpacity>
 
         {/* Search Item Pill */}
@@ -258,7 +258,7 @@ const StoreScreen: React.FC = () => {
         {/* Coins Badge Chip */}
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => router.push('/store/Leaderboard' as any)}
+          onPress={() => router.push('/(tabs)/leaderboard' as any)}
           style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -374,7 +374,7 @@ const StoreScreen: React.FC = () => {
         {/* Leaderboard Button */}
         <TouchableOpacity
           activeOpacity={0.85}
-          onPress={() => router.push('/store/Leaderboard' as any)}
+          onPress={() => router.push('/(tabs)/leaderboard' as any)}
           style={{
             flex: 1.25,
             flexDirection: 'row',

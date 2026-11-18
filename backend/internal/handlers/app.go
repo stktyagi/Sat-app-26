@@ -331,3 +331,33 @@ func (a *API) AdminUpdateAdminScreens(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"screens": body.Screens})
 }
+
+// GetMealPassScannerStatus returns whether the user meal pass scanner is active.
+func (a *API) GetMealPassScannerStatus(c *gin.Context) {
+	enabled, err := a.Store.GetUserMealPassScanner(c.Request.Context())
+	if err != nil {
+		log.Printf("[GetMealPassScannerStatus] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not check meal pass scanner status"))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"enabled": enabled})
+}
+
+// AdminUpdateMealPassScanner updates the user meal pass scanner status.
+func (a *API) AdminUpdateMealPassScanner(c *gin.Context) {
+	var body struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.Enabled == nil {
+		apierr.Respond(c, apierr.BadRequest("invalid_body", "enabled boolean is required"))
+		return
+	}
+
+	if err := a.Store.SetUserMealPassScanner(c.Request.Context(), *body.Enabled); err != nil {
+		log.Printf("[AdminUpdateMealPassScanner] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not update meal pass scanner status"))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"enabled": *body.Enabled})
+}

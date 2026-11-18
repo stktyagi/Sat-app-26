@@ -44,6 +44,7 @@ import {
   adminUpdateAppVersions,
   adminGetScreensConfig,
   adminUpdateScreensConfig,
+  adminUpdateMealPassScanner,
   AppAccommodation,
   AppLinks,
   AppMaintenance,
@@ -98,6 +99,9 @@ export default function AppConfigScreen() {
     android: '1.0.0',
     ios: '1.0.0',
   });
+
+  const [userMealPassScanner, setUserMealPassScanner] = useState<boolean>(true);
+  const [savingScanner, setSavingScanner] = useState<boolean>(false);
 
   const [screens, setScreens] = useState<AdminScreenConfig[]>([]);
   const [customScreenRoles, setCustomScreenRoles] = useState<string[]>([]);
@@ -155,6 +159,9 @@ export default function AppConfigScreen() {
           appleStore: data.links.appleStore || '',
           playStore: data.links.playStore || '',
         });
+      }
+      if (data.userMealPassScanner !== undefined) {
+        setUserMealPassScanner(Boolean(data.userMealPassScanner));
       }
       try {
         const screensData = await adminGetScreensConfig();
@@ -257,6 +264,20 @@ export default function AppConfigScreen() {
   };
 
   // Save Versions
+  const handleToggleUserMealPassScanner = async (val: boolean) => {
+    setUserMealPassScanner(val);
+    setSavingScanner(true);
+    try {
+      await adminUpdateMealPassScanner(val);
+      showAlert("Saved", `User meal pass scanner is now ${val ? "enabled" : "disabled"}!`);
+    } catch (err: any) {
+      setUserMealPassScanner(!val);
+      showAlert("Save Error", err?.message || "Failed to update scanner status");
+    } finally {
+      setSavingScanner(false);
+    }
+  };
+
   const handleSaveVersions = async () => {
     if (!versions.android.trim() || !versions.ios.trim()) {
       showAlert('Invalid Input', 'Both Android and iOS minimum versions must be provided');
@@ -1422,6 +1443,100 @@ export default function AppConfigScreen() {
                       </>
                     )}
                   </TouchableOpacity>
+                </View>
+
+                {/* Feature Toggles: User Meal Pass Scanner Card */}
+                <View
+                  style={{
+                    backgroundColor: cardBg,
+                    borderRadius: 20,
+                    padding: 20,
+                    borderWidth: 1,
+                    borderColor: cardBorder,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <View
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 12,
+                        backgroundColor: 'rgba(65, 184, 240, 0.15)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Utensils size={20} color={accentColor} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: textPrimary }}>
+                        Feature Toggles
+                      </Text>
+                      <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 12, color: textSecondary }}>
+                        Operational and participant-facing feature switches
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: isDark ? '#18181B' : '#F9FAFB',
+                      borderRadius: 14,
+                      padding: 14,
+                      borderWidth: 1,
+                      borderColor: cardBorder,
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
+                          User Meal Pass Scanner
+                        </Text>
+                        <View
+                          style={{
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 6,
+                            backgroundColor: userMealPassScanner ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: 'Poppins_600SemiBold',
+                              fontSize: 10,
+                              color: userMealPassScanner ? '#22C55E' : '#EF4444',
+                            }}
+                          >
+                            {userMealPassScanner ? 'Active' : 'Disabled'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text
+                        style={{
+                          fontFamily: 'Poppins_400Regular',
+                          fontSize: 12,
+                          color: textSecondary,
+                          marginTop: 2,
+                        }}
+                      >
+                        When active, participants who have paid for meals will see and access the Meal Pass scanner.
+                      </Text>
+                    </View>
+
+                    {savingScanner ? (
+                      <ActivityIndicator size="small" color={accentColor} />
+                    ) : (
+                      <Switch
+                        value={userMealPassScanner}
+                        onValueChange={handleToggleUserMealPassScanner}
+                        trackColor={{ false: '#71717A', true: '#22C55E' }}
+                        thumbColor="#FFFFFF"
+                      />
+                    )}
+                  </View>
                 </View>
               </View>
             )}

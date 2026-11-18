@@ -50,11 +50,12 @@ type AdminScreenConfig struct {
 
 // AppConfig is the combined configuration object containing links, maintenance, versions, accommodation pricing, and admin screen permissions.
 type AppConfig struct {
-	Links         AppLinks            `json:"links"`
-	Maintenance   AppMaintenance      `json:"maintenance"`
-	Versions      AppVersions         `json:"versions"`
-	Accommodation AppAccommodation    `json:"accommodation"`
-	AdminScreens  []AdminScreenConfig `json:"adminScreens,omitempty"`
+	Links               AppLinks            `json:"links"`
+	Maintenance         AppMaintenance      `json:"maintenance"`
+	Versions            AppVersions         `json:"versions"`
+	Accommodation       AppAccommodation    `json:"accommodation"`
+	AdminScreens        []AdminScreenConfig `json:"adminScreens,omitempty"`
+	UserMealPassScanner bool                `json:"userMealPassScanner"`
 }
 
 const (

@@ -121,7 +121,8 @@
       "expo-image",
       "expo-web-browser",
       "./plugins/withSceneLifecycle.js",
-      "./plugins/withSwift5Pods.js"
+      "./plugins/withSwift5Pods.js",
+      "./plugins/withGradleMemory.js"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -262,3 +262,71 @@ func TestGetAccommodationAvailability_GenderPrivacy(t *testing.T) {
 		}
 	}
 }
+
+func TestMealPassScannerStatus_GetAndUpdate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "test_app_config.json")
+	os.Setenv("APP_CONFIG_FILE", cfgPath)
+	defer os.Unsetenv("APP_CONFIG_FILE")
+
+	s := &store.Store{Cfg: &config.Config{AppConfigFile: cfgPath}}
+	s.InvalidateAppConfigCache()
+
+	api := &API{Store: s}
+
+	// 1. Initial status should be true by default
+	{
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/food/meal-pass-scanner", nil)
+
+		api.GetMealPassScannerStatus(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		if resp["enabled"] != true {
+			t.Fatalf("expected default enabled=true, got %v", resp["enabled"])
+		}
+	}
+
+	// 2. Admin sets it to false
+	{
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		body := strings.NewReader(`{"enabled":false}`)
+		c.Request = httptest.NewRequest(http.MethodPut, "/admin/food/meal-pass-scanner", body)
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Set("auth.user", &models.User{UserID: "admin_1", Roles: []string{models.RoleAdmin}})
+
+		api.AdminUpdateMealPassScanner(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		if resp["enabled"] != false {
+			t.Fatalf("expected updated enabled=false, got %v", resp["enabled"])
+		}
+	}
+
+	// 3. Status is now false
+	{
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/food/meal-pass-scanner", nil)
+
+		api.GetMealPassScannerStatus(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		if resp["enabled"] != false {
+			t.Fatalf("expected enabled=false, got %v", resp["enabled"])
+		}
+	}
+}

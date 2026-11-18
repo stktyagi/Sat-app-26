@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   Share,
+  Switch,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -21,6 +22,7 @@ import {
   CheckCircle2,
   Sparkles,
   Layers,
+  Utensils,
 } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Print from 'expo-print';
@@ -38,6 +40,7 @@ import {
   hasAnyRole,
 } from '@/utils/roles';
 import { adminGenerateFoodQR } from '@/api/admin';
+import { getMealPassScannerStatus, adminUpdateMealPassScanner } from '@/api/appConfig';
 
 interface DayOption {
   key: string;
@@ -76,6 +79,34 @@ export default function MealPassQRScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [exporting, setExporting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [userScannerEnabled, setUserScannerEnabled] = useState<boolean>(true);
+  const [togglingScanner, setTogglingScanner] = useState<boolean>(false);
+
+  useEffect(() => {
+    let mounted = true;
+    getMealPassScannerStatus().then((enabled) => {
+      if (mounted) {
+        setUserScannerEnabled(enabled);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleToggleScanner = async (nextVal: boolean) => {
+    if (togglingScanner) return;
+    setUserScannerEnabled(nextVal);
+    setTogglingScanner(true);
+    try {
+      await adminUpdateMealPassScanner(nextVal);
+    } catch (err: any) {
+      setUserScannerEnabled(!nextVal);
+      Alert.alert("Error", err?.message || "Failed to update scanner status");
+    } finally {
+      setTogglingScanner(false);
+    }
+  };
 
   // Check elevated permission
   const isAllowed = useMemo(() => {
@@ -399,6 +430,79 @@ export default function MealPassQRScreen() {
         contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 36 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* User Meal Pass Scanner Toggle Card */}
+        <View
+          style={{
+            backgroundColor: cardBg,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: cardBorder,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 12 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: userScannerEnabled ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 12,
+                }}
+              >
+                <Utensils size={20} color={userScannerEnabled ? "#22C55E" : "#EF4444"} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 14, color: textPrimary }}>
+                    User Meal Pass Scanner
+                  </Text>
+                  <View
+                    style={{
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                      backgroundColor: userScannerEnabled ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        fontSize: 10,
+                        color: userScannerEnabled ? "#22C55E" : "#EF4444",
+                      }}
+                    >
+                      {userScannerEnabled ? "Active" : "Disabled"}
+                    </Text>
+                  </View>
+                </View>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_400Regular",
+                    fontSize: 12,
+                    color: textSecondary,
+                    marginTop: 2,
+                  }}
+                >
+                  Allow participants with a paid meal pass to open the scanner
+                </Text>
+              </View>
+            </View>
+
+            <Switch
+              value={userScannerEnabled}
+              onValueChange={handleToggleScanner}
+              disabled={togglingScanner}
+              trackColor={{ false: "#71717A", true: "#22C55E" }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
+
         {/* Top-Level Mode Tabs: "All 5 Days" vs "Per Day" */}
         <View
           style={{

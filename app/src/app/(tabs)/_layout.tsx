@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   Play,
   User,
+  Trophy,
 } from "lucide-react-native";
 import { GlassView } from "expo-glass-effect";
 import { useThemeStore } from "@/state/themeStore";
@@ -23,7 +24,7 @@ const TAB_ICONS: Record<string, { label: string; Icon: React.ComponentType<any> 
   index: { label: "Home", Icon: House },
   events: { label: "Events", Icon: Calendar },
   reels: { label: "Reels", Icon: Play },
-  store: { label: "Store", Icon: ShoppingBag },
+  leaderboard: { label: "Leaderboard", Icon: Trophy },
   profile: { label: "Profile", Icon: User },
 };
 
@@ -292,13 +293,13 @@ export default function TabLayout() {
             />
           </NativeTabs.Trigger>
           <NativeTabs.Trigger
-            name="store"
+            name="leaderboard"
             contentStyle={{ backgroundColor: isDark ? "#131316" : "#E0E0E0" }}
           >
-            <NativeTabs.Trigger.Label>Store</NativeTabs.Trigger.Label>
+            <NativeTabs.Trigger.Label>Leaderboard</NativeTabs.Trigger.Label>
             <NativeTabs.Trigger.Icon
-              sf={{ default: "bag", selected: "bag.fill" }}
-              md="shopping_bag"
+              sf={{ default: "trophy", selected: "trophy.fill" }}
+              md="emoji_events"
             />
           </NativeTabs.Trigger>
           <NativeTabs.Trigger
@@ -336,7 +337,7 @@ export default function TabLayout() {
         <Tabs.Screen name="index" options={{ title: "Home" }} />
         <Tabs.Screen name="events" options={{ title: "Events" }} />
         <Tabs.Screen name="reels" options={{ title: "Reels" }} />
-        <Tabs.Screen name="store" options={{ title: "Store" }} />
+        <Tabs.Screen name="leaderboard" options={{ title: "Leaderboard" }} />
         <Tabs.Screen name="profile" options={{ title: "Profile" }} />
       </Tabs>
 

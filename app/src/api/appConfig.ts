@@ -51,6 +51,7 @@ export interface AppConfigResponse {
   versions: AppVersions;
   accommodation?: AppAccommodation;
   adminScreens?: AdminScreenConfig[];
+  userMealPassScanner?: boolean;
 }
 
 /**
@@ -249,4 +250,40 @@ export async function adminGetAppConfig(): Promise<AppConfigResponse> {
     throw new Error(msg);
   }
   return res.json();
+}
+
+/**
+ * Fetch current meal pass scanner status (Public / Authenticated).
+ */
+export async function getMealPassScannerStatus(): Promise<boolean> {
+  try {
+    const res = await apiFetch("/food/meal-pass-scanner", { method: "GET" }, "none");
+    if (!res.ok) return true;
+    const data = await res.json();
+    return Boolean(data.enabled);
+  } catch (err) {
+    console.warn("Could not fetch meal pass scanner status:", err);
+    return true;
+  }
+}
+
+/**
+ * Admin / Hospitality: Update user meal pass scanner status.
+ */
+export async function adminUpdateMealPassScanner(enabled: boolean): Promise<boolean> {
+  const res = await apiFetch(
+    "/admin/food/meal-pass-scanner",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    },
+    "required"
+  );
+  if (!res.ok) {
+    const msg = await readError(res, "Failed to update meal pass scanner status");
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return Boolean(data.enabled);
 }
