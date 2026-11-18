@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
 import { getDeleteFlag } from "@/utils/versionCheck";
+import { formatHostelDisplay } from "@/data/hostels";
 import { Button, showAlert } from "@/components";
 
 const ProfileDetailsScreen = () => {
@@ -37,6 +38,30 @@ const ProfileDetailsScreen = () => {
   const isVerified = isIdentityVerificationComplete(userProfile);
   const hasPhoto = Boolean(userProfile?.photoUrl || userProfile?.photoURL);
   const hasCollegeId = Boolean(userProfile?.collegeIdUrl);
+
+  const hasPaidAccommodation = Boolean(
+    (Array.isArray(userProfile?.accommodation) && userProfile.accommodation.length > 0) ||
+    (userProfile?.accommodation && typeof userProfile.accommodation === 'object' && Object.values(userProfile.accommodation).some(Boolean)) ||
+    (Array.isArray((userProfile as any)?.accommodations) && (userProfile as any).accommodations.length > 0) ||
+    (Array.isArray((userProfile as any)?.accommodationTransactionIds) && (userProfile as any).accommodationTransactionIds.length > 0)
+  );
+
+  const hostelRaw =
+    userProfile?.checkInStatus?.Hostel ||
+    (userProfile?.checkInStatus as any)?.hostel ||
+    (userProfile as any)?.hostel ||
+    (userProfile as any)?.Hostel;
+
+  const roomNo =
+    userProfile?.checkInStatus?.RoomNo ||
+    (userProfile?.checkInStatus as any)?.roomNo ||
+    (userProfile as any)?.roomNo ||
+    (userProfile as any)?.RoomNo;
+
+  const formattedHostel = formatHostelDisplay(hostelRaw, roomNo);
+  const hostelDisplay = formattedHostel && formattedHostel.trim().length > 0
+    ? formattedHostel
+    : 'No hostel alloted for now';
 
   const handleUploadPhoto = () => {
     if (hasPhoto) return;
@@ -304,6 +329,13 @@ const ProfileDetailsScreen = () => {
               label="Phone Number"
               value={userProfile?.phoneNumber || "Not provided"}
               icon="call-outline"
+            />
+          )}
+          {hasPaidAccommodation && (
+            <InfoRow
+              label="Hostel"
+              value={hostelDisplay}
+              icon="home-outline"
             />
           )}
         </View>

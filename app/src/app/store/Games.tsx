@@ -15,6 +15,7 @@ import { useThemeStore } from '@/state/themeStore';
 import { useUserStore } from '@/state/userStore';
 import { claimGameCoins } from '@/api/store';
 import { showAlert } from '@/components';
+import { Coins } from 'lucide-react-native';
 import ZipGame from '@/components/games/ZipGame/ZipGame';
 import PatchesGame from '@/components/games/PatchesGame/PatchesGame';
 import { SAMPLE_LEVELS } from '@/components/games/ZipGame/SampleLevels';
@@ -223,7 +224,7 @@ export default function GamesScreen() {
             gap: 4,
           }}
         >
-          <Text style={{ fontSize: 12 }}>🪙</Text>
+          <Coins size={13} color={isDark ? "#FBBF24" : "#D97706"} />
           <Text
             style={{
               fontFamily: 'Outfit_700Bold',
@@ -356,7 +357,7 @@ export default function GamesScreen() {
                 gap: 3,
               }}
             >
-              <Text style={{ fontSize: 11 }}>🪙</Text>
+              <Coins size={12} color={isDark ? "#FBBF24" : "#D97706"} />
               <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 12, color: isDark ? '#FBBF24' : '#D97706' }}>
                 +20
               </Text>
@@ -471,7 +472,7 @@ export default function GamesScreen() {
                 gap: 3,
               }}
             >
-              <Text style={{ fontSize: 11 }}>🪙</Text>
+              <Coins size={12} color={isDark ? "#FBBF24" : "#D97706"} />
               <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 12, color: isDark ? '#FBBF24' : '#D97706' }}>
                 +20
               </Text>
@@ -586,7 +587,7 @@ export default function GamesScreen() {
                 gap: 3,
               }}
             >
-              <Text style={{ fontSize: 11 }}>🪙</Text>
+              <Coins size={12} color={isDark ? "#FBBF24" : "#D97706"} />
               <Text style={{ fontFamily: 'Outfit_700Bold', fontSize: 12, color: isDark ? '#FBBF24' : '#D97706' }}>
                 +20
               </Text>

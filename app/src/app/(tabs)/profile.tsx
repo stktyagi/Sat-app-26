@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Coins } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUserStore } from "@/state/userStore";
@@ -26,6 +27,7 @@ import { checkAppStatus } from "@/utils/versionCheck";
 import { runAllDebugChecks } from "@/utils/debugVersion";
 import { promptAndUploadIdentity, isOutsideCollegeStudent, isIdentityVerificationComplete } from "@/utils/identityUpload";
 import { isHostStudent } from "@/utils/paymentHelpers";
+import { formatHostelDisplay } from "@/data/hostels";
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -80,6 +82,35 @@ const ProfileScreen = () => {
       refreshUserProfile().catch(() => {});
     }, [refreshUserProfile])
   );
+
+  const hasPaidAccommodation = Boolean(
+    (Array.isArray(userProfile?.accommodation) && userProfile.accommodation.length > 0) ||
+    (userProfile?.accommodation && typeof userProfile.accommodation === 'object' && Object.values(userProfile.accommodation).some(Boolean)) ||
+    (Array.isArray((userProfile as any)?.accommodations) && (userProfile as any).accommodations.length > 0) ||
+    (Array.isArray((userProfile as any)?.accommodationTransactionIds) && (userProfile as any).accommodationTransactionIds.length > 0)
+  );
+
+  const hostelRaw =
+    userProfile?.checkInStatus?.Hostel ||
+    (userProfile?.checkInStatus as any)?.hostel ||
+    (userProfile as any)?.hostel ||
+    (userProfile as any)?.Hostel;
+
+  const roomNo =
+    userProfile?.checkInStatus?.RoomNo ||
+    (userProfile?.checkInStatus as any)?.roomNo ||
+    (userProfile as any)?.roomNo ||
+    (userProfile as any)?.RoomNo;
+
+  const isHostelAllotted = Boolean(
+    (hostelRaw && typeof hostelRaw === 'string' && hostelRaw.trim().length > 0) ||
+    (roomNo && typeof roomNo === 'string' && roomNo.trim().length > 0)
+  );
+
+  const formattedHostel = formatHostelDisplay(hostelRaw, roomNo);
+  const hostelDisplay = formattedHostel && formattedHostel.trim().length > 0
+    ? formattedHostel
+    : 'No hostel alloted for now';
 
   const boysHairStyles = ['turban', 'fonze'];
   const girlsHairStyles = ['full', 'pixie'];
@@ -466,6 +497,84 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
 
+          {/* Hostel Check-In / Allotment Field for Users with Paid Accommodation */}
+          {hasPaidAccommodation && (
+            <View
+              style={{
+                marginTop: 16,
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                borderRadius: 14,
+                backgroundColor: isDark ? '#26262B' : '#F3F4F6',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+                <Ionicons
+                  name="home-outline"
+                  size={16}
+                  color={isHostelAllotted ? '#38BDF8' : (isDark ? '#9CA3AF' : '#6B7280')}
+                />
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_500Medium',
+                    fontSize: 12,
+                    color: isDark ? '#9CA3AF' : '#6B7280',
+                  }}
+                >
+                  Hostel:
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: 'Poppins_600SemiBold',
+                    fontSize: 13,
+                    color: isHostelAllotted ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#9CA3AF' : '#6B7280'),
+                    flex: 1,
+                  }}
+                  numberOfLines={1}
+                >
+                  {hostelDisplay}
+                </Text>
+              </View>
+
+              {userProfile?.checkInStatus?.accommodation ? (
+                <View
+                  style={{
+                    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.18)' : '#DCFCE7',
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#22C55E',
+                  }}
+                >
+                  <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#22C55E' }}>
+                    Checked In
+                  </Text>
+                </View>
+              ) : isHostelAllotted ? (
+                <View
+                  style={{
+                    backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE',
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#38BDF8',
+                  }}
+                >
+                  <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#38BDF8' }}>
+                    Allotted
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+
           {/* Bottom Row: Logout & Delete Account Buttons */}
           <View
             style={{
@@ -540,180 +649,67 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* Saturnalia Coins & Rewards Card */}
+        {/* Saturnalia Coins Card */}
         <View
           style={{
             backgroundColor: isDark ? '#1C1C20' : '#FFFFFF',
-            borderRadius: 24,
+            borderRadius: 20,
             borderWidth: 1,
             borderColor: isDark ? 'rgba(234, 179, 8, 0.35)' : 'rgba(234, 179, 8, 0.45)',
-            padding: 20,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
             marginBottom: 16,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: isDark ? 0.15 : 0.08,
             shadowRadius: 10,
             elevation: 3,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 10 }}>
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: isDark ? 'rgba(234, 179, 8, 0.15)' : '#FEF9C3',
-                  borderWidth: 1,
-                  borderColor: isDark ? 'rgba(234, 179, 8, 0.3)' : 'rgba(234, 179, 8, 0.5)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 22 }}>🪙</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontFamily: 'Poppins_700Bold',
-                    fontSize: 16,
-                    color: isDark ? '#FFFFFF' : '#111827',
-                  }}
-                >
-                  Saturnalia Coins
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: 'Poppins_400Regular',
-                    fontSize: 11,
-                    color: isDark ? '#9CA3AF' : '#6B7280',
-                  }}
-                >
-                  Earn by playing, referring & events
-                </Text>
-              </View>
-            </View>
-
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 10 }}>
             <View
               style={{
-                backgroundColor: isDark ? 'rgba(234, 179, 8, 0.18)' : '#FEF08A',
-                paddingHorizontal: 14,
-                paddingVertical: 6,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: '#EAB308',
+                width: 42,
+                height: 42,
+                borderRadius: 21,
                 alignItems: 'center',
-                minWidth: 72,
+                justifyContent: 'center',
               }}
             >
-              <Text
-                style={{
-                  fontFamily: 'Poppins_700Bold',
-                  fontSize: 18,
-                  color: isDark ? '#FACC15' : '#854D0E',
-                }}
-              >
-                {userProfile?.coins ?? 0}
-              </Text>
-              <Text
-                style={{
-                  fontFamily: 'Poppins_500Medium',
-                  fontSize: 9,
-                  color: isDark ? '#E5E7EB' : '#713F12',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}
-              >
-                Coins
-              </Text>
+              <Coins size={22} color={isDark ? '#FACC15' : '#CA8A04'} />
             </View>
+            <Text
+              style={{
+                fontFamily: 'Poppins_700Bold',
+                fontSize: 16,
+                color: isDark ? '#FFFFFF' : '#111827',
+              }}
+            >
+              Saturnalia Coins
+            </Text>
           </View>
 
-          {/* Quick Action Navigation Buttons */}
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/(tabs)/store' as any)}
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 50,
+            }}
+          >
+            <Text
               style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                paddingVertical: 10,
-                borderRadius: 14,
-                backgroundColor: isDark ? '#27272A' : '#F3F4F6',
-                borderWidth: 1,
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                fontFamily: 'Poppins_700Bold',
+                fontSize: 18,
+                color: isDark ? '#FACC15' : '#854D0E',
               }}
             >
-              <Ionicons name="bag-handle-outline" size={15} color={isDark ? '#FACC15' : '#CA8A04'} />
-              <Text
-                style={{
-                  fontFamily: 'Poppins_600SemiBold',
-                  fontSize: 12,
-                  color: isDark ? '#FFFFFF' : '#111827',
-                }}
-              >
-                Store
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/store/Leaderboard' as any)}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                paddingVertical: 10,
-                borderRadius: 14,
-                backgroundColor: isDark ? '#27272A' : '#F3F4F6',
-                borderWidth: 1,
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-              }}
-            >
-              <Ionicons name="trophy-outline" size={15} color={isDark ? '#38BDF8' : '#0284C7'} />
-              <Text
-                style={{
-                  fontFamily: 'Poppins_600SemiBold',
-                  fontSize: 12,
-                  color: isDark ? '#FFFFFF' : '#111827',
-                }}
-              >
-                Leaderboard
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/store/Games' as any)}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                paddingVertical: 10,
-                borderRadius: 14,
-                backgroundColor: isDark ? '#27272A' : '#F3F4F6',
-                borderWidth: 1,
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-              }}
-            >
-              <Ionicons name="game-controller-outline" size={15} color={isDark ? '#A855F7' : '#9333EA'} />
-              <Text
-                style={{
-                  fontFamily: 'Poppins_600SemiBold',
-                  fontSize: 12,
-                  color: isDark ? '#FFFFFF' : '#111827',
-                }}
-              >
-                Games
-              </Text>
-            </TouchableOpacity>
+              {userProfile?.coins ?? 0}
+            </Text>
           </View>
         </View>
 

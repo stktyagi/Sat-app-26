@@ -38,14 +38,21 @@ func isAllowedWebsiteDomain(c *gin.Context) bool {
 			return false
 		}
 		host := strings.ToLower(u.Hostname())
-		return host == websiteDomain || strings.HasSuffix(host, "."+websiteDomain)
+		if host == websiteDomain || strings.HasSuffix(host, "."+websiteDomain) {
+			return true
+		}
+		if host == "localhost" || host == "127.0.0.1" {
+			return true
+		}
+		return false
 	}
 
 	return checkMatch(origin) || checkMatch(referer)
 }
 
 func isPreregisteredEvent(title string) bool {
-	return strings.Contains(strings.ToLower(title), "[preregistered]")
+	lt := strings.ToLower(title)
+	return strings.Contains(lt, "preregister") || strings.Contains(lt, "pre-register") || strings.Contains(lt, "preregistr") || strings.Contains(lt, "pre-registr")
 }
 
 // ListEvents is the single endpoint for browsing, filtering and searching.
@@ -80,8 +87,8 @@ func (a *API) ListEvents(c *gin.Context) {
 		if !e.IsPublic && !isAdmin {
 			continue
 		}
-		// Preregistered events are only shown on the website (or for admins), not on the mobile app.
-		if isPreregisteredEvent(e.Title) && !isFromWebsite && !isAdmin {
+		// Preregistered events are only shown on the website, never on the mobile app.
+		if isPreregisteredEvent(e.Title) && !isFromWebsite {
 			continue
 		}
 		if category != "" && !strings.EqualFold(e.Category, category) {
@@ -169,9 +176,8 @@ func (a *API) GetEvent(c *gin.Context) {
 		return
 	}
 
-	isAdmin := middleware.CurrentUser(c).IsAdmin()
 	isFromWebsite := isAllowedWebsiteDomain(c)
-	if isPreregisteredEvent(event.Title) && !isFromWebsite && !isAdmin {
+	if isPreregisteredEvent(event.Title) && !isFromWebsite {
 		apierr.Respond(c, apierr.NotFound("event_not_found", "no such event"))
 		return
 	}
@@ -252,7 +258,7 @@ func (a *API) GetCategories(c *gin.Context) {
 		if (!e.IsPublic && !isAdmin) || e.Category == "" || seen[e.Category] {
 			continue
 		}
-		if isPreregisteredEvent(e.Title) && !isFromWebsite && !isAdmin {
+		if isPreregisteredEvent(e.Title) && !isFromWebsite {
 			continue
 		}
 		seen[e.Category] = true

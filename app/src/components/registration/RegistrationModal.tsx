@@ -63,8 +63,17 @@ const isHostOnlyField = (field: any) => {
   );
 };
 
+export const isProfileRedundantField = (field: any) => {
+  const text = `${field?.fieldId || "" } ${field?.label || "" }`.toLowerCase();
+  const tokens = text.split(/[^a-z0-9]+/);
+  return tokens.some((t) => ["phone", "phonenumber", "mobile", "gender", "age", "dob"].includes(t));
+};
+
 const getVisibleCustomFields = (customFields: any[] = [], isHostStudent: boolean) => {
   return customFields.filter((field: any) => {
+    if (isProfileRedundantField(field)) {
+      return false;
+    }
     if (isHostOnlyField(field)) {
       return isHostStudent;
     }
@@ -206,13 +215,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return;
     }
 
-    if (visibleCustomFields.length) {
-      setIsCreateTeamFlow(false);
-      setRegistrationStep("custom-fields");
-      return;
-    }
-
     try {
+      await saveRegistrationDetails(buildDetailsPayload());
       setIsLoading(true);
       await joinEventTeam(event.eventId, teamInviteCode.trim(), []);
       showModalAlert("Success", "Successfully joined the team!");

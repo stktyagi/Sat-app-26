@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"backend/internal/isotime"
 )
@@ -48,14 +49,34 @@ func (cf *CustomField) IsHostOnly() bool {
 	return strings.Contains(fid, "host") || fid == "ppt_drive_link"
 }
 
+// IsProfileRedundantField checks whether a custom field asks for profile info
+// (phone, gender, age, dob) that is already captured during user profile creation.
+func IsProfileRedundantField(fieldID, label string) bool {
+	combined := strings.ToLower(fieldID + " " + label)
+	tokens := strings.FieldsFunc(combined, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	for _, t := range tokens {
+		switch t {
+		case "phone", "phonenumber", "mobile", "gender", "age", "dob":
+			return true
+		}
+	}
+	return false
+}
+
 // FilterCustomFieldsFor replaces e.CustomFields with a filtered copy visible to the caller.
 // If isHost is false, host-only fields are omitted. For host students, host-only and PPT fields are marked required.
+// Profile-redundant fields (phone, gender, age) are omitted for all callers.
 func (e *Event) FilterCustomFieldsFor(isHost bool) {
 	if len(e.CustomFields) == 0 {
 		return
 	}
 	visible := make([]CustomField, 0, len(e.CustomFields))
 	for _, f := range e.CustomFields {
+		if IsProfileRedundantField(f.FieldID, f.Label) {
+			continue
+		}
 		if !isHost && f.IsHostOnly() {
 			continue
 		}

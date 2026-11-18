@@ -4,6 +4,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import { usePatchesEngine } from './usePatchesEngine';
 import { SAMPLE_PATCHES_LEVELS, ClueShape } from './SamplePatchesLevels';
 import { Ionicons } from '@expo/vector-icons';
+import { Coins } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -229,7 +230,10 @@ export default function PatchesGame({ initialLevelIndex, onComplete, onBack, rew
                   onComplete(timer);
                 }}
               >
-                <Text style={styles.nextButtonText}>🪙 Claim 20 Coins</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Coins size={18} color="#FFFFFF" />
+                  <Text style={styles.nextButtonText}>Claim 20 Coins</Text>
+                </View>
               </TouchableOpacity>
             )}
 

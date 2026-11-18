@@ -91,3 +91,21 @@ func TestCheckRegistrable_PreregisteredEvent(t *testing.T) {
 		t.Errorf("expected error code 'preregistration_required', got: %s", err.Code)
 	}
 }
+
+func TestValidateResponsesIgnoresProfileRedundantFields(t *testing.T) {
+	event := &models.Event{CustomFields: []models.CustomField{
+		{FieldID: "phone_number", Label: "Phone Number", Required: true},
+		{FieldID: "gender", Label: "Gender", Required: true},
+		{FieldID: "age", Label: "Age", Required: true},
+		{FieldID: "track", Label: "Project Track", Required: true},
+	}}
+
+	// Omitting phone, gender, age should NOT fail as they are profile-redundant
+	if err := validateResponses(event, nil, []models.Response{{FieldID: "track", Value: "AI"}}); err != nil {
+		t.Errorf("validateResponses should ignore profile-redundant fields, got %v", err)
+	}
+	// Omitting required non-redundant field should fail
+	if err := validateResponses(event, nil, []models.Response{}); err == nil {
+		t.Error("missing non-redundant required field should fail")
+	}
+}

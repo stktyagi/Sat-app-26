@@ -153,16 +153,9 @@ func (a *API) JoinTeam(c *gin.Context) {
 		apierr.Respond(c, err)
 		return
 	}
-	responses := body.Responses
-	if len(responses) == 0 && len(team.Responses) > 0 {
-		responses = team.Responses
-	}
-	if len(body.Responses) > 0 {
-		if err := validateResponses(event, user, body.Responses); err != nil {
-			apierr.Respond(c, err)
-			return
-		}
-	}
+	// Custom fields are configured strictly by the team leader.
+	// Joining members inherit the team responses without re-entering or validation.
+	responses := team.Responses
 
 	fee := event.FeeFor(user.IsHostCollegeStudent)
 	regID := models.RegistrationID(event.EventID, user.UserID)
@@ -323,8 +316,10 @@ func (a *API) RenameTeam(c *gin.Context) {
 	}
 
 	if body.Responses != nil {
-		regID := models.RegistrationID(team.EventID, team.LeaderUserID)
-		_ = a.Store.UpdateRegistrationResponses(c.Request.Context(), regID, body.Responses)
+		for _, memberID := range team.MemberIDs {
+			regID := models.RegistrationID(team.EventID, memberID)
+			_ = a.Store.UpdateRegistrationResponses(c.Request.Context(), regID, body.Responses)
+		}
 	}
 
 	a.reloadAndRespond(c, team.TeamID, "updated but the team could not be read back")

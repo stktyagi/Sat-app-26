@@ -16,6 +16,7 @@ import { useThemeStore } from '@/state/themeStore';
 import { useCartStore } from '@/state/cartStore';
 import { useUserStore } from '@/state/userStore';
 import { fetchStoreItem, StoreProduct } from '@/api/store';
+import { Coins } from 'lucide-react-native';
 
 const ItemDetailsScreen = () => {
   const insets = useSafeAreaInsets();
@@ -30,6 +31,7 @@ const ItemDetailsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string>('L');
+  const [addingToCart, setAddingToCart] = useState(false);
 
   const cartCount = getTotalCount();
 
@@ -68,13 +70,15 @@ const ItemDetailsScreen = () => {
 
   const sizes = ['S', 'M', 'L', 'XL', 'XXL'];
 
-  const handleAddToCart = () => {
-    if (!item) return;
-    addToCart(item, quantity, isApparel ? selectedSize : undefined);
-    showAlert(
-      'Added to Cart! 🛍️',
-      `${quantity}x ${item.name}${isApparel ? ` (${selectedSize})` : ''} has been added to your cart.`
-    );
+  const handleAddToCart = async () => {
+    if (!item || addingToCart) return;
+    setAddingToCart(true);
+    try {
+      addToCart(item, quantity, isApparel ? selectedSize : undefined);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
   const bgColor = isDark ? '#111113' : '#F4F5F7';
@@ -494,7 +498,7 @@ const ItemDetailsScreen = () => {
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ fontSize: 18 }}>🪙</Text>
+            <Coins size={18} color={isDark ? "#FACC15" : "#854D0E"} />
             <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 12, color: isDark ? '#FACC15' : '#854D0E' }}>
               Your Wallet Balance:
             </Text>
@@ -540,6 +544,7 @@ const ItemDetailsScreen = () => {
         <TouchableOpacity
           onPress={handleAddToCart}
           activeOpacity={0.85}
+          disabled={addingToCart}
           style={{
             backgroundColor: '#38BDF8',
             borderRadius: 16,
@@ -547,6 +552,8 @@ const ItemDetailsScreen = () => {
             paddingHorizontal: 24,
             flexDirection: 'row',
             alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 140,
             gap: 8,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 4 },
@@ -555,10 +562,16 @@ const ItemDetailsScreen = () => {
             elevation: 4,
           }}
         >
-          <Ionicons name="bag-add-outline" size={18} color="#000000" />
-          <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 14, color: '#000000' }}>
-            Add to Cart
-          </Text>
+          {addingToCart ? (
+            <ActivityIndicator size="small" color="#000000" />
+          ) : (
+            <>
+              <Ionicons name="bag-add-outline" size={18} color="#000000" />
+              <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 14, color: '#000000' }}>
+                Add to Cart
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </View>

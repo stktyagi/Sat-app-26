@@ -38,7 +38,6 @@ func TestSortEvents(t *testing.T) {
 	}
 }
 
-
 func TestIsAllowedWebsiteDomain(t *testing.T) {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
@@ -69,6 +68,27 @@ func TestIsAllowedWebsiteDomain(t *testing.T) {
 		t.Errorf("expected true for Referer: https://saturnalia.in/events")
 	}
 
+	// Origin: http://localhost:3000
+	c.Request = httptest.NewRequest("GET", "/api/v1/events", nil)
+	c.Request.Header.Set("Origin", "http://localhost:3000")
+	if !isAllowedWebsiteDomain(c) {
+		t.Errorf("expected true for Origin: http://localhost:3000")
+	}
+
+	// Origin: http://127.0.0.1:5173
+	c.Request = httptest.NewRequest("GET", "/api/v1/events", nil)
+	c.Request.Header.Set("Origin", "http://127.0.0.1:5173")
+	if !isAllowedWebsiteDomain(c) {
+		t.Errorf("expected true for Origin: http://127.0.0.1:5173")
+	}
+
+	// Referer: http://localhost:8080/events
+	c.Request = httptest.NewRequest("GET", "/api/v1/events", nil)
+	c.Request.Header.Set("Referer", "http://localhost:8080/events")
+	if !isAllowedWebsiteDomain(c) {
+		t.Errorf("expected true for Referer: http://localhost:8080/events")
+	}
+
 	// Unrelated origin
 	c.Request = httptest.NewRequest("GET", "/api/v1/events", nil)
 	c.Request.Header.Set("Origin", "https://otherwebsite.com")
@@ -83,6 +103,12 @@ func TestIsPreregisteredEvent(t *testing.T) {
 	}
 	if !isPreregisteredEvent("[preregistered] Laser Tag") {
 		t.Errorf("expected true for [preregistered] Laser Tag")
+	}
+	if !isPreregisteredEvent("(Preregistration) Go Kart") {
+		t.Errorf("expected true for (Preregistration) Go Kart")
+	}
+	if !isPreregisteredEvent("[Pre-registered] VR") {
+		t.Errorf("expected true for [Pre-registered] VR")
 	}
 	if isPreregisteredEvent("Regular Event") {
 		t.Errorf("expected false for Regular Event")

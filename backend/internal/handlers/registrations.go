@@ -37,7 +37,7 @@ func (a *API) Register(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if isPreregisteredEvent(event.Title) && !isAllowedWebsiteDomain(c) && !user.IsAdmin() {
+	if isPreregisteredEvent(event.Title) && !isAllowedWebsiteDomain(c) {
 		apierr.Respond(c, apierr.BadRequest("website_only", "Registration for this event is only open via the official website."))
 		return
 	}
@@ -248,6 +248,9 @@ func validateResponses(e *models.Event, user *models.User, given []models.Respon
 		}
 	}
 	for _, f := range e.CustomFields {
+		if models.IsProfileRedundantField(f.FieldID, f.Label) {
+			continue
+		}
 		if f.IsHostOnly() && !isHost {
 			continue
 		}

@@ -129,3 +129,27 @@ func TestEventNormaliseFillsSliceFields(t *testing.T) {
 		t.Error("Normalise should leave every slice field serialisable as []")
 	}
 }
+
+func TestIsProfileRedundantField(t *testing.T) {
+	cases := []struct {
+		id    string
+		label string
+		want  bool
+	}{
+		{"phone", "Phone", true},
+		{"phone_number", "Contact Number", true},
+		{"mobile", "Mobile No", true},
+		{"gender", "Select Gender", true},
+		{"age", "Enter Age", true},
+		{"dob", "Date of Birth", true},
+		{"project_track", "Track", false},
+		{"ppt_drive_link", "Presentation Link", false},
+		{"programming_language", "Preferred Language", false},
+		{"stage_name", "Performance Stage", false},
+	}
+	for _, c := range cases {
+		if got := models.IsProfileRedundantField(c.id, c.label); got != c.want {
+			t.Errorf("IsProfileRedundantField(%q, %q) = %v, want %v", c.id, c.label, got, c.want)
+		}
+	}
+}

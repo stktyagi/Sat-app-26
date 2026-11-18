@@ -314,14 +314,12 @@ func (s *Store) GetLeaderboard(ctx context.Context, limit int) ([]models.Leaderb
 				college = "Saturnalia"
 			}
 		}
-		photo := u.PhotoURL
 		list = append(list, models.LeaderboardEntry{
 			Rank:        rank,
 			UserID:      u.UserID,
 			DisplayName: name,
 			CollegeName: college,
 			Coins:       u.Coins,
-			PhotoURL:    photo,
 		})
 		rank++
 	}

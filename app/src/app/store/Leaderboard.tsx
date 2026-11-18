@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   StatusBar,
   RefreshControl,
   ActivityIndicator,
@@ -16,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useThemeStore } from '@/state/themeStore';
 import { useUserStore } from '@/state/userStore';
 import { fetchLeaderboard, LeaderboardUser } from '@/api/store';
+import { Coins } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -151,7 +151,7 @@ export default function LeaderboardScreen() {
             gap: 4,
           }}
         >
-          <Text style={{ fontSize: 12 }}>🪙</Text>
+          <Coins size={13} color={isDark ? '#FBBF24' : '#D97706'} />
           <Text
             style={{
               fontFamily: 'Outfit_700Bold',
@@ -249,11 +249,7 @@ export default function LeaderboardScreen() {
                         elevation: 4,
                       }}
                     >
-                      {top2.photoUrl ? (
-                        <Image source={{ uri: top2.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                      ) : (
-                        <Ionicons name="person" size={28} color="#94A3B8" />
-                      )}
+                      <Ionicons name="person" size={28} color="#94A3B8" />
                     </View>
 
                     {/* User Name */}
@@ -279,7 +275,7 @@ export default function LeaderboardScreen() {
                         marginBottom: 8,
                       }}
                     >
-                      <Text style={{ fontSize: 10 }}>🪙</Text>
+                      <Coins size={11} color={isDark ? '#CBD5E1' : '#475569'} />
                       <Text
                         style={{
                           fontFamily: 'Outfit_700Bold',
@@ -374,11 +370,7 @@ export default function LeaderboardScreen() {
                         elevation: 7,
                       }}
                     >
-                      {top1.photoUrl ? (
-                        <Image source={{ uri: top1.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                      ) : (
-                        <Ionicons name="person" size={34} color="#F59E0B" />
-                      )}
+                      <Ionicons name="person" size={34} color="#F59E0B" />
                     </View>
 
                     {/* User Name */}
@@ -404,7 +396,7 @@ export default function LeaderboardScreen() {
                         marginBottom: 8,
                       }}
                     >
-                      <Text style={{ fontSize: 11 }}>🪙</Text>
+                      <Coins size={12} color={isDark ? '#FBBF24' : '#D97706'} />
                       <Text
                         style={{
                           fontFamily: 'Outfit_800ExtraBold',
@@ -500,11 +492,7 @@ export default function LeaderboardScreen() {
                         elevation: 4,
                       }}
                     >
-                      {top3.photoUrl ? (
-                        <Image source={{ uri: top3.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                      ) : (
-                        <Ionicons name="person" size={28} color="#D97706" />
-                      )}
+                      <Ionicons name="person" size={28} color="#D97706" />
                     </View>
 
                     {/* User Name */}
@@ -530,7 +518,7 @@ export default function LeaderboardScreen() {
                         marginBottom: 8,
                       }}
                     >
-                      <Text style={{ fontSize: 10 }}>🪙</Text>
+                      <Coins size={11} color={isDark ? '#FDBA74' : '#9A3412'} />
                       <Text
                         style={{
                           fontFamily: 'Outfit_700Bold',
@@ -708,11 +696,7 @@ export default function LeaderboardScreen() {
                         overflow: 'hidden',
                       }}
                     >
-                      {user.photoUrl ? (
-                        <Image source={{ uri: user.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                      ) : (
-                        <Ionicons name="person" size={20} color={isCurrentUser ? '#38BDF8' : textSecondary} />
-                      )}
+                      <Ionicons name="person" size={20} color={isCurrentUser ? '#38BDF8' : textSecondary} />
                     </View>
 
                     {/* User Details */}
@@ -770,7 +754,7 @@ export default function LeaderboardScreen() {
                         gap: 4,
                       }}
                     >
-                      <Text style={{ fontSize: 11 }}>🪙</Text>
+                      <Coins size={12} color={isDark ? '#FBBF24' : '#D97706'} />
                       <Text
                         style={{
                           fontFamily: 'Outfit_700Bold',
@@ -824,11 +808,7 @@ export default function LeaderboardScreen() {
                 overflow: 'hidden',
               }}
             >
-              {userData?.photoUrl || userData?.photoURL ? (
-                <Image source={{ uri: userData.photoUrl || userData.photoURL }} style={{ width: '100%', height: '100%' }} />
-              ) : (
-                <Ionicons name="person" size={24} color="#38BDF8" />
-              )}
+              <Ionicons name="person" size={24} color="#38BDF8" />
             </View>
 
             <View style={{ flex: 1 }}>
@@ -867,7 +847,7 @@ export default function LeaderboardScreen() {
               gap: 5,
             }}
           >
-            <Text style={{ fontSize: 14 }}>🪙</Text>
+            <Coins size={14} color={isDark ? '#FBBF24' : '#D97706'} />
             <Text
               style={{
                 fontFamily: 'Outfit_800ExtraBold',

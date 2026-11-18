@@ -21,6 +21,7 @@ import { useUserStore } from '@/state/userStore';
 import { useCartStore } from '@/state/cartStore';
 import { fetchStoreItems, StoreProduct } from '@/api/store';
 import { showAlert } from '@/components';
+import { Coins } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CENTER_CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.58, 230);
@@ -132,6 +133,7 @@ const StoreScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
   // Load products from backend
@@ -171,18 +173,21 @@ const StoreScreen: React.FC = () => {
     });
   };
 
-  const handleAddToCart = (product: StoreProduct) => {
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      description: product.description,
-      image: product.image,
-    });
-    showAlert('Added to Cart', `${product.name} was added to your cart!`, [
-      { text: 'Continue Shopping' },
-      { text: 'View Cart', onPress: () => router.push('/store/Cart' as any) },
-    ]);
+  const handleAddToCart = async (product: StoreProduct) => {
+    if (addingProductId) return;
+    setAddingProductId(product.id);
+    try {
+      addToCart({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        description: product.description,
+        image: product.image,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    } finally {
+      setAddingProductId(null);
+    }
   };
 
   const filteredProducts = useMemo(() => {
@@ -286,7 +291,7 @@ const StoreScreen: React.FC = () => {
             gap: 4,
           }}
         >
-          <Text style={{ fontSize: 13 }}>🪙</Text>
+          <Coins size={14} color={isDark ? "#FBBF24" : "#D97706"} />
           <Text
             style={{
               fontFamily: 'Outfit_700Bold',
@@ -334,7 +339,7 @@ const StoreScreen: React.FC = () => {
           justifyContent: 'space-between',
           paddingHorizontal: 16,
           paddingVertical: 6,
-          gap: 8,
+          gap: 7,
         }}
       >
         {/* Cart Button */}
@@ -342,7 +347,7 @@ const StoreScreen: React.FC = () => {
           activeOpacity={0.85}
           onPress={() => router.push('/store/Cart' as any)}
           style={{
-            flex: 1,
+            flex: 0.85,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
@@ -351,8 +356,8 @@ const StoreScreen: React.FC = () => {
             borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E5E7EB',
             borderRadius: 14,
             paddingVertical: 10,
-            paddingHorizontal: 10,
-            gap: 6,
+            paddingHorizontal: 8,
+            gap: 5,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 1 },
             shadowOpacity: isDark ? 0.2 : 0.05,
@@ -360,7 +365,7 @@ const StoreScreen: React.FC = () => {
             elevation: 1,
           }}
         >
-          <Ionicons name="cart" size={17} color="#38BDF8" />
+          <Ionicons name="cart" size={16} color="#38BDF8" />
           <Text
             style={{
               fontFamily: 'Poppins_600SemiBold',
@@ -375,7 +380,7 @@ const StoreScreen: React.FC = () => {
               style={{
                 backgroundColor: '#EF4444',
                 borderRadius: 10,
-                paddingHorizontal: 6,
+                paddingHorizontal: 5,
                 paddingVertical: 1,
               }}
             >
@@ -391,7 +396,7 @@ const StoreScreen: React.FC = () => {
           activeOpacity={0.85}
           onPress={() => router.push('/store/Leaderboard' as any)}
           style={{
-            flex: 1,
+            flex: 1.25,
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
@@ -400,8 +405,8 @@ const StoreScreen: React.FC = () => {
             borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E5E7EB',
             borderRadius: 14,
             paddingVertical: 10,
-            paddingHorizontal: 10,
-            gap: 6,
+            paddingHorizontal: 6,
+            gap: 5,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 1 },
             shadowOpacity: isDark ? 0.2 : 0.05,
@@ -409,13 +414,15 @@ const StoreScreen: React.FC = () => {
             elevation: 1,
           }}
         >
-          <Ionicons name="trophy" size={16} color="#F59E0B" />
+          <Ionicons name="trophy" size={15} color="#F59E0B" />
           <Text
             style={{
               fontFamily: 'Poppins_600SemiBold',
-              fontSize: 12,
+              fontSize: 11.5,
               color: isDark ? '#FFFFFF' : '#1F2937',
             }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
             Leaderboard
           </Text>
@@ -435,7 +442,7 @@ const StoreScreen: React.FC = () => {
             borderColor: isDark ? '#6366F1' : '#C7D2FE',
             borderRadius: 14,
             paddingVertical: 10,
-            paddingHorizontal: 8,
+            paddingHorizontal: 6,
             gap: 5,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 1 },
@@ -444,13 +451,15 @@ const StoreScreen: React.FC = () => {
             elevation: 1,
           }}
         >
-          <Ionicons name="game-controller" size={17} color="#818CF8" />
+          <Ionicons name="game-controller" size={16} color="#818CF8" />
           <Text
             style={{
               fontFamily: 'Poppins_600SemiBold',
               fontSize: 11.5,
               color: isDark ? '#C7D2FE' : '#4338CA',
             }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
             Daily Games
           </Text>
@@ -461,7 +470,7 @@ const StoreScreen: React.FC = () => {
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingBottom: 110,
+          paddingBottom: Math.max(insets.bottom + 130, 170),
         }}
         refreshControl={
           <RefreshControl
@@ -760,6 +769,7 @@ const StoreScreen: React.FC = () => {
                   {/* Action Button: Add to Cart */}
                   <TouchableOpacity
                     activeOpacity={0.85}
+                    disabled={addingProductId === product.id}
                     onPress={() => handleAddToCart(product)}
                     style={{
                       flexDirection: 'row',
@@ -769,6 +779,8 @@ const StoreScreen: React.FC = () => {
                       paddingHorizontal: 20,
                       paddingVertical: 9,
                       borderRadius: 20,
+                      minWidth: 120,
+                      minHeight: 36,
                       gap: 6,
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 3 },
@@ -777,16 +789,22 @@ const StoreScreen: React.FC = () => {
                       elevation: 3,
                     }}
                   >
-                    <Ionicons name="cart-outline" size={17} color="#000000" />
-                    <Text
-                      style={{
-                        fontFamily: 'Poppins_600SemiBold',
-                        fontSize: 13,
-                        color: '#000000',
-                      }}
-                    >
-                      Add to Cart
-                    </Text>
+                    {addingProductId === product.id ? (
+                      <ActivityIndicator size="small" color="#000000" />
+                    ) : (
+                      <>
+                        <Ionicons name="cart-outline" size={17} color="#000000" />
+                        <Text
+                          style={{
+                            fontFamily: 'Poppins_600SemiBold',
+                            fontSize: 13,
+                            color: '#000000',
+                          }}
+                        >
+                          Add to Cart
+                        </Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                 </View>
               );

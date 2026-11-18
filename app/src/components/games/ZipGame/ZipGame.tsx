@@ -5,6 +5,7 @@ import Svg, { Polyline, Circle } from 'react-native-svg';
 import { useZipEngine } from './useZipEngine';
 import { SAMPLE_LEVELS } from './SampleLevels';
 import { Ionicons } from '@expo/vector-icons';
+import { Coins } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -199,7 +200,10 @@ export default function ZipGame({ initialLevelIndex, onComplete, onBack, rewardC
                   onComplete(timer);
                 }}
               >
-                <Text style={styles.nextButtonText}>🪙 Claim 20 Coins</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Coins size={18} color="#FFFFFF" />
+                  <Text style={styles.nextButtonText}>Claim 20 Coins</Text>
+                </View>
               </TouchableOpacity>
             )}
 

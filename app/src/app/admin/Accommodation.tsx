@@ -870,8 +870,8 @@ const Accommodation: React.FC = () => {
                   ) : (
                     <>
                       <Undo2 size={15} color="#A855F7" style={{ marginRight: 6 }} />
-                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#A855F7" }}>
-                        Undo Check-Out (Restore Check-In)
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#A855F7" }} numberOfLines={1}>
+                        Undo Check-Out
                       </Text>
                     </>
                   )}
@@ -879,63 +879,59 @@ const Accommodation: React.FC = () => {
               </View>
             ) : user.checkInStatus?.accommodation ? (
               <View style={{ gap: 8 }}>
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <TouchableOpacity
-                    disabled={updatingUser === user.userId}
-                    onPress={() => handleCheckOut(user)}
-                    activeOpacity={0.8}
-                    style={{
-                      flex: 1.2,
-                      backgroundColor: "#EF4444",
-                      borderColor: "#EF4444",
-                      borderWidth: 1,
-                      borderRadius: 12,
-                      paddingVertical: 11,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexDirection: "row",
-                    }}
-                  >
-                    {updatingUser === user.userId ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <LogOut size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                        <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#FFFFFF" }}>
-                          Check Out
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={updatingUser === user.userId}
+                  onPress={() => handleCheckOut(user)}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: "#EF4444",
+                    borderColor: "#EF4444",
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    paddingVertical: 11,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "row",
+                  }}
+                >
+                  {updatingUser === user.userId ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <LogOut size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#FFFFFF" }} numberOfLines={1}>
+                        Check Out
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    disabled={updatingUser === user.userId}
-                    onPress={() => handleUndoCheckIn(user)}
-                    activeOpacity={0.8}
-                    style={{
-                      flex: 1,
-                      backgroundColor: isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)",
-                      borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "rgba(239, 68, 68, 0.25)",
-                      borderWidth: 1,
-                      borderRadius: 12,
-                      paddingVertical: 11,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexDirection: "row",
-                    }}
-                  >
-                    {updatingUser === user.userId ? (
-                      <ActivityIndicator size="small" color="#EF4444" />
-                    ) : (
-                      <>
-                        <Undo2 size={15} color="#EF4444" style={{ marginRight: 6 }} />
-                        <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#EF4444" }}>
-                          Undo Check-In
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                  disabled={updatingUser === user.userId}
+                  onPress={() => handleUndoCheckIn(user)}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)",
+                    borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "rgba(239, 68, 68, 0.25)",
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    paddingVertical: 11,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexDirection: "row",
+                  }}
+                >
+                  {updatingUser === user.userId ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <>
+                      <Undo2 size={15} color="#EF4444" style={{ marginRight: 6 }} />
+                      <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#EF4444" }} numberOfLines={1}>
+                        Undo Check-In
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity

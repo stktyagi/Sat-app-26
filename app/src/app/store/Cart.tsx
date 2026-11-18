@@ -14,6 +14,7 @@ import { useThemeStore } from '@/state/themeStore';
 import { useUserStore } from '@/state/userStore';
 import { useCartStore } from '@/state/cartStore';
 import { showAlert } from '@/components';
+import { Coins } from 'lucide-react-native';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -317,7 +318,7 @@ export default function CartScreen() {
               gap: 10,
             }}
           >
-            <Text style={{ fontSize: 22 }}>🪙</Text>
+            <Coins size={22} color={isDark ? "#FBBF24" : "#D97706"} />
             <View style={{ flex: 1 }}>
               <Text
                 style={{
