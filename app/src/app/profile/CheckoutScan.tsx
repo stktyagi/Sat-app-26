@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Platform,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
@@ -71,7 +72,6 @@ export default function CheckoutScanScreen() {
   // Modal entrance animations
   const modalScale = useRef(new Animated.Value(0.85)).current;
   const modalOpacity = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -147,7 +147,6 @@ export default function CheckoutScanScreen() {
   const cardBorder = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)";
   const textPrimary = isDark ? "#FFFFFF" : "#111827";
   const textSecondary = isDark ? "#9CA3AF" : "#6B7280";
-  const accentColor = "#41B8F0";
 
   const hostelName = user?.checkInStatus?.Hostel || (user as any)?.hostel || "Not Assigned";
   const roomNo = user?.checkInStatus?.RoomNo || (user as any)?.roomNo || "-";
@@ -271,7 +270,7 @@ export default function CheckoutScanScreen() {
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Camera Preview */}
+      {/* ── Camera View (Full Screen) ── */}
       <CameraView
         style={StyleSheet.absoluteFill}
         facing="back"
@@ -281,134 +280,220 @@ export default function CheckoutScanScreen() {
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
       />
 
-      {/* Dark Vignette Overlay */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.65)" }} />
-        <View style={{ flexDirection: "row", height: SCANNER_SIZE }}>
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.65)" }} />
-          <View style={{ width: SCANNER_SIZE, height: SCANNER_SIZE }} />
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.65)" }} />
-        </View>
-        <View style={{ flex: 1.4, backgroundColor: "rgba(0,0,0,0.65)" }} />
-      </View>
-
-      {/* Header Overlay */}
-      <View
-        style={{
-          position: "absolute",
-          top: Math.max(insets.top + 8, 20),
-          left: 0,
-          right: 0,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingHorizontal: 20,
-          zIndex: 20,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: "rgba(0,0,0,0.55)",
-            borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.2)",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <ArrowLeft size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <View style={{ alignItems: "center" }}>
-          <Text style={{ fontFamily: "Talina", fontSize: 22, color: "#FFFFFF", letterSpacing: 0.5 }}>
-            Hostel Checkout
-          </Text>
-          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
-            Scan Hostel Desk QR
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={() => setTorchOn((prev) => !prev)}
-          activeOpacity={0.7}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: torchOn ? "#41B8F0" : "rgba(0,0,0,0.55)",
-            borderWidth: 1,
-            borderColor: torchOn ? "#41B8F0" : "rgba(255,255,255,0.2)",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Flashlight size={19} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Center Viewfinder Box */}
+      {/* ── Scanner Mask & Frame Overlay (Matched with MealPass) ── */}
       {!scannedQR && (
         <View
           style={{
             position: "absolute",
             top: 0,
+            bottom: 0,
             left: 0,
             right: 0,
-            bottom: 0,
             alignItems: "center",
             justifyContent: "center",
           }}
           pointerEvents="none"
         >
+          {/* Scanner Target Box */}
           <View
             style={{
               width: SCANNER_SIZE,
               height: SCANNER_SIZE,
               borderRadius: 24,
+              position: "relative",
               overflow: "hidden",
             }}
           >
-            {/* Viewfinder Corners */}
-            <View style={{ position: "absolute", top: 0, left: 0, width: 32, height: 32, borderTopWidth: 4, borderLeftWidth: 4, borderColor: "#41B8F0", borderTopLeftRadius: 18 }} />
-            <View style={{ position: "absolute", top: 0, right: 0, width: 32, height: 32, borderTopWidth: 4, borderRightWidth: 4, borderColor: "#41B8F0", borderTopRightRadius: 18 }} />
-            <View style={{ position: "absolute", bottom: 0, left: 0, width: 32, height: 32, borderBottomWidth: 4, borderLeftWidth: 4, borderColor: "#41B8F0", borderBottomLeftRadius: 18 }} />
-            <View style={{ position: "absolute", bottom: 0, right: 0, width: 32, height: 32, borderBottomWidth: 4, borderRightWidth: 4, borderColor: "#41B8F0", borderBottomRightRadius: 18 }} />
-
-            {/* Laser Beam */}
-            <Animated.View
+            {/* Subtle translucent dark tint inside box */}
+            <View
               style={{
-                width: "100%",
-                height: 3,
-                backgroundColor: "#41B8F0",
-                shadowColor: "#41B8F0",
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 1,
-                shadowRadius: 8,
-                elevation: 4,
-                transform: [{ translateY: laserTranslateY }],
+                ...Platform.select({
+                  ios: { backgroundColor: "rgba(255, 255, 255, 0.03)" },
+                  android: { backgroundColor: "rgba(255, 255, 255, 0.02)" },
+                }),
+                flex: 1,
+              }}
+            />
+
+            {/* Animated Laser Scanning Beam */}
+            {cameraReady && (
+              <Animated.View
+                style={{
+                  position: "absolute",
+                  left: 12,
+                  right: 12,
+                  height: 3,
+                  backgroundColor: "#41B8F0",
+                  borderRadius: 2,
+                  shadowColor: "#41B8F0",
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.9,
+                  shadowRadius: 8,
+                  elevation: 6,
+                  transform: [{ translateY: laserTranslateY }],
+                }}
+              />
+            )}
+
+            {/* Neon Corner Brackets */}
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: 38,
+                height: 38,
+                borderLeftWidth: 4,
+                borderTopWidth: 4,
+                borderColor: "#41B8F0",
+                borderTopLeftRadius: 20,
+              }}
+            />
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                width: 38,
+                height: 38,
+                borderRightWidth: 4,
+                borderTopWidth: 4,
+                borderColor: "#41B8F0",
+                borderTopRightRadius: 20,
+              }}
+            />
+            <View
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                width: 38,
+                height: 38,
+                borderLeftWidth: 4,
+                borderBottomWidth: 4,
+                borderColor: "#41B8F0",
+                borderBottomLeftRadius: 20,
+              }}
+            />
+            <View
+              style={{
+                position: "absolute",
+                bottom: 0,
+                right: 0,
+                width: 38,
+                height: 38,
+                borderRightWidth: 4,
+                borderBottomWidth: 4,
+                borderColor: "#41B8F0",
+                borderBottomRightRadius: 20,
               }}
             />
           </View>
 
-          <Text
+          {/* Viewfinder Instructions Banner */}
+          <View
             style={{
-              fontFamily: "Poppins_500Medium",
-              fontSize: 13,
-              color: "rgba(255,255,255,0.85)",
-              marginTop: 24,
-              textAlign: "center",
+              marginTop: 28,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
+              borderRadius: 20,
+              backgroundColor: "rgba(0, 0, 0, 0.75)",
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
             }}
           >
-            Align the Hostel Checkout QR in the frame
-          </Text>
+            <LogOut size={16} color="#41B8F0" />
+            <Text
+              style={{
+                fontFamily: "Poppins_500Medium",
+                fontSize: 13,
+                color: "#FFFFFF",
+                letterSpacing: 0.2,
+              }}
+            >
+              Scan hostel desk QR to check out
+            </Text>
+          </View>
         </View>
       )}
 
-      {/* Scanned Details / Confirmation Modal Dialog */}
+      {/* ── Top Bar Overlay (Back, Title, Torch) matched with MealPass ── */}
+      <View
+        style={{
+          position: "absolute",
+          top: Math.max(insets.top + 8, 16),
+          left: 16,
+          right: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          zIndex: 30,
+        }}
+        pointerEvents="box-none"
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: "rgba(0, 0, 0, 0.65)",
+            borderWidth: 1,
+            borderColor: "rgba(255, 255, 255, 0.18)",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          activeOpacity={0.7}
+        >
+          <ArrowLeft size={22} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 20,
+            backgroundColor: "rgba(0, 0, 0, 0.65)",
+            borderWidth: 1,
+            borderColor: "rgba(65, 184, 240, 0.3)",
+            alignItems: "center",
+          }}
+          pointerEvents="none"
+        >
+          <Text
+            style={{
+              fontFamily: "Poppins_600SemiBold",
+              color: "#FFFFFF",
+              fontSize: 14,
+              letterSpacing: 0.5,
+            }}
+          >
+            HOSTEL CHECKOUT
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => setTorchOn((prev) => !prev)}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: torchOn ? "#41B8F0" : "rgba(0, 0, 0, 0.65)",
+            borderWidth: 1,
+            borderColor: torchOn ? "#41B8F0" : "rgba(255, 255, 255, 0.18)",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          activeOpacity={0.7}
+        >
+          <Flashlight size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Scanned Details / Confirmation Modal Dialog ── */}
       {scannedQR && (
         <View
           style={{
