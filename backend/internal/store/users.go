@@ -534,3 +534,59 @@ func (s *Store) GetUsersByRoles(ctx context.Context, roles []string) ([]*models.
 	}
 	return users, nil
 }
+
+// maxFCMTokens caps how many devices one account keeps push tokens for.
+const maxFCMTokens = 5
+
+// AddFCMToken records a device token for the user (newest last, capped) and
+// mirrors it into the legacy single-token field.
+func (s *Store) AddFCMToken(ctx context.Context, uid, token string) (*models.User, error) {
+	evictUserFromCache(uid)
+	u, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	tokens := make([]string, 0, len(u.FCMTokens)+1)
+	for _, t := range u.AllFCMTokens() {
+		if t != token {
+			tokens = append(tokens, t)
+		}
+	}
+	tokens = append(tokens, token)
+	if len(tokens) > maxFCMTokens {
+		tokens = tokens[len(tokens)-maxFCMTokens:]
+	}
+	return s.UpdateUser(ctx, uid, map[string]any{"fcmTokens": tokens, "fcmToken": token})
+}
+
+// RemoveFCMTokens drops the given device tokens from the user's profile.
+func (s *Store) RemoveFCMTokens(ctx context.Context, uid string, tokens []string) error {
+	if len(tokens) == 0 {
+		return nil
+	}
+	evictUserFromCache(uid)
+	u, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return err
+	}
+	drop := make(map[string]bool, len(tokens))
+	for _, t := range tokens {
+		drop[t] = true
+	}
+	kept := make([]string, 0, len(u.FCMTokens))
+	for _, t := range u.FCMTokens {
+		if !drop[t] {
+			kept = append(kept, t)
+		}
+	}
+	fields := map[string]any{"fcmTokens": kept}
+	if drop[u.FCMToken] {
+		legacy := ""
+		if len(kept) > 0 {
+			legacy = kept[len(kept)-1]
+		}
+		fields["fcmToken"] = legacy
+	}
+	_, err = s.UpdateUser(ctx, uid, fields)
+	return err
+}

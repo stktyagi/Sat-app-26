@@ -26,6 +26,12 @@ const (
 	AccommodationTierTechnical = "technical"
 )
 
+// AllRoles lists every canonical role, used to build the full set of role topics.
+var AllRoles = []string{
+	RoleUser, RoleAdmin, RoleEBEvents, RoleEBOutreach, RoleEBFinance, RoleEBMedia,
+	RoleEBHospitality, RoleECHospitality, RoleCoreHospitality, RoleEventPOC,
+}
+
 // NormalizeRole maps legacy names, typos, and mixed casings to canonical role identifiers.
 func NormalizeRole(r string) string {
 	lower := strings.ToLower(strings.TrimSpace(r))
@@ -83,6 +89,9 @@ type User struct {
 	CreatedAt                   string            `json:"createdAt"                   firestore:"createdAt"`
 	UpdatedAt                   string            `json:"updatedAt"                   firestore:"updatedAt"`
 	FCMToken                    string            `json:"fcmToken"                    firestore:"fcmToken"`
+	// FCMTokens holds one push token per signed-in device (newest last).
+	// FCMToken is the legacy single-device field, still read for old docs.
+	FCMTokens []string `json:"-" firestore:"fcmTokens"`
 
 	// MealCode is the typed fallback for the mess QR, derived from the uid and
 	// stored only so staff can look the user up by it.
@@ -212,6 +221,24 @@ func (u *User) HasAnyRole(roles ...string) bool {
 		}
 	}
 	return false
+}
+
+// AllFCMTokens returns every device token on the profile, deduped, including
+// the legacy single-token field.
+func (u *User) AllFCMTokens() []string {
+	if u == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, len(u.FCMTokens)+1)
+	for _, t := range append(append([]string{}, u.FCMTokens...), u.FCMToken) {
+		t = strings.TrimSpace(t)
+		if t != "" && !seen[t] {
+			seen[t] = true
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // IsHospitality reports whether the user may run hospitality desks (gate,

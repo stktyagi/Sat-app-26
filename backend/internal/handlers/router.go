@@ -45,6 +45,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	authed.DELETE("/me", api.DeleteSelf)
 	authed.GET("/me/events", api.GetMyEvents)
 	authed.POST("/me/fcm-token", api.UpdateFCMToken)
+	authed.POST("/me/fcm-token/remove", api.RemoveFCMToken)
 	authed.POST("/food/scan", api.ScanFoodQR)
 	authed.GET("/me/meal-code", api.GetMyMealCode)
 	authed.GET("/food/slots", api.GetMealSlots)

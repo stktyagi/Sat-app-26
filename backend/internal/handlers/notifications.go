@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,19 +16,18 @@ import (
 	"backend/internal/config"
 	"backend/internal/middleware"
 	"backend/internal/models"
+	"backend/internal/store"
 )
 
-// updateFCMTokenBody is the request body for updating a user's FCM token.
+// updateFCMTokenBody is the request body for registering/removing a device's FCM token.
 type updateFCMTokenBody struct {
 	FCMToken string `json:"fcmToken"`
 }
 
-// UpdateFCMToken stores or replaces the authenticated user's FCM token and
-// subscribes the token to the required FCM topics:
-// - all_users
-// - host_users or outside_users
-// - role_<role> for every role the user holds
-// - hospitality_staff (if holding any hospitality role)
+// UpdateFCMToken adds the device token to the authenticated user's profile
+// (one entry per device) and aligns its topic subscriptions with the user's
+// current audience: all_users, host_users|outside_users, role_<role>, and
+// hospitality_staff.
 func (a *API) UpdateFCMToken(c *gin.Context) {
 	ctx := c.Request.Context()
 	user := middleware.CurrentUser(c)
@@ -46,50 +46,51 @@ func (a *API) UpdateFCMToken(c *gin.Context) {
 		return
 	}
 
-	// Replace the stored FCM token in Firestore.
-	updated, err := a.Store.UpdateUser(ctx, user.UserID, map[string]any{
-		"fcmToken": token,
-	})
+	updated, err := a.Store.AddFCMToken(ctx, user.UserID, token)
 	if err != nil {
 		apierr.Respond(c, apierr.Internal("could not update FCM token"))
 		return
 	}
 
-	// Resolve host vs outside using the verified email domain (backend-authoritative).
-	isHost := updated.ResolveHostStatus(a.Cfg.HostEmailDomain).IsHostCollegeStudent
-
-	topics := []string{"all_users"}
-	if isHost {
-		topics = append(topics, "host_users")
-	} else {
-		topics = append(topics, "outside_users")
-	}
-
-	// Subscribe to specific role topics
-	for _, r := range updated.Roles {
-		norm := models.NormalizeRole(r)
-		if norm != "" && norm != models.RoleUser {
-			topics = append(topics, "role_"+norm)
-		}
-	}
-
-	// If hospitality role, subscribe to common hospitality topic
-	if updated.IsHospitality() {
-		topics = append(topics, "hospitality_staff")
-	}
-
-	for _, topic := range topics {
-		if _, err := a.Clients.Messaging.SubscribeToTopic(ctx, []string{token}, topic); err != nil {
-			log.Printf("[UpdateFCMToken] warning: could not subscribe to %s: %v", topic, err)
-		}
-	}
+	topics := a.topicsForUser(updated)
+	a.syncTopics(ctx, []string{token}, topics)
 
 	c.JSON(http.StatusOK, gin.H{"message": "FCM token updated and subscribed", "topics": topics})
 }
 
-// audienceTopic maps the three allowed audience values to their fixed FCM topics.
+// RemoveFCMToken detaches a device (on logout): the token is dropped from the
+// profile and unsubscribed from every topic, so the device stops receiving
+// this account's notifications.
+func (a *API) RemoveFCMToken(c *gin.Context) {
+	ctx := c.Request.Context()
+	user := middleware.CurrentUser(c)
+	if user == nil {
+		apierr.Respond(c, apierr.Unauthorized("missing_user", "call POST /api/v1/auth/session first"))
+		return
+	}
+
+	var body updateFCMTokenBody
+	if !bind(c, &body) {
+		return
+	}
+	token := strings.TrimSpace(body.FCMToken)
+	if token == "" {
+		apierr.Respond(c, apierr.BadRequest("invalid_token", "fcmToken is required"))
+		return
+	}
+
+	if err := a.Store.RemoveFCMTokens(ctx, user.UserID, []string{token}); err != nil {
+		apierr.Respond(c, apierr.Internal("could not remove FCM token"))
+		return
+	}
+	a.syncTopics(ctx, []string{token}, nil)
+
+	c.JSON(http.StatusOK, gin.H{"message": "FCM token removed"})
+}
+
+// audienceTopic maps the broadcast audience values to their fixed FCM topics.
 func audienceTopic(audience string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(audience)) {
+	switch audience {
 	case "all":
 		return "all_users", true
 	case "host":
@@ -112,43 +113,37 @@ type NotificationFilter struct {
 
 // sendNotificationBody is the request body for sending an admin notification.
 type sendNotificationBody struct {
-	Audience string              `json:"audience"` // "all", "host", "outside", "roles", "filter"
+	Audience string              `json:"audience"` // "all", "host", "outside", "hospitality_staff", "roles", "users", "filter"
 	Roles    []string            `json:"roles"`    // role names when audience is "roles"
+	UserIDs  []string            `json:"userIds"`  // user IDs when audience is "users"
+	Emails   []string            `json:"emails"`   // emails when audience is "users"
 	Filter   *NotificationFilter `json:"filter"`   // custom user filters when audience is "filter"
 	Title    string              `json:"title"`
 	Body     string              `json:"body"`
 }
 
-// sendMulticast sends notifications to a list of device FCM tokens in batches of up to 500.
-func (a *API) sendMulticast(ctx context.Context, tokens []string, title, body string) (int, error) {
-	if len(tokens) == 0 {
-		return 0, nil
+// respondPush writes the standard response for a per-device fan-out.
+func respondPush(c *gin.Context, r pushResult, extra gin.H) {
+	msg := "notification sent"
+	if r.Tokens == 0 {
+		msg = "no registered devices found for the selected audience"
 	}
-	successCount := 0
-	batchSize := 500
-	for i := 0; i < len(tokens); i += batchSize {
-		end := i + batchSize
-		if end > len(tokens) {
-			end = len(tokens)
-		}
-		chunk := tokens[i:end]
-		resp, err := a.Clients.Messaging.SendEachForMulticast(ctx, &messaging.MulticastMessage{
-			Tokens: chunk,
-			Notification: &messaging.Notification{
-				Title: title,
-				Body:  body,
-			},
-		})
-		if err != nil {
-			log.Printf("[FCM Multicast] error: %v", err)
-			continue
-		}
-		successCount += resp.SuccessCount
+	out := gin.H{
+		"message":        msg,
+		"recipientCount": r.Recipients,
+		"deviceCount":    r.Tokens,
+		"deliveredCount": r.Sent,
+		"failedCount":    r.Failed,
+		"prunedCount":    r.Pruned,
 	}
-	return successCount, nil
+	for k, v := range extra {
+		out[k] = v
+	}
+	c.JSON(http.StatusOK, out)
 }
 
-// SendNotification sends a one-time FCM notification targeted by topic, role, or user filter.
+// SendNotification sends a one-time FCM notification targeted by topic,
+// role, specific users, or user filter.
 func (a *API) SendNotification(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -165,17 +160,15 @@ func (a *API) SendNotification(c *gin.Context) {
 	}
 
 	audience := strings.ToLower(strings.TrimSpace(body.Audience))
+	data := map[string]string{"type": "admin_broadcast"}
 
-	// 1. Topic-based broadcast ("all", "host", "outside", "hospitality_staff")
+	// 1. Topic-based broadcast
 	if topic, ok := audienceTopic(audience); ok {
-		msg := &messaging.Message{
-			Notification: &messaging.Notification{
-				Title: title,
-				Body:  notifBody,
-			},
-			Topic: topic,
-		}
-		resp, err := a.Clients.Messaging.Send(ctx, msg)
+		resp, err := a.Clients.Messaging.Send(ctx, &messaging.Message{
+			Notification: &messaging.Notification{Title: title, Body: notifBody},
+			Data:         data,
+			Topic:        topic,
+		})
 		if err != nil {
 			log.Printf("[SendNotification] error sending to topic %s: %v", topic, err)
 			apierr.Respond(c, apierr.Internal("could not send notification"))
@@ -185,101 +178,119 @@ func (a *API) SendNotification(c *gin.Context) {
 		return
 	}
 
-	// 2. Role-based targeting
-	if audience == "roles" || len(body.Roles) > 0 {
-		targetRoles := body.Roles
-		if len(targetRoles) == 0 {
+	switch audience {
+	case "roles":
+		if len(body.Roles) == 0 {
 			apierr.Respond(c, apierr.BadRequest("missing_roles", "roles array is required when targeting by role"))
 			return
 		}
-
-		users, err := a.Store.GetUsersByRoles(ctx, targetRoles)
+		users, err := a.Store.GetUsersByRoles(ctx, body.Roles)
 		if err != nil {
 			log.Printf("[SendNotification] error fetching users by roles: %v", err)
 			apierr.Respond(c, apierr.Internal("could not fetch targeted users"))
 			return
 		}
+		respondPush(c, a.sendToUsers(ctx, users, title, notifBody, data), nil)
 
-		tokenSet := map[string]struct{}{}
-		for _, u := range users {
-			t := strings.TrimSpace(u.FCMToken)
-			if t != "" {
-				tokenSet[t] = struct{}{}
-			}
-		}
-
-		tokens := make([]string, 0, len(tokenSet))
-		for t := range tokenSet {
-			tokens = append(tokens, t)
-		}
-
-		if len(tokens) == 0 {
-			c.JSON(http.StatusOK, gin.H{"message": "no active user tokens found for the selected roles", "recipientCount": 0})
+	case "users":
+		if len(body.UserIDs) == 0 && len(body.Emails) == 0 {
+			apierr.Respond(c, apierr.BadRequest("missing_users", "userIds or emails are required when targeting users"))
 			return
 		}
-
-		sent, err := a.sendMulticast(ctx, tokens, title, notifBody)
+		if len(body.UserIDs)+len(body.Emails) > 1000 {
+			apierr.Respond(c, apierr.BadRequest("too_many_users", "at most 1000 users per send"))
+			return
+		}
+		users, unmatched, err := a.resolveUsers(ctx, body.UserIDs, body.Emails)
 		if err != nil {
-			apierr.Respond(c, apierr.Internal("could not send multicast notification"))
+			log.Printf("[SendNotification] error resolving users: %v", err)
+			apierr.Respond(c, apierr.Internal("could not fetch targeted users"))
 			return
 		}
+		respondPush(c, a.sendToUsers(ctx, users, title, notifBody, data), gin.H{"unmatched": unmatched})
 
-		c.JSON(http.StatusOK, gin.H{"message": "notification sent successfully", "recipientCount": len(tokens), "deliveredCount": sent})
-		return
-	}
-
-	// 3. User model filter-based targeting
-	if audience == "filter" && body.Filter != nil {
+	case "filter":
+		if body.Filter == nil {
+			apierr.Respond(c, apierr.BadRequest("missing_filter", "filter is required when audience is filter"))
+			return
+		}
 		users, err := a.Store.ListAccommodationUsers(ctx)
 		if err != nil {
 			log.Printf("[SendNotification] error fetching accommodation users: %v", err)
 			apierr.Respond(c, apierr.Internal("could not fetch users"))
 			return
 		}
-
 		todayIdx := festDayIndex(a.Cfg.FestDay0, time.Now())
-
-		var tokens []string
+		var targets []*models.User
 		for _, u := range users {
-			t := strings.TrimSpace(u.FCMToken)
-			if t == "" {
+			if body.Filter.InHouse || body.Filter.CheckoutDueToday {
+				if !u.CheckInStatus.Accommodation || u.CheckInStatus.CheckedOut {
+					continue
+				}
+			}
+			if body.Filter.CheckoutDueToday && lastStayDay(u.Accommodation) != todayIdx {
 				continue
 			}
-
-			if body.Filter.InHouse {
-				if !u.CheckInStatus.Accommodation || u.CheckInStatus.CheckedOut {
-					continue
-				}
-			}
-
-			if body.Filter.CheckoutDueToday {
-				if !u.CheckInStatus.Accommodation || u.CheckInStatus.CheckedOut {
-					continue
-				}
-				if lastStayDay(u.Accommodation) != todayIdx {
-					continue
-				}
-			}
-
-			tokens = append(tokens, t)
+			targets = append(targets, u)
 		}
+		respondPush(c, a.sendToUsers(ctx, targets, title, notifBody, data), nil)
 
-		if len(tokens) == 0 {
-			c.JSON(http.StatusOK, gin.H{"message": "no matching users found for the filter criteria", "recipientCount": 0})
-			return
+	default:
+		apierr.Respond(c, apierr.BadRequest("invalid_audience", "audience must be one of: all, host, outside, hospitality_staff, roles, users, filter"))
+	}
+}
+
+// resolveUsers loads users by ID and by email, returning the inputs that
+// matched no account.
+func (a *API) resolveUsers(ctx context.Context, ids, emails []string) ([]*models.User, []string, error) {
+	seen := map[string]bool{}
+	var users []*models.User
+	unmatched := []string{}
+
+	cleanIDs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if id = strings.TrimSpace(id); id != "" {
+			cleanIDs = append(cleanIDs, id)
 		}
-
-		sent, err := a.sendMulticast(ctx, tokens, title, notifBody)
-		if err != nil {
-			apierr.Respond(c, apierr.Internal("could not send multicast notification"))
-			return
+	}
+	byID, err := a.Store.GetUsers(ctx, cleanIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, id := range cleanIDs {
+		u, ok := byID[id]
+		if !ok {
+			unmatched = append(unmatched, id)
+			continue
 		}
-
-		c.JSON(http.StatusOK, gin.H{"message": "filtered notification sent", "recipientCount": len(tokens), "deliveredCount": sent})
-		return
+		if !seen[u.UserID] {
+			seen[u.UserID] = true
+			users = append(users, u)
+		}
 	}
 
-	apierr.Respond(c, apierr.BadRequest("invalid_audience", "audience must be one of: all, host, outside, hospitality_staff, roles, filter"))
+	for _, e := range emails {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			continue
+		}
+		u, err := a.Store.GetUserByEmail(ctx, e)
+		if errors.Is(err, store.ErrNotFound) && strings.ToLower(e) != e {
+			u, err = a.Store.GetUserByEmail(ctx, strings.ToLower(e))
+		}
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				unmatched = append(unmatched, e)
+				continue
+			}
+			return nil, nil, err
+		}
+		if !seen[u.UserID] {
+			seen[u.UserID] = true
+			users = append(users, u)
+		}
+	}
+	return users, unmatched, nil
 }
 
 // RunDailyHospitalitySummary computes incoming arrivals and outgoing checkouts,
@@ -301,7 +312,7 @@ func (a *API) RunDailyHospitalitySummary(ctx context.Context) (gin.H, error) {
 
 	incomingCount := 0
 	outgoingCount := 0
-	var outgoingTokens []string
+	var outgoingUsers []*models.User
 
 	for _, u := range users {
 		// Incoming: booked for tomorrow, not yet checked into hostel
@@ -313,9 +324,7 @@ func (a *API) RunDailyHospitalitySummary(ctx context.Context) (gin.H, error) {
 		if u.CheckInStatus.Accommodation && !u.CheckInStatus.CheckedOut {
 			if lastStayDay(u.Accommodation) == todayIdx {
 				outgoingCount++
-				if strings.TrimSpace(u.FCMToken) != "" {
-					outgoingTokens = append(outgoingTokens, strings.TrimSpace(u.FCMToken))
-				}
+				outgoingUsers = append(outgoingUsers, u)
 			}
 		}
 	}
@@ -332,40 +341,22 @@ func (a *API) RunDailyHospitalitySummary(ctx context.Context) (gin.H, error) {
 		log.Printf("[RunDailyHospitalitySummary] warning: could not load staff users: %v", err)
 	}
 
-	var staffTokens []string
-	for _, su := range staffUsers {
-		t := strings.TrimSpace(su.FCMToken)
-		if t != "" {
-			staffTokens = append(staffTokens, t)
-		}
-	}
-
 	staffNotified := 0
-	if len(staffTokens) > 0 {
+	if len(staffUsers) > 0 {
 		reportTitle := "Hospitality Daily Overview 📋"
 		reportBody := fmt.Sprintf(
 			"Today (%s) summary: %d guests due for checkout. %d incoming arrivals expected tomorrow (%s).",
 			todayKey, outgoingCount, incomingCount, tomorrowKey,
 		)
-		sent, err := a.sendMulticast(ctx, staffTokens, reportTitle, reportBody)
-		if err != nil {
-			log.Printf("[RunDailyHospitalitySummary] error sending to staff: %v", err)
-		} else {
-			staffNotified = sent
-		}
+		staffNotified = a.sendToUsers(ctx, staffUsers, reportTitle, reportBody, map[string]string{"type": "hospitality_summary"}).Sent
 	}
 
 	// 2. Send checkout reminder to outgoing attendees
 	attendeesNotified := 0
-	if len(outgoingTokens) > 0 {
+	if len(outgoingUsers) > 0 {
 		reminderTitle := "Hostel Checkout Reminder 🛏️"
 		reminderBody := "Your hostel accommodation ends today. Please visit the hospitality desk to return your bedding items and complete your checkout."
-		sent, err := a.sendMulticast(ctx, outgoingTokens, reminderTitle, reminderBody)
-		if err != nil {
-			log.Printf("[RunDailyHospitalitySummary] error sending to attendees: %v", err)
-		} else {
-			attendeesNotified = sent
-		}
+		attendeesNotified = a.sendToUsers(ctx, outgoingUsers, reminderTitle, reminderBody, map[string]string{"type": "checkout_reminder"}).Sent
 	}
 
 	log.Printf("[RunDailyHospitalitySummary] completed for %s: incoming=%d, outgoing=%d, staffNotified=%d, attendeesNotified=%d",
