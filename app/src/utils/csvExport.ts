@@ -17,8 +17,8 @@ interface TeamRegistrationView {
 }
 
 // Escape CSV value
-const escapeCSVValue = (value: string | null | undefined): string => {
-  if (!value) return "";
+export const escapeCSVValue = (value: string | number | boolean | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "";
   const stringValue = String(value);
   if (
     stringValue.includes(",") ||
@@ -169,5 +169,43 @@ export const exportRegistrationsToCSV = async (
   } catch (error) {
     console.error("Error exporting CSV:", error);
     showAlert("Export Failed", "Failed to export CSV");
+  }
+};
+/**
+ * Writes rows to a CSV file and opens the share sheet (or downloads on web).
+ * Returns false if the export failed (an alert has already been shown).
+ */
+export const exportRowsToCSV = async (
+  filename: string,
+  headers: string[],
+  rows: (string | number | boolean | null | undefined)[][],
+  dialogTitle = "Export CSV"
+): Promise<boolean> => {
+  const safeName = filename.replace(/[^a-zA-Z0-9_.-]/g, "_").replace(/(\.csv)?$/, ".csv");
+  const csvContent = [headers, ...rows].map((r) => r.map(escapeCSVValue).join(",")).join("\n");
+  try {
+    if (Platform.OS === "web") {
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = safeName;
+      a.click();
+      URL.revokeObjectURL(url);
+      return true;
+    }
+    const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory || "";
+    const fileUri = `${baseDir}${safeName}`;
+    await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, { mimeType: "text/csv", dialogTitle });
+    } else {
+      showAlert("Export", `CSV saved to ${fileUri}`);
+    }
+    return true;
+  } catch (error) {
+    console.error("Error exporting CSV:", error);
+    showAlert("Export Failed", "Failed to export CSV");
+    return false;
   }
 };
