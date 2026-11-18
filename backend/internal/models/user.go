@@ -11,15 +11,16 @@ import (
 // administrator carries RoleAdmin alongside it, so a check is a membership test
 // rather than an equality test.
 const (
-	RoleUser          = "user"
-	RoleAdmin         = "admin"
-	RoleEBEvents      = "eb_events"
-	RoleEBOutreach    = "eb_outreach"
-	RoleEBFinance     = "eb_finance"
-	RoleEBMedia       = "eb_media"
-	RoleEBHospitality = "eb_hospitality"
-	RoleECHospitality = "ec_hospitality"
-	RoleEventPOC      = "event_poc"
+	RoleUser            = "user"
+	RoleAdmin           = "admin"
+	RoleEBEvents        = "eb_events"
+	RoleEBOutreach      = "eb_outreach"
+	RoleEBFinance       = "eb_finance"
+	RoleEBMedia         = "eb_media"
+	RoleEBHospitality   = "eb_hospitality"
+	RoleECHospitality   = "ec_hospitality"
+	RoleCoreHospitality = "core_hospitality"
+	RoleEventPOC        = "event_poc"
 
 	AccommodationTierCultural  = "cultural"
 	AccommodationTierTechnical = "technical"
@@ -43,6 +44,8 @@ func NormalizeRole(r string) string {
 		return RoleEBHospitality
 	case "ec_hospitality", "hospitality_member":
 		return RoleECHospitality
+	case "core_hospitality", "hospitality_core", "core":
+		return RoleCoreHospitality
 	case "event_poc", "coordinator", "event_coordinator":
 		return RoleEventPOC
 	case "user":
@@ -81,6 +84,10 @@ type User struct {
 	UpdatedAt                   string            `json:"updatedAt"                   firestore:"updatedAt"`
 	FCMToken                    string            `json:"fcmToken"                    firestore:"fcmToken"`
 
+	// MealCode is the typed fallback for the mess QR, derived from the uid and
+	// stored only so staff can look the user up by it.
+	MealCode string `json:"-" firestore:"mealCode,omitempty"`
+
 	// Face photo and college ID card. The refs are storage handles, kept
 	// server-side so the files can be replaced or deleted; only the URLs go out.
 	// PublicProfile carries neither, so teammates never see them.
@@ -104,6 +111,32 @@ type CheckInStatus struct {
 	CheckedOutAt  string `json:"checkedOutAt,omitempty"  firestore:"checkedOutAt"`
 	Hostel        string `json:"Hostel,omitempty"        firestore:"Hostel"`
 	RoomNo        string `json:"RoomNo,omitempty"        firestore:"RoomNo"`
+
+	GateAt      string      `json:"gateAt,omitempty"      firestore:"gateAt,omitempty"`
+	AllottedAt  string      `json:"allottedAt,omitempty"  firestore:"allottedAt,omitempty"`
+	AllottedBy  string      `json:"allottedBy,omitempty"  firestore:"allottedBy,omitempty"`
+	CheckedInAt string      `json:"checkedInAt,omitempty" firestore:"checkedInAt,omitempty"`
+	Items       HostelItems `json:"items"                firestore:"items"`
+}
+
+// HostelItems tracks bedding handed out at hostel check-in and collected at checkout.
+type HostelItems struct {
+	PillowGiven      bool `json:"pillowGiven"      firestore:"pillowGiven"`
+	MattressGiven    bool `json:"mattressGiven"    firestore:"mattressGiven"`
+	PillowReturned   bool `json:"pillowReturned"   firestore:"pillowReturned"`
+	MattressReturned bool `json:"mattressReturned" firestore:"mattressReturned"`
+}
+
+// Unreturned lists items given at check-in that have not come back.
+func (i HostelItems) Unreturned() []string {
+	out := []string{}
+	if i.PillowGiven && !i.PillowReturned {
+		out = append(out, "pillow")
+	}
+	if i.MattressGiven && !i.MattressReturned {
+		out = append(out, "mattress")
+	}
+	return out
 }
 
 type LeaderboardEntry struct {
@@ -174,6 +207,23 @@ func (u *User) HasAnyRole(roles ...string) bool {
 		}
 	}
 	return false
+}
+
+// IsHospitality reports whether the user may run hospitality desks (gate,
+// registration desk, hostel check-in/out, meals).
+func (u *User) IsHospitality() bool {
+	return u.IsAdmin() || u.HasAnyRole(RoleEBHospitality, RoleECHospitality, RoleCoreHospitality)
+}
+
+// IsHospitalityLead reports whether the user may undo hospitality actions
+// (gate revert, hostel check-in revert). Core members cannot.
+func (u *User) IsHospitalityLead() bool {
+	return u.IsAdmin() || u.HasAnyRole(RoleEBHospitality, RoleECHospitality)
+}
+
+// IsHospitalityEB reports whether the user may use EB-only hospitality tools.
+func (u *User) IsHospitalityEB() bool {
+	return u.IsAdmin() || u.HasRole(RoleEBHospitality)
 }
 
 // IsStaffOrAdmin reports whether the user holds any role beyond basic participant.
