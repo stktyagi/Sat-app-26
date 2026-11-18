@@ -26,6 +26,7 @@ import { useUserStore } from '@/state/userStore';
 import { useAuthListener } from '@/hooks/useAuthListener';
 import { useNotifications } from '@/hooks/useNotifications';
 import { setupBackgroundMessageHandler } from '@/utils/fcm';
+import { isProfileUpdateMessage, markProfileStale } from '@/utils/pushSync';
 import { AlertProvider } from '@/components/ui/CustomAlert';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient } from '@tanstack/react-query';
@@ -42,7 +43,10 @@ import Sentry from '@/config/sentry';
 // Register background message handler outside React component lifecycle
 if (Platform.OS !== 'web') {
   try {
-    setupBackgroundMessageHandler();
+    setupBackgroundMessageHandler(async (message) => {
+      // Role/profile changed while backgrounded: refetch on next foreground.
+      if (isProfileUpdateMessage(message.data)) await markProfileStale();
+    });
   } catch (e) {
     console.warn('Failed to setup background message handler:', e);
   }

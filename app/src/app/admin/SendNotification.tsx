@@ -23,13 +23,21 @@ import {
   CheckCircle2,
   Sparkles,
   RefreshCw,
+  UserCheck,
+  X,
 } from 'lucide-react-native';
+import { searchUsers } from '@/api/admin';
 import { getToken } from '@/api/auth';
 import { API_BASE_URL } from '@/config/api';
 import { useThemeStore } from '@/state/themeStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type TargetMode = 'broadcast' | 'roles' | 'filter';
+type TargetMode = 'broadcast' | 'roles' | 'users' | 'filter';
+
+type PickedUser = { userId: string; displayName: string; email: string };
+
+const parseEmails = (raw: string) =>
+  Array.from(new Set(raw.split(/[\s,;]+/).map((e) => e.trim()).filter((e) => e.includes('@'))));
 
 const AVAILABLE_ROLES = [
   { id: 'admin', label: 'Admin / Core EC' },
@@ -55,6 +63,12 @@ const SendNotification = () => {
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['core_hospitality']);
   const [filterType, setFilterType] = useState<'checkoutDueToday' | 'inHouse' | 'hasAccommodation'>('checkoutDueToday');
   
+  const [pickedUsers, setPickedUsers] = useState<PickedUser[]>([]);
+  const [userQuery, setUserQuery] = useState('');
+  const [userResults, setUserResults] = useState<PickedUser[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [emailsText, setEmailsText] = useState('');
+
   const [sending, setSending] = useState(false);
   const [runningSummary, setRunningSummary] = useState(false);
 
@@ -72,6 +86,29 @@ const SendNotification = () => {
     );
   };
 
+  const handleSearchUsers = async () => {
+    if (!userQuery.trim()) return;
+    setSearchingUsers(true);
+    try {
+      const results = await searchUsers(userQuery);
+      setUserResults(
+        (results || [])
+          .filter((u: any) => u.userId)
+          .map((u: any) => ({ userId: u.userId, displayName: u.displayName || '', email: u.email || '' }))
+      );
+    } catch {
+      setUserResults([]);
+    } finally {
+      setSearchingUsers(false);
+    }
+  };
+
+  const togglePickedUser = (u: PickedUser) => {
+    setPickedUsers((prev) =>
+      prev.some((p) => p.userId === u.userId) ? prev.filter((p) => p.userId !== u.userId) : [...prev, u]
+    );
+  };
+
   const handleSendNotification = async () => {
     if (!title.trim() || !body.trim()) {
       showAlert('Error', 'Please enter both title and message');
@@ -83,6 +120,12 @@ const SendNotification = () => {
       return;
     }
 
+    const pastedEmails = parseEmails(emailsText);
+    if (targetMode === 'users' && pickedUsers.length === 0 && pastedEmails.length === 0) {
+      showAlert('Error', 'Pick at least one user or paste some emails');
+      return;
+    }
+
     const token = await getToken();
 
     let targetDesc = '';
@@ -90,6 +133,8 @@ const SendNotification = () => {
       targetDesc = `Topic: ${topic}`;
     } else if (targetMode === 'roles') {
       targetDesc = `Roles: ${selectedRoles.join(', ')}`;
+    } else if (targetMode === 'users') {
+      targetDesc = `${pickedUsers.length + pastedEmails.length} specific user(s)`;
     } else {
       targetDesc = `Filter: ${filterType === 'checkoutDueToday' ? 'Guests checking out today' : filterType === 'inHouse' ? 'All In-House guests' : 'All guests with accommodation'}`;
     }
@@ -115,6 +160,10 @@ const SendNotification = () => {
               } else if (targetMode === 'roles') {
                 payload.audience = 'roles';
                 payload.roles = selectedRoles;
+              } else if (targetMode === 'users') {
+                payload.audience = 'users';
+                payload.userIds = pickedUsers.map((u) => u.userId);
+                payload.emails = pastedEmails;
               } else if (targetMode === 'filter') {
                 payload.audience = 'filter';
                 payload.filter = {
@@ -133,14 +182,28 @@ const SendNotification = () => {
                 body: JSON.stringify(payload),
               });
 
-              const responseData = await response.json();
+              const responseData = await response.json().catch(() => ({} as any));
 
               if (response.ok) {
-                showAlert('Success 🎉', responseData.message || 'Notification sent successfully!');
+                const lines = [responseData.message || 'Notification sent successfully!'];
+                if (typeof responseData.recipientCount === 'number') {
+                  lines.push(
+                    '',
+                    `• Users reached: ${responseData.recipientCount}`,
+                    `• Devices delivered: ${responseData.deliveredCount ?? 0}`,
+                    `• Failed: ${responseData.failedCount ?? 0}`
+                  );
+                }
+                if (Array.isArray(responseData.unmatched) && responseData.unmatched.length > 0) {
+                  lines.push('', `Not found: ${responseData.unmatched.join(', ')}`);
+                }
+                showAlert('Success 🎉', lines.join('\n'));
                 setTitle('');
                 setBody('');
               } else {
-                throw new Error(responseData.message || 'Failed to send notification');
+                throw new Error(
+                  responseData?.error?.message || responseData?.message || 'Failed to send notification'
+                );
               }
             } catch (error: any) {
               showAlert('Error', error.message || 'Failed to send notification. Please try again.');
@@ -183,7 +246,7 @@ const SendNotification = () => {
                   `Report sent successfully!\n\n• Incoming Tomorrow: ${s.incomingTomorrow ?? 0}\n• Outgoing Today: ${s.outgoingToday ?? 0}\n• Staff & Admins Notified: ${s.staffNotified ?? 0}\n• Attendees Notified: ${s.attendeesNotified ?? 0}`
                 );
               } else {
-                throw new Error(data.message || 'Could not trigger summary');
+                throw new Error(data?.error?.message || data?.message || 'Could not trigger summary');
               }
             } catch (e: any) {
               showAlert('Trigger Failed', e.message || 'Could not trigger daily summary');
@@ -213,7 +276,7 @@ const SendNotification = () => {
     { label: 'All Users', value: 'all', description: 'Sends to all registered app users' },
     { label: 'Host College Students', value: 'host', description: 'Sends only to host college students' },
     { label: 'Visiting Students', value: 'outside', description: 'Sends to outside participants only' },
-    { label: 'All Hospitality Staff', value: 'hospitality_staff', description: 'Sends to EB, EC & Core Hospitality' },
+    { label: 'All Hospitality Staff', value: 'hospitality_staff', description: 'Sends to Admins + EB, EC & Core Hospitality' },
   ];
 
   return (
@@ -343,8 +406,9 @@ const SendNotification = () => {
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
           {[
             { key: 'broadcast', label: 'Broadcast', icon: Bell },
-            { key: 'roles', label: 'Target by Role', icon: Users },
-            { key: 'filter', label: 'By User Filter', icon: Filter },
+            { key: 'roles', label: 'Roles', icon: Users },
+            { key: 'users', label: 'Users', icon: UserCheck },
+            { key: 'filter', label: 'Filter', icon: Filter },
           ].map((tab) => {
             const Icon = tab.icon;
             const isSelected = targetMode === tab.key;
@@ -463,6 +527,140 @@ const SendNotification = () => {
                 );
               })}
             </View>
+          </View>
+        )}
+
+        {/* Target: Specific Users Mode */}
+        {targetMode === 'users' && (
+          <View style={{ marginBottom: 18 }}>
+            <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 13, marginBottom: 8 }}>
+              Search Users
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+              <TextInput
+                style={{
+                  flex: 1,
+                  backgroundColor: cardBg,
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  color: textPrimary,
+                  borderWidth: 1,
+                  borderColor: cardBorder,
+                  fontFamily: "Poppins_400Regular",
+                  fontSize: 13,
+                }}
+                placeholder="Name, email or phone"
+                placeholderTextColor={textSecondary}
+                value={userQuery}
+                onChangeText={setUserQuery}
+                onSubmitEditing={handleSearchUsers}
+                returnKeyType="search"
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                onPress={handleSearchUsers}
+                disabled={searchingUsers}
+                activeOpacity={0.8}
+                style={{ backgroundColor: "#41B8F0", borderRadius: 12, paddingHorizontal: 16, justifyContent: "center" }}
+              >
+                {searchingUsers ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>Search</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {userResults.map((u) => {
+              const isSelected = pickedUsers.some((p) => p.userId === u.userId);
+              return (
+                <TouchableOpacity
+                  key={u.userId}
+                  onPress={() => togglePickedUser(u)}
+                  activeOpacity={0.8}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: 12,
+                    borderRadius: 12,
+                    marginBottom: 6,
+                    backgroundColor: isSelected ? (isDark ? "rgba(65, 184, 240, 0.15)" : "#E0F2FE") : cardBg,
+                    borderWidth: 1,
+                    borderColor: isSelected ? "#41B8F0" : cardBorder,
+                  }}
+                >
+                  <Ionicons
+                    name={isSelected ? "checkbox" : "square-outline"}
+                    size={18}
+                    color={isSelected ? "#41B8F0" : textSecondary}
+                  />
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 13 }}>
+                      {u.displayName || 'Unnamed user'}
+                    </Text>
+                    <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 11 }}>
+                      {u.email}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
+            {pickedUsers.length > 0 && (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6, marginBottom: 4 }}>
+                {pickedUsers.map((u) => (
+                  <TouchableOpacity
+                    key={u.userId}
+                    onPress={() => togglePickedUser(u)}
+                    activeOpacity={0.75}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 10,
+                      backgroundColor: "#41B8F0",
+                    }}
+                  >
+                    <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 12, color: "#FFFFFF" }}>
+                      {u.displayName || u.email}
+                    </Text>
+                    <X size={12} color="#FFFFFF" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 13, marginTop: 12, marginBottom: 8 }}>
+              Or paste emails
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: cardBg,
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                color: textPrimary,
+                borderWidth: 1,
+                borderColor: cardBorder,
+                fontFamily: "Poppins_400Regular",
+                fontSize: 13,
+                minHeight: 70,
+                textAlignVertical: "top",
+              }}
+              placeholder="one@example.com, two@example.com"
+              placeholderTextColor={textSecondary}
+              value={emailsText}
+              onChangeText={setEmailsText}
+              multiline
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 11, marginTop: 6 }}>
+              {pickedUsers.length} picked · {parseEmails(emailsText).length} pasted
+            </Text>
           </View>
         )}
 

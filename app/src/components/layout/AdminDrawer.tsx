@@ -83,14 +83,19 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
       }
     } catch (e) {
       console.warn('[AdminDrawer] could not load backend nav, using fallback:', e);
+      // Don't keep showing items from before a role change.
+      setNavItems([]);
+      setHasLoadedNav(false);
     } finally {
       setIsLoadingNav(false);
     }
   }, []);
 
+  // Refetch when the user's roles change (e.g. via a live profile refresh).
+  const rolesKey = [...userRoles].sort().join(',');
   useEffect(() => {
     loadBackendNavigation();
-  }, [loadBackendNavigation]);
+  }, [loadBackendNavigation, rolesKey]);
 
   useEffect(() => {
     if (visible) {

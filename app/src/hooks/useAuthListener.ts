@@ -24,12 +24,14 @@ export const useAuthListener = () => {
         setAuthUser(user);
 
         try {
-          // Check if we already have the user data in our local Zustand cache
           const existingUserData = useUserStore.getState().userData;
-          
+
           if (!existingUserData) {
-            // Only hit the backend to sync session if we don't have the profile cached
             await syncBackendSession(user);
+          } else {
+            // Render the cached profile right away, but revalidate in the
+            // background so role changes made while the app was closed apply.
+            useUserStore.getState().refreshUserProfile().catch(() => {});
           }
         } catch (error) {
           console.error("Failed to restore backend session:", error);

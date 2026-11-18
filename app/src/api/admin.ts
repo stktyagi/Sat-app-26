@@ -244,9 +244,6 @@ export async function adminListUsers(_params?: { q?: string; role?: string }): P
   return MOCK_USERS;
 }
 
-export async function adminUpdateUserRole(userId: string, role: string): Promise<void> {
-  console.log('[mock] updateUserRole', userId, role);
-}
 
 export async function adminUpdateUser(email: string, data: Record<string, any>): Promise<AdminUser> {
   const res = await apiFetch(`/admin/users/by-email/${encodeURIComponent(email)}`, {
