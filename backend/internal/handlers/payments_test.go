@@ -147,8 +147,8 @@ func TestCouponDatesFailClosed(t *testing.T) {
 	mk := func(from, until string) *models.Coupon {
 		return &models.Coupon{Code: "C", IsActive: true, IsHostCollegeAllowed: true, IsOtherCollegeAllowed: true, ValidFrom: from, ValidUntil: until}
 	}
-	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
-	today := time.Now().UTC().Format("2006-01-02")
+	yesterday := time.Now().In(config.IST).AddDate(0, 0, -1).Format("2006-01-02")
+	today := time.Now().In(config.IST).Format("2006-01-02")
 
 	if err := a.checkCoupon(t.Context(), mk("", yesterday), user, 100); err == nil || err.Code != "coupon_expired" {
 		t.Errorf("a date-only validUntil in the past must expire the coupon, got %v", err)

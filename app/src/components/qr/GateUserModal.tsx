@@ -717,11 +717,11 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
                 </View>
 
                 {(currentUserData.checkInStatus.Hostel || currentUserData.checkInStatus.RoomNo) && (
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <View style={{ flexDirection: "column", gap: 3, marginTop: 4 }}>
                     <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
-                      Assigned Hostel
+                      Assigned Hostel & Room
                     </Text>
-                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 13, flex: 1, textAlign: "right", marginLeft: 8 }}>
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 13, lineHeight: 18 }}>
                       {formatHostelDisplay(currentUserData.checkInStatus.Hostel, currentUserData.checkInStatus.RoomNo)}
                     </Text>
                   </View>

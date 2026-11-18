@@ -123,8 +123,10 @@ type CheckInStatus struct {
 type HostelItems struct {
 	PillowGiven      bool `json:"pillowGiven"      firestore:"pillowGiven"`
 	MattressGiven    bool `json:"mattressGiven"    firestore:"mattressGiven"`
+	BedsheetGiven    bool `json:"bedsheetGiven"    firestore:"bedsheetGiven"`
 	PillowReturned   bool `json:"pillowReturned"   firestore:"pillowReturned"`
 	MattressReturned bool `json:"mattressReturned" firestore:"mattressReturned"`
+	BedsheetReturned bool `json:"bedsheetReturned" firestore:"bedsheetReturned"`
 }
 
 // Unreturned lists items given at check-in that have not come back.
@@ -135,6 +137,9 @@ func (i HostelItems) Unreturned() []string {
 	}
 	if i.MattressGiven && !i.MattressReturned {
 		out = append(out, "mattress")
+	}
+	if i.BedsheetGiven && !i.BedsheetReturned {
+		out = append(out, "bedsheet")
 	}
 	return out
 }

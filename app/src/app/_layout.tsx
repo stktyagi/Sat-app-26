@@ -25,6 +25,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore } from '@/state/userStore';
 import { useAuthListener } from '@/hooks/useAuthListener';
 import { useNotifications } from '@/hooks/useNotifications';
+import { setupBackgroundMessageHandler } from '@/utils/fcm';
 import { AlertProvider } from '@/components/ui/CustomAlert';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient } from '@tanstack/react-query';
@@ -37,6 +38,15 @@ import { loadCollegesAsync } from '@/data/Colleges';
 import ConnectivityWrapper from '@/components/system/ConnectivityWrapper';
 import Constants from 'expo-constants';
 import Sentry from '@/config/sentry';
+
+// Register background message handler outside React component lifecycle
+if (Platform.OS !== 'web') {
+  try {
+    setupBackgroundMessageHandler();
+  } catch (e) {
+    console.warn('Failed to setup background message handler:', e);
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -111,7 +111,7 @@ export function isFullAdmin(user: UserProfile | null | undefined): boolean {
  */
 export function isUserAdmin(user: UserProfile | null | undefined): boolean {
   const roles = getUserRoles(user);
-  return roles.some((r) => r !== ROLE_USER);
+  return roles.some((r) => typeof r === 'string' && r.trim() !== '' && r !== ROLE_USER);
 }
 
 /**

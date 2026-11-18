@@ -67,6 +67,7 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
   const [isModalVisible, setIsModalVisible] = useState(visible);
   const [navItems, setNavItems] = useState<AdminNavigationItem[]>([]);
   const [isLoadingNav, setIsLoadingNav] = useState(false);
+  const [hasLoadedNav, setHasLoadedNav] = useState(false);
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pendingRouteRef = useRef<string | null>(null);
@@ -76,8 +77,9 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
     try {
       setIsLoadingNav(true);
       const items = await getAdminNavigation();
-      if (Array.isArray(items) && items.length > 0) {
+      if (Array.isArray(items)) {
         setNavItems(items);
+        setHasLoadedNav(true);
       }
     } catch (e) {
       console.warn('[AdminDrawer] could not load backend nav, using fallback:', e);
@@ -85,6 +87,10 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
       setIsLoadingNav(false);
     }
   }, []);
+
+  useEffect(() => {
+    loadBackendNavigation();
+  }, [loadBackendNavigation]);
 
   useEffect(() => {
     if (visible) {
@@ -147,8 +153,8 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
     );
   }, [userRoles]);
 
-  // Primary source is backend-filtered navItems; fall back to local items if empty
-  const displayItems = navItems.length > 0 ? navItems : fallbackItems;
+  // Primary source is backend-filtered navItems; fall back to local items ONLY if not yet loaded from backend
+  const displayItems = hasLoadedNav ? navItems : fallbackItems;
 
   const navigate = (route: string) => {
     pendingRouteRef.current = route;
@@ -303,6 +309,14 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
           {isLoadingNav && navItems.length === 0 && (
             <View style={{ paddingVertical: 16, alignItems: 'center' }}>
               <ActivityIndicator size="small" color="#41B8F0" />
+            </View>
+          )}
+          {!isLoadingNav && displayItems.length === 0 && (
+            <View style={{ padding: 24, alignItems: 'center' }}>
+              <Ionicons name="shield-outline" size={36} color={textSecondary} />
+              <Text style={{ fontFamily: 'Poppins_500Medium', color: textSecondary, fontSize: 13, marginTop: 10, textAlign: 'center' }}>
+                No admin screens assigned to your role yet.
+              </Text>
             </View>
           )}
         </ScrollView>

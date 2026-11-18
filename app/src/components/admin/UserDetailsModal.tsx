@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from "react-native";
 import {
   X,
@@ -24,6 +25,7 @@ import {
   Crown,
   ShoppingBag,
   Ticket,
+  Plus,
 } from "lucide-react-native";
 import { AdminUserProfile } from '@/types/adminTypes';
 import { UserProfile } from '@/types/models';
@@ -31,6 +33,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { showAlert } from "../index";
 import { PrivateRoleComponent } from "../auth/PrivateRoleComponent";
 import { adminGetUserRegistrations, adminUpdateUser, adminDeleteUser } from "@/api/admin";
+import { adminGetScreensConfig } from "@/api/appConfig";
 
 interface UserDetailsModalProps {
   visible: boolean;
@@ -81,6 +84,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [showRoleManagement, setShowRoleManagement] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [dynamicRoles, setDynamicRoles] = useState<{ id: string; label: string }[]>(availableRoles);
+  const [customRoleInput, setCustomRoleInput] = useState("");
   /* Removed API call */
   const lastUserIdRef = useRef<string | null>(null);
   const lastRolesRef = useRef<string>("");
@@ -97,19 +102,58 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   // Initialize selected roles when user changes - only update if roles actually changed
   useEffect(() => {
     if (user) {
-      const currentRoles = user.roles || (user.role ? [user.role] : []);
-      // Create a sorted string for comparison, but keep original order for state
-      const sortedRolesString = JSON.stringify([...currentRoles].sort());
+      const currentRoles = (user.roles || (user.role ? [user.role] : [])).filter(Boolean);
+      // Ensure all currentRoles exist in dynamicRoles
+      setDynamicRoles((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const toAdd = currentRoles
+          .filter((r) => !existingIds.has(r))
+          .map((r) => ({ id: r, label: r.charAt(0).toUpperCase() + r.slice(1).replace(/_/g, ' ') }));
+        return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+      });
 
-      // Only update if roles have actually changed
+      const sortedRolesString = JSON.stringify([...currentRoles].sort());
       if (sortedRolesString !== lastRolesRef.current) {
-        console.log("Roles changed, updating selectedRoles:", currentRoles);
         lastRolesRef.current = sortedRolesString;
-        // Keep the original order from the user object, don't sort
         setSelectedRoles([...currentRoles]);
       }
     }
   }, [user]);
+
+  // Load configured roles from backend screens config when modal opens
+  useEffect(() => {
+    if (visible) {
+      adminGetScreensConfig()
+        .then((screens) => {
+          if (Array.isArray(screens)) {
+            const screenRoleIds = new Set<string>();
+            screens.forEach((s) => s.requiredRoles?.forEach((r) => r && screenRoleIds.add(r.trim().toLowerCase())));
+            setDynamicRoles((prev) => {
+              const existingIds = new Set(prev.map((r) => r.id));
+              const toAdd: { id: string; label: string }[] = [];
+              screenRoleIds.forEach((r) => {
+                if (!existingIds.has(r)) {
+                  toAdd.push({ id: r, label: r.charAt(0).toUpperCase() + r.slice(1).replace(/_/g, ' ') });
+                }
+              });
+              return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [visible]);
+
+  const handleAddCustomRole = () => {
+    const raw = (customRoleInput || '').trim().toLowerCase().replace(/\s+/g, '_');
+    if (!raw) return;
+    setDynamicRoles((prev) => {
+      if (prev.some((r) => r.id === raw)) return prev;
+      return [...prev, { id: raw, label: raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, ' ') }];
+    });
+    setSelectedRoles((prev) => (prev.includes(raw) ? prev : [...prev, raw]));
+    setCustomRoleInput("");
+  };
 
   const fetchUserData = async () => {
     if (!user) return;
@@ -752,7 +796,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
               {!showRoleManagement ? (
                 <View className="flex-row flex-wrap gap-2">
                   {(user.roles || [user.role]).filter(Boolean).map((roleId) => {
-                    const role = availableRoles.find((r) => r.id === roleId);
+                    const role = dynamicRoles.find((r) => r.id === roleId);
                     const roleColor =
                       ROLE_COLORS[roleId as keyof typeof ROLE_COLORS] ||
                       "#6B7280";
@@ -786,8 +830,32 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                     role will be set as the primary role.
                   </Text>
 
+                  {/* Add Custom Role Input */}
+                  <View className="flex-row items-center gap-2 mb-4">
+                    <TextInput
+                      value={customRoleInput}
+                      onChangeText={setCustomRoleInput}
+                      placeholder="Add role (e.g. sponsor_lead)..."
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      className="flex-1 bg-[#2175C0]/5 border border-[#2175C0]/20 rounded-xl px-4 py-2.5 text-[#0C3572] text-sm"
+                      style={{ fontFamily: "Outfit_400Regular" }}
+                    />
+                    <TouchableOpacity
+                      onPress={handleAddCustomRole}
+                      className="bg-[#2175C0] px-4 py-2.5 rounded-xl flex-row items-center justify-center"
+                      activeOpacity={0.7}
+                    >
+                      <Plus size={16} color="#ffffff" />
+                      <Text style={{ fontFamily: "Outfit_600SemiBold" }} className="text-white text-sm ml-1">
+                        Add
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
                   <View className="space-y-3 flex-col flex gap-3">
-                    {availableRoles.map((role) => {
+                    {dynamicRoles.map((role) => {
                       const isSelected = selectedRoles.includes(role.id);
                       const roleColor =
                         ROLE_COLORS[

@@ -161,10 +161,17 @@ export interface AdminBanner {
 }
 
 export interface AccommodationStats {
+  day?: string;
   total: number;
   checkedIn: number;
   checkedOut?: number;
   pending: number;
+  incomingTotal?: number;
+  incomingCheckedIn?: number;
+  incomingPending?: number;
+  outgoingTotal?: number;
+  outgoingCheckedOut?: number;
+  outgoingPending?: number;
 }
 
 export interface UserAccommodation {
@@ -1275,6 +1282,7 @@ export const updateHostelStatus = async (
       return { success: false, error: err, message: err };
     }
     const json = await res.json();
+    await clearAccommodationCache();
     return { success: true, data: json.data, unreturned: json.unreturned || [] };
   } catch (error: any) {
     return {
@@ -1318,15 +1326,19 @@ export const getCurrentEventDay = (now: Date = new Date()): string => {
 export interface HostelItems {
   pillowGiven: boolean;
   mattressGiven: boolean;
+  bedsheetGiven: boolean;
   pillowReturned: boolean;
   mattressReturned: boolean;
+  bedsheetReturned: boolean;
 }
 
 export const EMPTY_ITEMS: HostelItems = {
   pillowGiven: false,
   mattressGiven: false,
+  bedsheetGiven: false,
   pillowReturned: false,
   mattressReturned: false,
+  bedsheetReturned: false,
 };
 
 export interface AdminHostel {

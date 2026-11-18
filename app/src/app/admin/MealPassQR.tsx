@@ -54,11 +54,11 @@ const ALL_DAYS_OPTION: DayOption = {
 };
 
 const PER_DAY_OPTIONS: DayOption[] = [
-  { key: 'day0', name: 'Day 0', dayOfWeek: 'Wednesday', formattedDate: 'Wednesday, Nov 19, 2026' },
-  { key: 'day1', name: 'Day 1', dayOfWeek: 'Thursday', formattedDate: 'Thursday, Nov 20, 2026' },
-  { key: 'day2', name: 'Day 2', dayOfWeek: 'Friday', formattedDate: 'Friday, Nov 21, 2026' },
-  { key: 'day3', name: 'Day 3', dayOfWeek: 'Saturday', formattedDate: 'Saturday, Nov 22, 2026' },
-  { key: 'day4', name: 'Day 4', dayOfWeek: 'Sunday', formattedDate: 'Sunday, Nov 23, 2026' },
+  { key: 'day0', name: 'Day 0', dayOfWeek: 'Thursday', formattedDate: 'Thursday, Nov 19, 2026' },
+  { key: 'day1', name: 'Day 1', dayOfWeek: 'Friday', formattedDate: 'Friday, Nov 20, 2026' },
+  { key: 'day2', name: 'Day 2', dayOfWeek: 'Saturday', formattedDate: 'Saturday, Nov 21, 2026' },
+  { key: 'day3', name: 'Day 3', dayOfWeek: 'Sunday', formattedDate: 'Sunday, Nov 22, 2026' },
+  { key: 'day4', name: 'Day 4', dayOfWeek: 'Monday', formattedDate: 'Monday, Nov 23, 2026' },
 ];
 
 export default function MealPassQRScreen() {
@@ -68,7 +68,7 @@ export default function MealPassQRScreen() {
   const { userData } = useUserStore();
 
   // Top tabs: 'all' (All 5 Days) vs 'perDay' (Per Day)
-  const [activeTab, setActiveTab] = useState<'all' | 'perDay'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'perDay'>('perDay');
   const [selectedPerDayKey, setSelectedPerDayKey] = useState<string>('day1');
   const [selectedDayKey, setSelectedDayKey] = useState<string>('all');
 

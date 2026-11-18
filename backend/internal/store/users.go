@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"slices"
 	"google.golang.org/api/iterator"
 
 	"backend/internal/isotime"
@@ -489,5 +490,47 @@ func (s *Store) ListAccommodationUsers(ctx context.Context) ([]*models.User, err
 
 	accomCache = users
 	accomCacheTime = time.Now()
+	return users, nil
+}
+
+// GetUsersByRoles returns all users that hold at least one of the specified roles.
+func (s *Store) GetUsersByRoles(ctx context.Context, roles []string) ([]*models.User, error) {
+	if len(roles) == 0 {
+		return nil, nil
+	}
+
+	normRoles := make([]string, 0, len(roles))
+	for _, r := range roles {
+		norm := models.NormalizeRole(r)
+		if norm != "" && !slices.Contains(normRoles, norm) {
+			normRoles = append(normRoles, norm)
+		}
+	}
+	if len(normRoles) == 0 {
+		return nil, nil
+	}
+
+	if len(normRoles) > 30 {
+		normRoles = normRoles[:30]
+	}
+
+	iter := s.FS.Collection(ColUsers).Where("roles", "array-contains-any", normRoles).Documents(ctx)
+	defer iter.Stop()
+
+	var users []*models.User
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, wrap(err)
+		}
+		u, err := decodeUser(doc)
+		if err != nil {
+			continue
+		}
+		users = append(users, u)
+	}
 	return users, nil
 }

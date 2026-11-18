@@ -152,11 +152,17 @@ func (a *API) AdminAccommodationStats(c *gin.Context) {
 	}
 
 	type dayStat struct {
-		Day        string `json:"day"`
-		Total      int    `json:"total"`
-		CheckedIn  int    `json:"checkedIn"`
-		CheckedOut int    `json:"checkedOut"`
-		Pending    int    `json:"pending"`
+		Day                string `json:"day"`
+		Total              int    `json:"total"`
+		CheckedIn          int    `json:"checkedIn"`
+		CheckedOut         int    `json:"checkedOut"`
+		Pending            int    `json:"pending"`
+		IncomingTotal      int    `json:"incomingTotal"`
+		IncomingCheckedIn  int    `json:"incomingCheckedIn"`
+		IncomingPending    int    `json:"incomingPending"`
+		OutgoingTotal      int    `json:"outgoingTotal"`
+		OutgoingCheckedOut int    `json:"outgoingCheckedOut"`
+		OutgoingPending    int    `json:"outgoingPending"`
 	}
 
 	stats := make([]dayStat, 6)
@@ -165,6 +171,14 @@ func (a *API) AdminAccommodationStats(c *gin.Context) {
 		total := 0
 		checkedIn := 0
 		checkedOut := 0
+
+		incomingTotal := 0
+		incomingCheckedIn := 0
+		incomingPending := 0
+
+		outgoingTotal := 0
+		outgoingCheckedOut := 0
+		outgoingPending := 0
 
 		for _, u := range users {
 			acc := u.Accommodation
@@ -181,19 +195,87 @@ func (a *API) AdminAccommodationStats(c *gin.Context) {
 					checkedIn++
 				}
 			}
+
+			// Incoming on day i: First day of booked stay
+			isIncoming := false
+			if acc != nil && acc[dayKey] {
+				if i == 0 || !acc[fmt.Sprintf("day%d", i-1)] {
+					isIncoming = true
+				}
+			}
+			if isIncoming {
+				incomingTotal++
+				if u.CheckInStatus.CheckedOut || u.CheckInStatus.Accommodation {
+					incomingCheckedIn++
+				} else {
+					incomingPending++
+				}
+			}
+
+			// Outgoing on day i: Previous day was booked, but today is NOT booked
+			isOutgoing := false
+			if i > 0 && acc != nil {
+				if i == 5 {
+					isOutgoing = acc["day4"]
+				} else if acc[fmt.Sprintf("day%d", i-1)] && !acc[dayKey] {
+					isOutgoing = true
+				}
+			}
+			if isOutgoing {
+				outgoingTotal++
+				if u.CheckInStatus.CheckedOut {
+					outgoingCheckedOut++
+				} else {
+					outgoingPending++
+				}
+			}
 		}
 
 		stats[i] = dayStat{
-			Day:        strconv.Itoa(i),
-			Total:      total,
-			CheckedIn:  checkedIn,
-			CheckedOut: checkedOut,
-			Pending:    total - checkedIn - checkedOut,
+			Day:                strconv.Itoa(i),
+			Total:              total,
+			CheckedIn:          checkedIn,
+			CheckedOut:         checkedOut,
+			Pending:            total - checkedIn - checkedOut,
+			IncomingTotal:      incomingTotal,
+			IncomingCheckedIn:  incomingCheckedIn,
+			IncomingPending:    incomingPending,
+			OutgoingTotal:      outgoingTotal,
+			OutgoingCheckedOut: outgoingCheckedOut,
+			OutgoingPending:    outgoingPending,
+		}
+	}
+
+	todayIdx := -1
+	if !a.Cfg.FestDay0.IsZero() {
+		todayIdx = festDayIndex(a.Cfg.FestDay0, a.clock())
+	}
+	todayDateStr := a.clock().In(config.IST).Format("2006-01-02")
+	todayCheckedIn := 0
+	todayCheckedOut := 0
+	for _, u := range users {
+		st := u.CheckInStatus
+		if st.CheckedInAt != "" && strings.HasPrefix(st.CheckedInAt, todayDateStr) {
+			todayCheckedIn++
+		}
+		if st.CheckedOutAt != "" && strings.HasPrefix(st.CheckedOutAt, todayDateStr) {
+			todayCheckedOut++
+		}
+	}
+	if todayIdx >= 0 && todayIdx < 6 {
+		if todayCheckedIn == 0 && stats[todayIdx].CheckedIn > 0 {
+			todayCheckedIn = stats[todayIdx].CheckedIn
+		}
+		if todayCheckedOut == 0 && stats[todayIdx].CheckedOut > 0 {
+			todayCheckedOut = stats[todayIdx].CheckedOut
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"stats": stats,
+		"stats":           stats,
+		"today":           todayIdx,
+		"todayCheckedIn":  todayCheckedIn,
+		"todayCheckedOut": todayCheckedOut,
 	})
 }
 

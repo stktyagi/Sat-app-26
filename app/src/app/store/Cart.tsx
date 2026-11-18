@@ -30,9 +30,17 @@ export default function CartScreen() {
   const handleCheckout = () => {
     if (items.length === 0) return;
 
+    if (userCoins < totalAmount) {
+      showAlert(
+        'Insufficient Coins',
+        `You have ${userCoins} coins, but this order requires ${totalAmount} coins. Play daily games and quizzes to earn more coins!`
+      );
+      return;
+    }
+
     showAlert(
       'Confirm Reservation',
-      `Reserve ${totalCount} item${totalCount > 1 ? 's' : ''} for ₹${totalAmount}? You can collect your merchandise at the Saturnalia Fest Store booth.`,
+      `Reserve ${totalCount} item${totalCount > 1 ? 's' : ''} for ${totalAmount} Coins? You can collect your merchandise at the Saturnalia Fest Store booth.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -242,16 +250,18 @@ export default function CartScreen() {
                       Size: {cartItem.selectedSize}
                     </Text>
                   )}
-                  <Text
-                    style={{
-                      fontFamily: 'Outfit_700Bold',
-                      fontSize: 15,
-                      color: '#38BDF8',
-                      marginTop: 3,
-                    }}
-                  >
-                    ₹{cartItem.price * cartItem.quantity}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                    <Coins size={14} color="#F59E0B" />
+                    <Text
+                      style={{
+                        fontFamily: 'Outfit_700Bold',
+                        fontSize: 15,
+                        color: '#F59E0B',
+                      }}
+                    >
+                      {cartItem.price * cartItem.quantity} Coins
+                    </Text>
+                  </View>
                 </View>
 
                 {/* Quantity Controls */}
@@ -368,7 +378,7 @@ export default function CartScreen() {
                 Items Total ({totalCount})
               </Text>
               <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 13.5, color: isDark ? '#FFFFFF' : '#111827' }}>
-                ₹{totalAmount}
+                {totalAmount} Coins
               </Text>
             </View>
 
@@ -393,9 +403,12 @@ export default function CartScreen() {
               <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 16, color: isDark ? '#FFFFFF' : '#111827' }}>
                 Total Payable
               </Text>
-              <Text style={{ fontFamily: 'Outfit_800ExtraBold', fontSize: 20, color: '#38BDF8' }}>
-                ₹{totalAmount}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Coins size={18} color="#F59E0B" />
+                <Text style={{ fontFamily: 'Outfit_800ExtraBold', fontSize: 20, color: '#F59E0B' }}>
+                  {totalAmount} Coins
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -423,7 +436,7 @@ export default function CartScreen() {
                 color: '#000000',
               }}
             >
-              Reserve Merchandise • ₹{totalAmount}
+              Reserve Merchandise • {totalAmount} Coins
             </Text>
           </TouchableOpacity>
         </ScrollView>

@@ -71,7 +71,8 @@
         "eb_hospitality",
         "ec_hospitality",
         "eb_events",
-        "event_poc"
+        "event_poc",
+        "core_hospitality"
       ]
     },
     {
@@ -101,7 +102,8 @@
       "requiredRoles": [
         "admin",
         "eb_hospitality",
-        "ec_hospitality"
+        "ec_hospitality",
+        "core_hospitality"
       ]
     },
     {
@@ -112,7 +114,8 @@
       "requiredRoles": [
         "admin",
         "eb_hospitality",
-        "ec_hospitality"
+        "ec_hospitality",
+        "core_hospitality"
       ]
     },
     {

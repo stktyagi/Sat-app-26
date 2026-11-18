@@ -32,14 +32,17 @@ interface HostelUserModalProps {
   onClose: () => void;
   userData: UserGateData | null;
   onUserDataUpdate?: (updatedData: UserGateData) => void;
+  onActionComplete?: (action: HostelAction) => void;
 }
 
-const itemsLabel = (list: string[]) => list.map((i) => (i === "pillow" ? "Pillow" : "Mattress")).join(" & ");
+const itemsLabel = (list: string[]) =>
+  list.map((i) => (i === "pillow" ? "Pillow" : i === "bedsheet" ? "Bedsheet" : "Mattress")).join(" & ");
 
 const unreturnedOf = (i: HostelItems) => {
   const out: string[] = [];
-  if (i.pillowGiven && !i.pillowReturned) out.push("pillow");
   if (i.mattressGiven && !i.mattressReturned) out.push("mattress");
+  if (i.pillowGiven && !i.pillowReturned) out.push("pillow");
+  if (i.bedsheetGiven && !i.bedsheetReturned) out.push("bedsheet");
   return out;
 };
 
@@ -47,7 +50,7 @@ const unreturnedOf = (i: HostelItems) => {
  * Hostel desk: check a participant in (hand out pillow/mattress) or out
  * (collect them). Hostel allotment happens at the registration desk.
  */
-const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, userData, onUserDataUpdate }) => {
+const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, userData, onUserDataUpdate, onActionComplete }) => {
   const c = useHospitalityColors();
   const { userData: me } = useUserStore();
   const isLead = hasAnyRole(me, HOSPITALITY_LEAD_ROLES);
@@ -96,6 +99,7 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, use
       setData(updated);
       setItems({ ...EMPTY_ITEMS, ...(cs.items || {}) });
       onUserDataUpdate?.(updated);
+      onActionComplete?.(action);
       const left = res.unreturned || [];
       setSuccess(action === "checkout" && left.length ? `${okMsg} — ${itemsLabel(left)} not returned!` : okMsg);
     } finally {
@@ -104,7 +108,11 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, use
   };
 
   const onCheckIn = () => {
-    const missing = [!items.pillowGiven && "pillow", !items.mattressGiven && "mattress"].filter(Boolean) as string[];
+    const missing = [
+      !items.mattressGiven && "mattress",
+      !items.pillowGiven && "pillow",
+      !items.bedsheetGiven && "bedsheet",
+    ].filter(Boolean) as string[];
     if (missing.length) {
       showAlert("Items not marked", `${itemsLabel(missing)} not marked as given. Check in anyway?`, [
         { text: "Cancel", style: "cancel" },
@@ -136,7 +144,15 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, use
       { text: "Revert", style: "destructive", onPress: () => run("revert", "Reset to pending") },
     ]);
 
-  const setItem = (k: keyof HostelItems, v: boolean) => setItems((p) => ({ ...p, [k]: v }));
+  const setItem = (k: keyof HostelItems, v: boolean) => {
+    setItems((p) => {
+      const next = { ...p, [k]: v };
+      if (k === "mattressGiven" && !v) next.mattressReturned = false;
+      if (k === "pillowGiven" && !v) next.pillowReturned = false;
+      if (k === "bedsheetGiven" && !v) next.bedsheetReturned = false;
+      return next;
+    });
+  };
 
   const statusPill = checkedOut
     ? { label: "Checked out", color: c.textSecondary }
@@ -222,11 +238,48 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, use
             </Card>
 
             {allotted ? (
-              <Card title={checkedIn ? "Collect at checkout" : "Hand out at check-in"}>
+              <Card title={checkedIn ? "Bedding Items (Issued & Returned)" : checkedOut ? "Returned at checkout" : "Hand out at check-in"}>
                 {!checkedIn && !checkedOut ? (
                   <>
                     <ToggleRow icon="bed-outline" label="Mattress given" value={items.mattressGiven} onChange={(v) => setItem("mattressGiven", v)} />
                     <ToggleRow icon="cloud-outline" label="Pillow given" value={items.pillowGiven} onChange={(v) => setItem("pillowGiven", v)} />
+                    <ToggleRow icon="layers-outline" label="Bedsheet given" value={items.bedsheetGiven} onChange={(v) => setItem("bedsheetGiven", v)} />
+                  </>
+                ) : checkedIn ? (
+                  <>
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: c.accent, fontSize: 11, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      Issued Items
+                    </Text>
+                    <ToggleRow icon="bed-outline" label="Mattress given" value={items.mattressGiven} onChange={(v) => setItem("mattressGiven", v)} />
+                    <ToggleRow icon="cloud-outline" label="Pillow given" value={items.pillowGiven} onChange={(v) => setItem("pillowGiven", v)} />
+                    <ToggleRow icon="layers-outline" label="Bedsheet given" value={items.bedsheetGiven} onChange={(v) => setItem("bedsheetGiven", v)} />
+
+                    <View style={{ height: 1, backgroundColor: c.cardBorder, marginVertical: 8 }} />
+
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: c.textSecondary, fontSize: 11, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      Returned Items
+                    </Text>
+                    <ToggleRow
+                      icon="bed-outline"
+                      label={`Mattress returned${items.mattressGiven ? "" : " (not given)"}`}
+                      value={items.mattressReturned}
+                      onChange={(v) => setItem("mattressReturned", v)}
+                      disabled={!items.mattressGiven}
+                    />
+                    <ToggleRow
+                      icon="cloud-outline"
+                      label={`Pillow returned${items.pillowGiven ? "" : " (not given)"}`}
+                      value={items.pillowReturned}
+                      onChange={(v) => setItem("pillowReturned", v)}
+                      disabled={!items.pillowGiven}
+                    />
+                    <ToggleRow
+                      icon="layers-outline"
+                      label={`Bedsheet returned${items.bedsheetGiven ? "" : " (not given)"}`}
+                      value={items.bedsheetReturned}
+                      onChange={(v) => setItem("bedsheetReturned", v)}
+                      disabled={!items.bedsheetGiven}
+                    />
                   </>
                 ) : (
                   <>
@@ -243,6 +296,13 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, use
                       value={items.pillowReturned}
                       onChange={(v) => setItem("pillowReturned", v)}
                       disabled={!items.pillowGiven || checkedOut}
+                    />
+                    <ToggleRow
+                      icon="layers-outline"
+                      label={`Bedsheet returned${items.bedsheetGiven ? "" : " (not given)"}`}
+                      value={items.bedsheetReturned}
+                      onChange={(v) => setItem("bedsheetReturned", v)}
+                      disabled={!items.bedsheetGiven || checkedOut}
                     />
                   </>
                 )}

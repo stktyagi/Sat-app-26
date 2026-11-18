@@ -30,6 +30,8 @@ import {
   Globe,
   Apple,
   Calendar,
+  Plus,
+  X,
 } from 'lucide-react-native';
 import { useAdminNavigation } from '@/hooks/useAdminNavigation';
 import { useThemeStore } from '@/state/themeStore';
@@ -98,6 +100,8 @@ export default function AppConfigScreen() {
   });
 
   const [screens, setScreens] = useState<AdminScreenConfig[]>([]);
+  const [customScreenRoles, setCustomScreenRoles] = useState<string[]>([]);
+  const [newRoleInputs, setNewRoleInputs] = useState<Record<string, string>>({});
   const [links, setLinks] = useState<AppLinks>({
     appleStore: '',
     playStore: '',
@@ -298,6 +302,31 @@ export default function AppConfigScreen() {
         return { ...s, requiredRoles: nextRoles };
       })
     );
+  };
+
+  const getRolesForScreen = (screen: AdminScreenConfig) => {
+    const set = new Set<string>(ALL_STAFF_ROLES);
+    screen.requiredRoles?.forEach((r) => {
+      if (r && r.trim()) set.add(r.trim().toLowerCase());
+    });
+    customScreenRoles.forEach((r) => set.add(r));
+    return Array.from(set);
+  };
+
+  const handleAddRoleToScreen = (screenKey: string) => {
+    const raw = (newRoleInputs[screenKey] || '').trim().toLowerCase().replace(/\s+/g, '_');
+    if (!raw) return;
+
+    setScreens((prev) =>
+      prev.map((s) => {
+        if (s.key !== screenKey) return s;
+        if (s.requiredRoles.includes(raw)) return s;
+        return { ...s, requiredRoles: [...s.requiredRoles, raw] };
+      })
+    );
+
+    setCustomScreenRoles((prev) => (prev.includes(raw) ? prev : [...prev, raw]));
+    setNewRoleInputs((prev) => ({ ...prev, [screenKey]: '' }));
   };
 
   // Save Links
@@ -1767,8 +1796,9 @@ export default function AppConfigScreen() {
                       </Text>
 
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                        {ALL_STAFF_ROLES.map((role) => {
+                        {getRolesForScreen(screen).map((role) => {
                           const isAssigned = screen.requiredRoles.includes(role);
+                          const isCustom = !ALL_STAFF_ROLES.includes(role);
                           return (
                             <TouchableOpacity
                               key={role}
@@ -1779,10 +1809,13 @@ export default function AppConfigScreen() {
                                 paddingVertical: 6,
                                 borderRadius: 10,
                                 backgroundColor: isAssigned
-                                  ? (role === 'admin' ? '#EF4444' : role.includes('hospitality') ? '#14B8A6' : accentColor)
+                                  ? (role === 'admin' ? '#EF4444' : role.includes('hospitality') ? '#14B8A6' : isCustom ? '#8B5CF6' : accentColor)
                                   : isDark ? '#1A1A22' : '#E5E7EB',
                                 borderWidth: 1,
                                 borderColor: isAssigned ? 'transparent' : cardBorder,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 4,
                               }}
                             >
                               <Text
@@ -1794,9 +1827,55 @@ export default function AppConfigScreen() {
                               >
                                 {role}
                               </Text>
+                              {isAssigned && isCustom && (
+                                <X size={12} color="#FFFFFF" />
+                              )}
                             </TouchableOpacity>
                           );
                         })}
+                      </View>
+
+                      {/* Add custom role to this screen */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                        <TextInput
+                          value={newRoleInputs[screen.key] || ''}
+                          onChangeText={(t) => setNewRoleInputs((prev) => ({ ...prev, [screen.key]: t }))}
+                          placeholder="Add custom role (e.g. sponsor_lead)..."
+                          placeholderTextColor={textSecondary}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          style={{
+                            flex: 1,
+                            height: 38,
+                            backgroundColor: isDark ? '#1A1A22' : '#FFFFFF',
+                            borderRadius: 10,
+                            paddingHorizontal: 12,
+                            fontSize: 12,
+                            fontFamily: 'Poppins_400Regular',
+                            color: textPrimary,
+                            borderWidth: 1,
+                            borderColor: cardBorder,
+                          }}
+                        />
+                        <TouchableOpacity
+                          onPress={() => handleAddRoleToScreen(screen.key)}
+                          style={{
+                            height: 38,
+                            paddingHorizontal: 14,
+                            borderRadius: 10,
+                            backgroundColor: accentColor,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                          }}
+                          activeOpacity={0.75}
+                        >
+                          <Plus size={14} color="#FFFFFF" />
+                          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: '#FFFFFF' }}>
+                            Add
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                   ))}

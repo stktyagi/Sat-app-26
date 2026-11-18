@@ -107,16 +107,7 @@ const ProductMissingImagePlaceholder: React.FC = () => {
       >
         <Ionicons name="help" size={44} color="#F3F4F6" />
       </View>
-      <Text
-        style={{
-          fontFamily: 'Poppins_500Medium',
-          fontSize: 12,
-          color: 'rgba(255, 255, 255, 0.9)',
-          letterSpacing: 0.2,
-        }}
-      >
-        No image
-      </Text>
+      
     </View>
   );
 };
@@ -134,7 +125,6 @@ const StoreScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
   // Load products from backend
   const loadProducts = useCallback(async () => {
@@ -161,17 +151,7 @@ const StoreScreen: React.FC = () => {
     setRefreshing(false);
   }, [loadProducts, refreshUserProfile]);
 
-  const toggleBookmark = (id: string) => {
-    setBookmarkedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+
 
   const handleAddToCart = async (product: StoreProduct) => {
     if (addingProductId) return;
@@ -461,7 +441,7 @@ const StoreScreen: React.FC = () => {
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            Daily Games
+            Wordle
           </Text>
         </TouchableOpacity>
       </View>
@@ -593,8 +573,6 @@ const StoreScreen: React.FC = () => {
         ) : (
           <View style={{ gap: 36 }}>
             {filteredProducts.map((product) => {
-              const isBookmarked = bookmarkedIds.has(product.id);
-
               return (
                 <View key={product.id} style={{ alignItems: 'center' }}>
                   {/* 3-Rectangle Row (Left: Olive, Center: Terracotta/Coral, Right: Sky Blue) */}
@@ -625,15 +603,8 @@ const StoreScreen: React.FC = () => {
                       />
                     </View>
 
-                    {/* Center Main Card (Coral / Pink with price badge & bookmark) */}
-                    <TouchableOpacity
-                      activeOpacity={0.92}
-                      onPress={() => {
-                        router.push({
-                          pathname: '/store/ItemDetails' as any,
-                          params: { itemId: product.id },
-                        });
-                      }}
+                    {/* Center Main Card (Coral / Pink with coins badge) - Non-clickable, displays image */}
+                    <View
                       style={{
                         width: CENTER_CARD_WIDTH,
                         height: CENTER_CARD_HEIGHT,
@@ -656,53 +627,33 @@ const StoreScreen: React.FC = () => {
                         cardHeight={CENTER_CARD_HEIGHT}
                       />
 
-                      {/* Price Badge Pill in Top-Left */}
+                      {/* Price Badge Pill in Top-Left (Coins) */}
                       <View
                         style={{
                           position: 'absolute',
                           top: 12,
                           left: 12,
-                          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+                          backgroundColor: 'rgba(0, 0, 0, 0.65)',
                           paddingHorizontal: 10,
                           paddingVertical: 5,
-                          borderRadius: 10,
+                          borderRadius: 12,
                           zIndex: 5,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 5,
                         }}
                       >
+                        <Coins size={14} color="#FBBF24" />
                         <Text
                           style={{
                             fontFamily: 'Poppins_600SemiBold',
                             fontSize: 13,
-                            color: '#F3F4F6',
+                            color: '#FBBF24',
                           }}
                         >
-                          {product.priceText || `Rs. ${product.price}`}
+                          {product.price} Coins
                         </Text>
                       </View>
-
-                      {/* Bookmark Icon in Top-Right */}
-                      <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={() => toggleBookmark(product.id)}
-                        style={{
-                          position: 'absolute',
-                          top: 12,
-                          right: 12,
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          backgroundColor: 'rgba(0, 0, 0, 0.55)',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          zIndex: 5,
-                        }}
-                      >
-                        <Ionicons
-                          name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
-                          size={17}
-                          color={isBookmarked ? '#38BDF8' : '#D1D5DB'}
-                        />
-                      </TouchableOpacity>
 
                       {/* Product Center Illustration or Image */}
                       {product.image ? (
@@ -714,7 +665,7 @@ const StoreScreen: React.FC = () => {
                       ) : (
                         <ProductMissingImagePlaceholder />
                       )}
-                    </TouchableOpacity>
+                    </View>
 
                     {/* Right Sky Blue Card (shorter & overflows out of screen) */}
                     <View

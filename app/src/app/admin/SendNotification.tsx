@@ -12,21 +12,51 @@ import {
 import { showAlert } from '@/components';
 import { useAdminNavigation } from '@/hooks/useAdminNavigation';
 import { Ionicons } from '@expo/vector-icons';
-import { ArrowLeft, Bell, Send, TestTube } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Bell,
+  Send,
+  TestTube,
+  Clock,
+  Users,
+  Filter,
+  CheckCircle2,
+  Sparkles,
+  RefreshCw,
+} from 'lucide-react-native';
 import { getToken } from '@/api/auth';
 import { API_BASE_URL } from '@/config/api';
 import { useThemeStore } from '@/state/themeStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+type TargetMode = 'broadcast' | 'roles' | 'filter';
+
+const AVAILABLE_ROLES = [
+  { id: 'admin', label: 'Admin / Core EC' },
+  { id: 'core_hospitality', label: 'Core Hospitality' },
+  { id: 'eb_hospitality', label: 'EB Hospitality' },
+  { id: 'ec_hospitality', label: 'EC Hospitality' },
+  { id: 'eb_events', label: 'EB Events' },
+  { id: 'event_poc', label: 'Event Coordinators / POC' },
+  { id: 'eb_outreach', label: 'EB Outreach' },
+  { id: 'eb_finance', label: 'EB Finance' },
+  { id: 'eb_media', label: 'EB Media' },
+];
 
 const SendNotification = () => {
   const navigation = useAdminNavigation();
   const insets = useSafeAreaInsets();
   const { isDark } = useThemeStore();
 
+  const [targetMode, setTargetMode] = useState<TargetMode>('broadcast');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [topic, setTopic] = useState('all');
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(['core_hospitality']);
+  const [filterType, setFilterType] = useState<'checkoutDueToday' | 'inHouse' | 'hasAccommodation'>('checkoutDueToday');
+  
   const [sending, setSending] = useState(false);
+  const [runningSummary, setRunningSummary] = useState(false);
 
   const bgColor = isDark ? "#131316" : "#E0E0E0";
   const cardBg = isDark ? "#1C1C20" : "#FFFFFF";
@@ -36,16 +66,37 @@ const SendNotification = () => {
 
   const NOTIFICATION_API = `${API_BASE_URL}/admin/notifications`;
 
+  const toggleRole = (roleId: string) => {
+    setSelectedRoles((prev) =>
+      prev.includes(roleId) ? prev.filter((r) => r !== roleId) : [...prev, roleId]
+    );
+  };
+
   const handleSendNotification = async () => {
     if (!title.trim() || !body.trim()) {
       showAlert('Error', 'Please enter both title and message');
       return;
     }
+
+    if (targetMode === 'roles' && selectedRoles.length === 0) {
+      showAlert('Error', 'Please select at least one role to target');
+      return;
+    }
+
     const token = await getToken();
+
+    let targetDesc = '';
+    if (targetMode === 'broadcast') {
+      targetDesc = `Topic: ${topic}`;
+    } else if (targetMode === 'roles') {
+      targetDesc = `Roles: ${selectedRoles.join(', ')}`;
+    } else {
+      targetDesc = `Filter: ${filterType === 'checkoutDueToday' ? 'Guests checking out today' : filterType === 'inHouse' ? 'All In-House guests' : 'All guests with accommodation'}`;
+    }
 
     showAlert(
       'Send Notification',
-      `Send notification to ${topic === 'all' ? 'all users' : `topic: ${topic}`}?`,
+      `Send notification to ${targetDesc}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -54,41 +105,46 @@ const SendNotification = () => {
             try {
               setSending(true);
 
-              const notificationData = {
-                audience: topic,
+              const payload: any = {
                 title: title.trim(),
                 body: body.trim(),
               };
 
-              setTimeout(async () => {
-                try {
-                  const response = await fetch(NOTIFICATION_API, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(notificationData),
-                  });
+              if (targetMode === 'broadcast') {
+                payload.audience = topic;
+              } else if (targetMode === 'roles') {
+                payload.audience = 'roles';
+                payload.roles = selectedRoles;
+              } else if (targetMode === 'filter') {
+                payload.audience = 'filter';
+                payload.filter = {
+                  hasAccommodation: filterType === 'hasAccommodation',
+                  inHouse: filterType === 'inHouse',
+                  checkoutDueToday: filterType === 'checkoutDueToday',
+                };
+              }
 
-                  const responseData = await response.json();
+              const response = await fetch(NOTIFICATION_API, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+              });
 
-                  if (response.ok) {
-                    showAlert('Success', responseData.message || 'Notification sent successfully!');
-                    setTitle('');
-                    setBody('');
-                    setTopic('all');
-                  } else {
-                    throw new Error(responseData.message || 'Failed to send notification');
-                  }
-                } catch (error: any) {
-                  showAlert('Error', error.message || 'Failed to send notification. Please try again.');
-                } finally {
-                  setSending(false);
-                }
-              }, 1000);
+              const responseData = await response.json();
 
+              if (response.ok) {
+                showAlert('Success 🎉', responseData.message || 'Notification sent successfully!');
+                setTitle('');
+                setBody('');
+              } else {
+                throw new Error(responseData.message || 'Failed to send notification');
+              }
             } catch (error: any) {
+              showAlert('Error', error.message || 'Failed to send notification. Please try again.');
+            } finally {
               setSending(false);
             }
           },
@@ -97,27 +153,67 @@ const SendNotification = () => {
     );
   };
 
-  const handleTestNotification = async () => {
+  // Trigger automated daily hospitality summary manually
+  const handleTriggerDailySummary = async () => {
+    const token = await getToken();
+
+    showAlert(
+      'Trigger 10 PM Hospitality Summary',
+      'This will calculate incoming guests for tomorrow and outgoing checkouts for today, notifying Core/EC/EB Hospitality staff and reminding outgoing guests. Run now?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Run Daily Summary',
+          onPress: async () => {
+            setRunningSummary(true);
+            try {
+              const res = await fetch(`${API_BASE_URL}/admin/notifications/hospitality-summary`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+
+              const data = await res.json();
+              if (res.ok) {
+                const s = data.data || {};
+                showAlert(
+                  'Daily Summary Dispatched! 🚀',
+                  `Report sent successfully!\n\n• Incoming Tomorrow: ${s.incomingTomorrow ?? 0}\n• Outgoing Today: ${s.outgoingToday ?? 0}\n• Staff & Admins Notified: ${s.staffNotified ?? 0}\n• Attendees Notified: ${s.attendeesNotified ?? 0}`
+                );
+              } else {
+                throw new Error(data.message || 'Could not trigger summary');
+              }
+            } catch (e: any) {
+              showAlert('Trigger Failed', e.message || 'Could not trigger daily summary');
+            } finally {
+              setRunningSummary(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleTestNotification = () => {
     if (!title.trim() || !body.trim()) {
       showAlert('Error', 'Please enter both title and message to test');
       return;
     }
 
-    try {
-      showAlert(
-        'Test Notification',
-        `Title: ${title}\nMessage: ${body}\nAudience: ${topic}`,
-        [{ text: 'OK' }]
-      );
-    } catch (error: any) {
-      showAlert('Error', 'Failed to test notification');
-    }
+    showAlert(
+      'Test Preview',
+      `Title: ${title}\nMessage: ${body}\nTarget Mode: ${targetMode}`,
+      [{ text: 'OK' }]
+    );
   };
 
   const topicOptions = [
     { label: 'All Users', value: 'all', description: 'Sends to all registered app users' },
     { label: 'Host College Students', value: 'host', description: 'Sends only to host college students' },
     { label: 'Visiting Students', value: 'outside', description: 'Sends to outside participants only' },
+    { label: 'All Hospitality Staff', value: 'hospitality_staff', description: 'Sends to EB, EC & Core Hospitality' },
   ];
 
   return (
@@ -171,7 +267,7 @@ const SendNotification = () => {
               marginTop: 1,
             }}
           >
-            Send broadcast messages to users
+            Automated schedules & custom targeted dispatch
           </Text>
         </View>
       </View>
@@ -181,16 +277,245 @@ const SendNotification = () => {
         contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 60 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Notification Title */}
-        <View style={{ marginBottom: 18 }}>
-          <Text
+        {/* Automated Daily Hospitality 10 PM Card */}
+        <View
+          style={{
+            backgroundColor: isDark ? "rgba(65, 184, 240, 0.08)" : "#E0F2FE",
+            borderWidth: 1,
+            borderColor: isDark ? "rgba(65, 184, 240, 0.25)" : "#BAE6FD",
+            borderRadius: 18,
+            padding: 16,
+            marginBottom: 20,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Clock size={20} color="#0284C7" />
+              <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 15, color: isDark ? "#E0F2FE" : "#0369A1" }}>
+                Daily 10:00 PM Automation
+              </Text>
+            </View>
+            <View style={{ backgroundColor: "#22c55e20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+              <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 11, color: "#16a34a" }}>
+                Active
+              </Text>
+            </View>
+          </View>
+
+          <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 12, color: isDark ? "#BAE6FD" : "#0369A1", lineHeight: 18, marginBottom: 12 }}>
+            Every night at 10:00 PM IST, the backend automatically calculates incoming arrivals for tomorrow and checkouts due today. It notifies Admins, Core, EC, and EB Hospitality staff and sends a checkout reminder to departing attendees.
+          </Text>
+
+          <TouchableOpacity
+            onPress={handleTriggerDailySummary}
+            disabled={runningSummary}
+            activeOpacity={0.8}
             style={{
-              fontFamily: "Poppins_600SemiBold",
-              color: textPrimary,
-              fontSize: 14,
-              marginBottom: 8,
+              backgroundColor: "#0284C7",
+              borderRadius: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
             }}
           >
+            {runningSummary ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <RefreshCw size={15} color="#FFFFFF" />
+                <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>
+                  Trigger Daily Summary Now
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Section Heading */}
+        <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: textPrimary, marginBottom: 12 }}>
+          Send One-Time Notification
+        </Text>
+
+        {/* Mode Selector Tabs */}
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
+          {[
+            { key: 'broadcast', label: 'Broadcast', icon: Bell },
+            { key: 'roles', label: 'Target by Role', icon: Users },
+            { key: 'filter', label: 'By User Filter', icon: Filter },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isSelected = targetMode === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setTargetMode(tab.key as TargetMode)}
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  backgroundColor: isSelected ? "#41B8F0" : cardBg,
+                  borderWidth: 1,
+                  borderColor: isSelected ? "#41B8F0" : cardBorder,
+                }}
+                activeOpacity={0.8}
+              >
+                <Icon size={14} color={isSelected ? "#FFFFFF" : textSecondary} />
+                <Text
+                  style={{
+                    fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_500Medium",
+                    fontSize: 12,
+                    color: isSelected ? "#FFFFFF" : textPrimary,
+                  }}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Target: Broadcast Mode */}
+        {targetMode === 'broadcast' && (          <View style={{ marginBottom: 18 }}>
+            <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 13, marginBottom: 8 }}>
+              Select Broadcast Audience
+            </Text>
+            {topicOptions.map((option) => {
+              const isSelected = topic === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: 14,
+                    borderRadius: 14,
+                    marginBottom: 8,
+                    backgroundColor: isSelected ? (isDark ? "rgba(65, 184, 240, 0.15)" : "#E0F2FE") : cardBg,
+                    borderWidth: 1,
+                    borderColor: isSelected ? "#41B8F0" : cardBorder,
+                  }}
+                  onPress={() => setTopic(option.value)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={isSelected ? "radio-button-on" : "radio-button-off"}
+                    size={18}
+                    color={isSelected ? "#41B8F0" : textSecondary}
+                  />
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: isSelected ? "#41B8F0" : textPrimary, fontSize: 13 }}>
+                      {option.label}
+                    </Text>
+                    <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 11 }}>
+                      {option.description}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Target: Role Mode */}
+        {targetMode === 'roles' && (
+          <View style={{ marginBottom: 18 }}>
+            <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 13, marginBottom: 8 }}>
+              Select Roles to Target (Multi-select)
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {AVAILABLE_ROLES.map((role) => {
+                const isSelected = selectedRoles.includes(role.id);
+                return (
+                  <TouchableOpacity
+                    key={role.id}
+                    onPress={() => toggleRole(role.id)}
+                    activeOpacity={0.75}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 7,
+                      borderRadius: 10,
+                      backgroundColor: isSelected ? "#41B8F0" : cardBg,
+                      borderWidth: 1,
+                      borderColor: isSelected ? "#41B8F0" : cardBorder,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    {isSelected && <CheckCircle2 size={12} color="#FFFFFF" />}
+                    <Text
+                      style={{
+                        fontFamily: isSelected ? "Poppins_600SemiBold" : "Poppins_400Regular",
+                        fontSize: 12,
+                        color: isSelected ? "#FFFFFF" : textPrimary,
+                      }}
+                    >
+                      {role.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Target: User Model Filter Mode */}
+        {targetMode === 'filter' && (
+          <View style={{ marginBottom: 18 }}>
+            <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 13, marginBottom: 8 }}>
+              Target by Accommodation Status
+            </Text>
+            {[
+              { id: 'checkoutDueToday', title: 'Guests Due for Checkout Today', desc: 'In-house guests whose booked accommodation ends today' },
+              { id: 'inHouse', title: 'Currently In-House (Checked In)', desc: 'All guests currently occupying a hostel bed' },
+              { id: 'hasAccommodation', title: 'All Accommodation Bookings', desc: 'Any user with an accommodation pass across any fest day' },
+            ].map((f) => {
+              const isSelected = filterType === f.id;
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: 14,
+                    borderRadius: 14,
+                    marginBottom: 8,
+                    backgroundColor: isSelected ? (isDark ? "rgba(65, 184, 240, 0.15)" : "#E0F2FE") : cardBg,
+                    borderWidth: 1,
+                    borderColor: isSelected ? "#41B8F0" : cardBorder,
+                  }}
+                  onPress={() => setFilterType(f.id as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={isSelected ? "radio-button-on" : "radio-button-off"}
+                    size={18}
+                    color={isSelected ? "#41B8F0" : textSecondary}
+                  />
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: isSelected ? "#41B8F0" : textPrimary, fontSize: 13 }}>
+                      {f.title}
+                    </Text>
+                    <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 11 }}>
+                      {f.desc}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Notification Title */}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 13, marginBottom: 8 }}>
             Notification Title
           </Text>
           <TextInput
@@ -198,58 +523,41 @@ const SendNotification = () => {
               backgroundColor: cardBg,
               borderRadius: 14,
               paddingHorizontal: 16,
-              paddingVertical: 14,
+              paddingVertical: 12,
               color: textPrimary,
               borderWidth: 1,
               borderColor: cardBorder,
               fontFamily: "Poppins_500Medium",
               fontSize: 14,
             }}
-            placeholder="Enter notification title..."
+            placeholder="e.g. Important Festival Update..."
             placeholderTextColor={textSecondary}
             value={title}
             onChangeText={setTitle}
             maxLength={100}
           />
-          <Text
-            style={{
-              fontFamily: "Poppins_400Regular",
-              color: textSecondary,
-              fontSize: 11,
-              marginTop: 4,
-            }}
-          >
-            {title.length}/100 characters
-          </Text>
         </View>
 
         {/* Notification Body */}
         <View style={{ marginBottom: 18 }}>
-          <Text
-            style={{
-              fontFamily: "Poppins_600SemiBold",
-              color: textPrimary,
-              fontSize: 14,
-              marginBottom: 8,
-            }}
-          >
-            Message
+          <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 13, marginBottom: 8 }}>
+            Message Body
           </Text>
           <TextInput
             style={{
               backgroundColor: cardBg,
               borderRadius: 14,
               paddingHorizontal: 16,
-              paddingVertical: 14,
+              paddingVertical: 12,
               color: textPrimary,
               borderWidth: 1,
               borderColor: cardBorder,
               fontFamily: "Poppins_400Regular",
               fontSize: 14,
-              minHeight: 110,
+              minHeight: 100,
               textAlignVertical: "top",
             }}
-            placeholder="Enter notification message..."
+            placeholder="Write your push notification message..."
             placeholderTextColor={textSecondary}
             value={body}
             onChangeText={setBody}
@@ -257,153 +565,7 @@ const SendNotification = () => {
             numberOfLines={4}
             maxLength={300}
           />
-          <Text
-            style={{
-              fontFamily: "Poppins_400Regular",
-              color: textSecondary,
-              fontSize: 11,
-              marginTop: 4,
-            }}
-          >
-            {body.length}/300 characters
-          </Text>
         </View>
-
-        {/* Topic Selection */}
-        <View style={{ marginBottom: 20 }}>
-          <Text
-            style={{
-              fontFamily: "Poppins_600SemiBold",
-              color: textPrimary,
-              fontSize: 14,
-              marginBottom: 10,
-            }}
-          >
-            Send To
-          </Text>
-          {topicOptions.map((option) => {
-            const isSelected = topic === option.value;
-            return (
-              <TouchableOpacity
-                key={option.value}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  padding: 16,
-                  borderRadius: 16,
-                  marginBottom: 10,
-                  backgroundColor: isSelected
-                    ? (isDark ? "rgba(65, 184, 240, 0.15)" : "#E0F2FE")
-                    : cardBg,
-                  borderWidth: 1,
-                  borderColor: isSelected ? "#41B8F0" : cardBorder,
-                }}
-                onPress={() => setTopic(option.value)}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={isSelected ? "radio-button-on" : "radio-button-off"}
-                  size={20}
-                  color={isSelected ? "#41B8F0" : textSecondary}
-                />
-                <View style={{ marginLeft: 12, flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_600SemiBold",
-                      color: isSelected ? "#41B8F0" : textPrimary,
-                      fontSize: 14,
-                    }}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_400Regular",
-                      color: textSecondary,
-                      fontSize: 12,
-                      marginTop: 2,
-                    }}
-                  >
-                    {option.description}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Preview Card */}
-        {(title.trim() || body.trim()) && (
-          <View style={{ marginBottom: 20 }}>
-            <Text
-              style={{
-                fontFamily: "Poppins_600SemiBold",
-                color: textPrimary,
-                fontSize: 14,
-                marginBottom: 8,
-              }}
-            >
-              Preview
-            </Text>
-            <View
-              style={{
-                backgroundColor: cardBg,
-                borderRadius: 16,
-                padding: 16,
-                borderWidth: 1,
-                borderColor: cardBorder,
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: "#41B8F020",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: 12,
-                  }}
-                >
-                  <Bell size={18} color="#41B8F0" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_600SemiBold",
-                      color: textPrimary,
-                      fontSize: 15,
-                      marginBottom: 2,
-                    }}
-                  >
-                    {title || "Notification Title"}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_400Regular",
-                      color: textSecondary,
-                      fontSize: 13,
-                      lineHeight: 18,
-                    }}
-                  >
-                    {body || "Notification message will appear here..."}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: "Poppins_400Regular",
-                      color: textSecondary,
-                      fontSize: 10,
-                      marginTop: 6,
-                    }}
-                  >
-                    Just now
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* Action Buttons */}
         <View style={{ gap: 10 }}>
@@ -413,7 +575,7 @@ const SendNotification = () => {
               borderWidth: 1,
               borderColor: "#41B8F0",
               borderRadius: 14,
-              paddingVertical: 14,
+              paddingVertical: 13,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
@@ -423,15 +585,8 @@ const SendNotification = () => {
             disabled={!title.trim() || !body.trim()}
             activeOpacity={0.8}
           >
-            <TestTube size={18} color="#41B8F0" />
-            <Text
-              style={{
-                fontFamily: "Poppins_600SemiBold",
-                color: "#41B8F0",
-                marginLeft: 8,
-                fontSize: 14,
-              }}
-            >
+            <TestTube size={16} color="#41B8F0" />
+            <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", marginLeft: 8, fontSize: 13 }}>
               Test Preview
             </Text>
           </TouchableOpacity>
@@ -454,16 +609,9 @@ const SendNotification = () => {
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
-                <Send size={18} color="#FFFFFF" />
-                <Text
-                  style={{
-                    fontFamily: "Poppins_600SemiBold",
-                    color: "#FFFFFF",
-                    marginLeft: 8,
-                    fontSize: 14,
-                  }}
-                >
-                  Send Broadcast Notification
+                <Send size={16} color="#FFFFFF" />
+                <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", marginLeft: 8, fontSize: 14 }}>
+                  Send Push Notification
                 </Text>
               </>
             )}

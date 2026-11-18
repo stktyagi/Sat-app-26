@@ -55,12 +55,12 @@ interface DayMapping {
 }
 
 const dayMappings: DayMapping[] = [
-  { date: 19, backendDay: "0", day: "Wednesday" },
-  { date: 20, backendDay: "1", day: "Thursday" },
-  { date: 21, backendDay: "2", day: "Friday" },
-  { date: 22, backendDay: "3", day: "Saturday" },
-  { date: 23, backendDay: "4", day: "Sunday" },
-  { date: 24, backendDay: "5", day: "Monday" },
+  { date: 19, backendDay: "0", day: "Thursday" },
+  { date: 20, backendDay: "1", day: "Friday" },
+  { date: 21, backendDay: "2", day: "Saturday" },
+  { date: 22, backendDay: "3", day: "Sunday" },
+  { date: 23, backendDay: "4", day: "Monday" },
+  { date: 24, backendDay: "5", day: "Tuesday" },
 ];
 
 const DAY_DATE_LABELS: Record<string, string> = {
@@ -136,6 +136,124 @@ const Accommodation: React.FC = () => {
     return { total: 0, checkedIn: 0, checkedOut: 0, pending: 0 };
   }, [stats, selectedDate]);
 
+  // Real-time counter derived directly from currently loaded users list
+  const listCounts = useMemo(() => {
+    let checkedIn = 0;
+    let checkedOut = 0;
+    let pending = 0;
+    for (const u of users) {
+      if (u.checkInStatus?.checkedOut) {
+        checkedOut++;
+      } else if (u.checkInStatus?.accommodation) {
+        checkedIn++;
+      } else {
+        pending++;
+      }
+    }
+    return {
+      total: users.length,
+      checkedIn,
+      checkedOut,
+      pending,
+    };
+  }, [users]);
+
+  const displayTotal = useMemo(() => {
+    if (users.length > 0) return listCounts.total;
+    if (selectedTab === "incoming") {
+      return currentDayStats.incomingTotal ?? currentDayStats.total;
+    }
+    return currentDayStats.outgoingTotal ?? currentDayStats.total;
+  }, [users.length, listCounts.total, selectedTab, currentDayStats]);
+
+  const displayCheckedIn = useMemo(() => {
+    if (users.length > 0) return listCounts.checkedIn;
+    if (selectedTab === "incoming") {
+      return currentDayStats.incomingCheckedIn ?? currentDayStats.checkedIn;
+    }
+    return currentDayStats.checkedIn;
+  }, [users.length, listCounts.checkedIn, selectedTab, currentDayStats]);
+
+  const displayCheckedOut = useMemo(() => {
+    if (users.length > 0) return listCounts.checkedOut;
+    if (selectedTab === "outgoing") {
+      return currentDayStats.outgoingCheckedOut ?? (currentDayStats.checkedOut || 0);
+    }
+    return currentDayStats.checkedOut || 0;
+  }, [users.length, listCounts.checkedOut, selectedTab, currentDayStats]);
+
+  const displayPending = useMemo(() => {
+    if (users.length > 0) return listCounts.pending;
+    if (selectedTab === "incoming") {
+      return currentDayStats.incomingPending ?? currentDayStats.pending;
+    }
+    return currentDayStats.outgoingPending ?? currentDayStats.pending;
+  }, [users.length, listCounts.pending, selectedTab, currentDayStats]);
+
+  const updateStatsOptimistically = (
+    action: "checkin" | "checkout" | "undo_checkout" | "revert",
+    prevStatus?: { accommodation?: boolean; checkedOut?: boolean }
+  ) => {
+    const idx = Number(selectedDate);
+    setStats((prev) => {
+      const copy = [...prev];
+      const cur = copy[idx] || { total: 0, checkedIn: 0, checkedOut: 0, pending: 0 };
+      let {
+        checkedIn = 0,
+        checkedOut = 0,
+        pending = 0,
+        total = 0,
+        incomingCheckedIn = 0,
+        incomingPending = 0,
+        outgoingCheckedOut = 0,
+        outgoingPending = 0,
+        incomingTotal = 0,
+        outgoingTotal = 0,
+      } = cur;
+
+      if (action === "checkin") {
+        checkedIn++;
+        pending = Math.max(0, pending - 1);
+        incomingCheckedIn++;
+        incomingPending = Math.max(0, incomingPending - 1);
+      } else if (action === "checkout") {
+        checkedOut++;
+        checkedIn = Math.max(0, checkedIn - 1);
+        outgoingCheckedOut++;
+        outgoingPending = Math.max(0, outgoingPending - 1);
+      } else if (action === "undo_checkout") {
+        checkedOut = Math.max(0, checkedOut - 1);
+        checkedIn++;
+        outgoingCheckedOut = Math.max(0, outgoingCheckedOut - 1);
+        outgoingPending++;
+      } else if (action === "revert") {
+        if (prevStatus?.checkedOut) {
+          checkedOut = Math.max(0, checkedOut - 1);
+        } else if (prevStatus?.accommodation) {
+          checkedIn = Math.max(0, checkedIn - 1);
+        }
+        pending++;
+        incomingCheckedIn = Math.max(0, incomingCheckedIn - 1);
+        incomingPending++;
+      }
+
+      copy[idx] = {
+        ...cur,
+        total,
+        checkedIn,
+        checkedOut,
+        pending,
+        incomingTotal,
+        incomingCheckedIn,
+        incomingPending,
+        outgoingTotal,
+        outgoingCheckedOut,
+        outgoingPending,
+      };
+      return copy;
+    });
+  };
+
   const handleCheckIn = async (user: UserAccommodation) => {
     const hostelToSave =
       editingHostelUser[user.userId] !== undefined
@@ -148,6 +266,7 @@ const Accommodation: React.FC = () => {
 
     try {
       setUpdatingUser(user.userId);
+      updateStatsOptimistically("checkin");
       await updateAccommodationCheckIn(user.userId, true, hostelToSave, roomToSave, 'checkin');
 
       setUsers((prev) =>
@@ -189,6 +308,7 @@ const Accommodation: React.FC = () => {
           onPress: async () => {
             try {
               setUpdatingUser(user.userId);
+              updateStatsOptimistically("checkout");
               await updateAccommodationCheckIn(user.userId, true, undefined, undefined, 'checkout');
 
               setUsers((prev) =>
@@ -231,6 +351,7 @@ const Accommodation: React.FC = () => {
           onPress: async () => {
             try {
               setUpdatingUser(user.userId);
+              updateStatsOptimistically("undo_checkout");
               await updateAccommodationCheckIn(user.userId, true, undefined, undefined, 'undo_checkout');
 
               setUsers((prev) =>
@@ -273,6 +394,7 @@ const Accommodation: React.FC = () => {
           onPress: async () => {
             try {
               setUpdatingUser(user.userId);
+              updateStatsOptimistically("revert", user.checkInStatus);
               await updateAccommodationCheckIn(user.userId, false, "", "", 'revert');
 
               setUsers((prev) =>
@@ -586,10 +708,10 @@ const Accommodation: React.FC = () => {
               </View>
 
               {(user.checkInStatus?.Hostel || user.checkInStatus?.RoomNo) && (
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <House size={13} color="#41B8F0" />
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <House size={13} color="#41B8F0" style={{ marginTop: 2 }} />
                   <Text
-                    style={{ fontFamily: "Poppins_500Medium", color: textPrimary, fontSize: 12, marginLeft: 6 }}
+                    style={{ fontFamily: "Poppins_500Medium", color: textPrimary, fontSize: 12, marginLeft: 6, flex: 1 }}
                   >
                     Allotted: {formatHostelDisplay(user.checkInStatus.Hostel, user.checkInStatus.RoomNo)}
                   </Text>
@@ -1056,10 +1178,10 @@ const Accommodation: React.FC = () => {
           }}
         >
           <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 10, color: textSecondary }}>
-            Booked
+            {selectedTab === "incoming" ? "Booked" : "Departures"}
           </Text>
           <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: "#38BDF8", marginTop: 2 }}>
-            {currentDayStats.total}
+            {displayTotal}
           </Text>
         </View>
 
@@ -1079,7 +1201,7 @@ const Accommodation: React.FC = () => {
             Checked In
           </Text>
           <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: "#10B981", marginTop: 2 }}>
-            {currentDayStats.checkedIn}
+            {displayCheckedIn}
           </Text>
         </View>
 
@@ -1099,7 +1221,7 @@ const Accommodation: React.FC = () => {
             Checked Out
           </Text>
           <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: "#A855F7", marginTop: 2 }}>
-            {currentDayStats.checkedOut || 0}
+            {displayCheckedOut}
           </Text>
         </View>
 
@@ -1119,7 +1241,7 @@ const Accommodation: React.FC = () => {
             Pending
           </Text>
           <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 16, color: "#F59E0B", marginTop: 2 }}>
-            {currentDayStats.pending}
+            {displayPending}
           </Text>
         </View>
       </View>
@@ -1152,7 +1274,7 @@ const Accommodation: React.FC = () => {
                 color: selectedTab === "incoming" ? "#FFFFFF" : textPrimary,
               }}
             >
-              Incoming
+              Incoming {selectedTab === "incoming" && listCounts.total > 0 ? `(${listCounts.checkedIn}/${listCounts.total})` : (currentDayStats.incomingTotal ? `(${currentDayStats.incomingCheckedIn || 0}/${currentDayStats.incomingTotal})` : "")}
             </Text>
           </View>
         </TouchableOpacity>
@@ -1183,7 +1305,7 @@ const Accommodation: React.FC = () => {
                 color: selectedTab === "outgoing" ? "#FFFFFF" : textPrimary,
               }}
             >
-              Outgoing
+              Outgoing {selectedTab === "outgoing" && listCounts.total > 0 ? `(${listCounts.checkedOut}/${listCounts.total})` : (currentDayStats.outgoingTotal ? `(${currentDayStats.outgoingCheckedOut || 0}/${currentDayStats.outgoingTotal})` : "")}
             </Text>
           </View>
         </TouchableOpacity>

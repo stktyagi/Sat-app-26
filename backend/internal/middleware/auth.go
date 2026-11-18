@@ -145,6 +145,27 @@ func RequireAnyRole(allowedRoles ...string) gin.HandlerFunc {
 	}
 }
 
+// RequireScreenOrRoles ensures the user holds at least one of the specified roles,
+// is a full admin, or has dynamic permission granted for screenKey in app/screens.
+func RequireScreenOrRoles(s *store.Store, screenKey string, allowedRoles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		u := CurrentUser(c)
+		if u == nil {
+			apierr.Respond(c, apierr.Unauthorized("no_profile", "call POST /api/v1/auth/session first"))
+			return
+		}
+		if u.IsAdmin() || u.HasAnyRole(allowedRoles...) {
+			c.Next()
+			return
+		}
+		if s != nil && s.UserCanAccessScreen(c.Request.Context(), u, screenKey) {
+			c.Next()
+			return
+		}
+		apierr.Respond(c, apierr.Forbidden("insufficient_permissions", "you do not have permission to access this resource"))
+	}
+}
+
 func bearer(c *gin.Context) string {
 	h := c.GetHeader("Authorization")
 	if h == "" {

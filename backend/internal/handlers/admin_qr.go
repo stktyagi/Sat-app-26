@@ -71,7 +71,7 @@ func (a *API) AdminQRScan(c *gin.Context) {
 		return
 	}
 	if category == "event" {
-		if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) && !caller.HasRole(models.RoleEventPOC) {
+		if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) && !caller.HasRole(models.RoleEventPOC) && !caller.HasRole(models.RoleCoreHospitality) {
 			apierr.Respond(c, apierr.Forbidden("insufficient_permissions", "event role required for event scanning"))
 			return
 		}

@@ -502,76 +502,91 @@ const ProfileScreen = () => {
             <View
               style={{
                 marginTop: 16,
-                paddingVertical: 10,
+                paddingVertical: 12,
                 paddingHorizontal: 14,
                 borderRadius: 14,
                 backgroundColor: isDark ? '#26262B' : '#F3F4F6',
                 borderWidth: 1,
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                gap: 8,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
-                <Ionicons
-                  name="home-outline"
-                  size={16}
-                  color={isHostelAllotted ? '#38BDF8' : (isDark ? '#9CA3AF' : '#6B7280')}
-                />
-                <Text
-                  style={{
-                    fontFamily: 'Poppins_500Medium',
-                    fontSize: 12,
-                    color: isDark ? '#9CA3AF' : '#6B7280',
-                  }}
-                >
-                  Hostel:
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: 'Poppins_600SemiBold',
-                    fontSize: 13,
-                    color: isHostelAllotted ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#9CA3AF' : '#6B7280'),
-                    flex: 1,
-                  }}
-                  numberOfLines={1}
-                >
-                  {hostelDisplay}
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                  <Ionicons
+                    name="home-outline"
+                    size={16}
+                    color={isHostelAllotted ? '#38BDF8' : (isDark ? '#9CA3AF' : '#6B7280')}
+                  />
+                  <Text
+                    style={{
+                      fontFamily: 'Poppins_500Medium',
+                      fontSize: 12,
+                      color: isDark ? '#9CA3AF' : '#6B7280',
+                    }}
+                  >
+                    Hostel
+                  </Text>
+                </View>
+
+                {userProfile?.checkInStatus?.accommodation ? (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(34, 197, 94, 0.18)' : '#DCFCE7',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#22C55E',
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#22C55E' }}>
+                      Checked In
+                    </Text>
+                  </View>
+                ) : isHostelAllotted ? (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#38BDF8',
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#38BDF8' }}>
+                      Allotted
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(251, 191, 36, 0.15)' : '#FEF3C7',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#F59E0B',
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#F59E0B' }}>
+                      Pending Allotment
+                    </Text>
+                  </View>
+                )}
               </View>
 
-              {userProfile?.checkInStatus?.accommodation ? (
-                <View
-                  style={{
-                    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.18)' : '#DCFCE7',
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: '#22C55E',
-                  }}
-                >
-                  <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#22C55E' }}>
-                    Checked In
-                  </Text>
-                </View>
-              ) : isHostelAllotted ? (
-                <View
-                  style={{
-                    backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE',
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: '#38BDF8',
-                  }}
-                >
-                  <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#38BDF8' }}>
-                    Allotted
-                  </Text>
-                </View>
-              ) : null}
+              <Text
+                style={{
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 14,
+                  lineHeight: 20,
+                  color: isHostelAllotted ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#9CA3AF' : '#6B7280'),
+                }}
+              >
+                {hostelDisplay}
+              </Text>
             </View>
           )}
 

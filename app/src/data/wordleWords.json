@@ -1,0 +1,7004 @@
+[
+  {
+    "word": "MARCH",
+    "message": "Join the march and set the tone for four days of fest.",
+    "category": "Fest Spirit",
+    "related_event": "SAT Parade",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FLOAT",
+    "message": "Floats, flags and fun roll out with the SAT Parade.",
+    "category": "Fest Spirit",
+    "related_event": "SAT Parade",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STAGE",
+    "message": "The stage is set for four unforgettable days.",
+    "category": "Fest Spirit",
+    "related_event": "Opening Ceremony",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LIGHT",
+    "message": "Lights up, Thapar! The Opening Ceremony begins.",
+    "category": "Fest Spirit",
+    "related_event": "Opening Ceremony",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BEGIN",
+    "message": "Let the festivities begin at the Main Audi.",
+    "category": "Fest Spirit",
+    "related_event": "Opening Ceremony",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CHEER",
+    "message": "Cheer loud as Saturnalia 51 opens its gates.",
+    "category": "Fest Spirit",
+    "related_event": "Opening Ceremony",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SNACK",
+    "message": "Grab a snack and stroll through Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STALL",
+    "message": "Wander from stall to stall along Library to H Chowk.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GAMES",
+    "message": "Interactive games wait for you at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BOOKS",
+    "message": "Lose yourself in stories at Readathon.",
+    "category": "College Life",
+    "related_event": "Readathon",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "NOVEL",
+    "message": "Your next favourite novel is waiting at the library.",
+    "category": "College Life",
+    "related_event": "Readathon",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "READS",
+    "message": "Twenty-four hours of great reads at Readathon.",
+    "category": "College Life",
+    "related_event": "Readathon",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PAGES",
+    "message": "Turn the pages and rediscover the joy of reading.",
+    "category": "College Life",
+    "related_event": "Readathon",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PROSE",
+    "message": "Savour fine prose at Readathon, one chapter at a time.",
+    "category": "College Life",
+    "related_event": "Readathon",
+    "day": "Day 0",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "VERSE",
+    "message": "Verse comes alive in live recitation at Cadence.",
+    "category": "Music and Performance",
+    "related_event": "Cadence",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "POEMS",
+    "message": "Write a poem, then perform it at Cadence.",
+    "category": "Music and Performance",
+    "related_event": "Cadence",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WRITE",
+    "message": "Write fast, perform bold at Cadence.",
+    "category": "Music and Performance",
+    "related_event": "Cadence",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RHYME",
+    "message": "Find your rhythm in words at Cadence.",
+    "category": "Music and Performance",
+    "related_event": "Cadence",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "THEME",
+    "message": "A surprise theme and limited time: that is Cadence.",
+    "category": "Music and Performance",
+    "related_event": "Cadence",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FILMS",
+    "message": "Tell your story in a film at the Movie Making Competition.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Making Competition",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SCENE",
+    "message": "Every great film starts with a single scene.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Making Competition",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SHOOT",
+    "message": "Lights, camera, shoot! Fifty hours to make your film.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Making Competition",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CLIPS",
+    "message": "Stitch your clips into a story worth screening.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Making Competition",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "EDITS",
+    "message": "Cut, trim and polish your story into a film.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Making Competition",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MOVIE",
+    "message": "Settle in for a Saturnalia Movie Marathon.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Marathon",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "REELS",
+    "message": "Back-to-back reels, endless popcorn: Movie Marathon.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Marathon",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TITLE",
+    "message": "See your film's title roll at the Movie Making Screening.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Making - Screening",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ROBOT",
+    "message": "Witness innovation come alive at Robowars.",
+    "category": "Technology and Engineering",
+    "related_event": "Robowars",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ARENA",
+    "message": "Step into the arena where machines clash.",
+    "category": "Technology and Engineering",
+    "related_event": "Robowars",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CLASH",
+    "message": "Steel meets strategy in the Robowars clash.",
+    "category": "Technology and Engineering",
+    "related_event": "Robowars",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ARMOR",
+    "message": "Build armour tough enough to survive Robowars.",
+    "category": "Technology and Engineering",
+    "related_event": "Robowars",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TOAST",
+    "message": "Raise your voice with Toast Tactics.",
+    "category": "Competitions",
+    "related_event": "Toast Tactics",
+    "day": "Day 0",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DRAFT",
+    "message": "Draft your dream team at the Toast Tactics auction.",
+    "category": "Competitions",
+    "related_event": "Toast Tactics",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "COURT",
+    "message": "Argue your case in the Toast Tactics Moot Court.",
+    "category": "Competitions",
+    "related_event": "Toast Tactics",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SPEAK",
+    "message": "Speak up, speak smart at Toast Tactics.",
+    "category": "Competitions",
+    "related_event": "Toast Tactics",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CASES",
+    "message": "Crack real-world business cases at PRIMUS.",
+    "category": "Business and Finance",
+    "related_event": "Primus (TVC)",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ENVOY",
+    "message": "Represent your country as an envoy at MUN.",
+    "category": "Competitions",
+    "related_event": "MUN",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PEACE",
+    "message": "Debate for peace, negotiate for progress at MUN.",
+    "category": "Competitions",
+    "related_event": "MUN",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GLOBE",
+    "message": "Tackle global issues from the MUN floor.",
+    "category": "Competitions",
+    "related_event": "MUN",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CHAIR",
+    "message": "Address the chair and make your point at MUN.",
+    "category": "Competitions",
+    "related_event": "MUN",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "VOTES",
+    "message": "Every vote counts in the MUN committee.",
+    "category": "Competitions",
+    "related_event": "MUN",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ARGUE",
+    "message": "Argue, rebut and persuade at the British Parliamentary Debate.",
+    "category": "Competitions",
+    "related_event": "British Parliamentary Debate",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "HOUSE",
+    "message": "Take the House by storm at British Parliamentary Debate.",
+    "category": "Competitions",
+    "related_event": "British Parliamentary Debate",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "REBUT",
+    "message": "Rebut with logic at the British Parliamentary Debate.",
+    "category": "Competitions",
+    "related_event": "British Parliamentary Debate",
+    "day": "Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ISSUE",
+    "message": "Sharp minds, big issues: British Parliamentary Debate.",
+    "category": "Competitions",
+    "related_event": "British Parliamentary Debate",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WALTZ",
+    "message": "Step onto the floor for West Waltz War.",
+    "category": "Music and Performance",
+    "related_event": "West Waltz War",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DANCE",
+    "message": "Celebrate rhythm, energy, and expression at Saturnalia.",
+    "category": "Music and Performance",
+    "related_event": "West Waltz War",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SWING",
+    "message": "Prepared choreography or improvised swing? West Waltz War tests both.",
+    "category": "Music and Performance",
+    "related_event": "West Waltz War",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FACES",
+    "message": "Face your opponent when the random track drops at West Waltz War.",
+    "category": "Music and Performance",
+    "related_event": "West Waltz War",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MOVES",
+    "message": "Bring your best moves to Street Crew Battle.",
+    "category": "Music and Performance",
+    "related_event": "Street Crew Battle",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CREWS",
+    "message": "Crews clash with sync and swagger at Street Crew Battle.",
+    "category": "Music and Performance",
+    "related_event": "Street Crew Battle",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BREAK",
+    "message": "Breaking and hip-hop collide at Street Crew Battle.",
+    "category": "Music and Performance",
+    "related_event": "Street Crew Battle",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STRUT",
+    "message": "Own the stage at Strut Dynamite.",
+    "category": "Music and Performance",
+    "related_event": "Strut Dynamite",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SOLOS",
+    "message": "Solo or duo, light up Strut Dynamite.",
+    "category": "Music and Performance",
+    "related_event": "Strut Dynamite",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GRACE",
+    "message": "Classical grace meets western flair at Strut Dynamite.",
+    "category": "Music and Performance",
+    "related_event": "Strut Dynamite",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STEPS",
+    "message": "Perfect your steps for Strut Dynamite.",
+    "category": "Music and Performance",
+    "related_event": "Strut Dynamite",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BOOTS",
+    "message": "Boots on, crews ready: Wild West Showdown.",
+    "category": "Music and Performance",
+    "related_event": "Wild West Showdown",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RODEO",
+    "message": "Saddle up for the Wild West Showdown.",
+    "category": "Music and Performance",
+    "related_event": "Wild West Showdown",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "HORSE",
+    "message": "Ride into the Wild West Showdown with your crew.",
+    "category": "Music and Performance",
+    "related_event": "Wild West Showdown",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DUELS",
+    "message": "Dance duels at high noon: Wild West Showdown.",
+    "category": "Music and Performance",
+    "related_event": "Wild West Showdown",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TEAMS",
+    "message": "Teams unite for the Wild West Showdown.",
+    "category": "Music and Performance",
+    "related_event": "Wild West Showdown",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FOLKS",
+    "message": "Folk spirit lives on at Bhangra.",
+    "category": "Music and Performance",
+    "related_event": "Bhangra",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ROOTS",
+    "message": "Celebrate your roots with Bhangra.",
+    "category": "Music and Performance",
+    "related_event": "Bhangra",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DHOLS",
+    "message": "When the dhols beat, Bhangra begins.",
+    "category": "Music and Performance",
+    "related_event": "Bhangra",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MUSIC",
+    "message": "Let the beats of Saturnalia take over.",
+    "category": "Music and Performance",
+    "related_event": "Battle of Bands",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BANDS",
+    "message": "Bands clash on stage at Battle of Bands.",
+    "category": "Music and Performance",
+    "related_event": "Battle of Bands",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DRUMS",
+    "message": "Feel the drums thunder at Battle of Bands.",
+    "category": "Music and Performance",
+    "related_event": "Battle of Bands",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RIFFS",
+    "message": "Drop the riffs at Battle of Bands.",
+    "category": "Music and Performance",
+    "related_event": "Battle of Bands",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CHORD",
+    "message": "Strike the right chord at Battle of Bands.",
+    "category": "Music and Performance",
+    "related_event": "Battle of Bands",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "AMPED",
+    "message": "Get amped for Battle of Bands.",
+    "category": "Music and Performance",
+    "related_event": "Battle of Bands",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PIANO",
+    "message": "Piano, strings or brass: show virtuosity at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BRASS",
+    "message": "Bring the brass to Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FLUTE",
+    "message": "Let a flute solo soar at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TABLA",
+    "message": "Let the tabla speak at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SITAR",
+    "message": "Sitar strings sing at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STRUM",
+    "message": "Strum your way to the top at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "VOCAL",
+    "message": "Let your vocals rise at Crescendo.",
+    "category": "Music and Performance",
+    "related_event": "Crescendo",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "VOICE",
+    "message": "Find your voice at Crescendo.",
+    "category": "Music and Performance",
+    "related_event": "Crescendo",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DUETS",
+    "message": "Harmonise in a duet at Crescendo.",
+    "category": "Music and Performance",
+    "related_event": "Crescendo",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SOULS",
+    "message": "Let your soul sing at Ruhaniyat.",
+    "category": "Music and Performance",
+    "related_event": "Ruhaniyat",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LYRIC",
+    "message": "Let every lyric carry feeling at Ruhaniyat.",
+    "category": "Music and Performance",
+    "related_event": "Ruhaniyat",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SINGS",
+    "message": "Everyone sings differently, and Ruhaniyat celebrates that.",
+    "category": "Music and Performance",
+    "related_event": "Ruhaniyat",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FLOWS",
+    "message": "Find your flow at MicDrop.",
+    "category": "Music and Performance",
+    "related_event": "MicDrop",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MIXES",
+    "message": "Blend three songs into one at Production Wars.",
+    "category": "Music and Performance",
+    "related_event": "Production Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "REMIX",
+    "message": "Remix the crowd at Production Wars.",
+    "category": "Music and Performance",
+    "related_event": "Production Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LOOPS",
+    "message": "Build your loops and drop the beat at Production Wars.",
+    "category": "Music and Performance",
+    "related_event": "Production Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DROPS",
+    "message": "Time the drop perfectly at Production Wars.",
+    "category": "Music and Performance",
+    "related_event": "Production Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SYNTH",
+    "message": "Synth sounds shape the night at Production Wars.",
+    "category": "Music and Performance",
+    "related_event": "Production Wars",
+    "day": "Day 3",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TEMPO",
+    "message": "Set the tempo at Production Wars.",
+    "category": "Music and Performance",
+    "related_event": "Production Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SHOWS",
+    "message": "Unforgettable shows light up Artist Night 2.",
+    "category": "Music and Performance",
+    "related_event": "Artist Night 2",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "NIGHT",
+    "message": "Saturnalia nights are made for the Fete Area.",
+    "category": "Music and Performance",
+    "related_event": "Artist Night 2",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CROWD",
+    "message": "Sing along with thousands at Artist Night 3.",
+    "category": "Music and Performance",
+    "related_event": "Artist Night 3",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PHOTO",
+    "message": "Capture the moments that make Saturnalia unforgettable.",
+    "category": "Art and Creativity",
+    "related_event": "Photo Walk",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SNAPS",
+    "message": "Snap the hidden details of campus on the Photo Walk.",
+    "category": "Art and Creativity",
+    "related_event": "Photo Walk",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WALKS",
+    "message": "Take a walk, find the story at Photo Walk.",
+    "category": "Art and Creativity",
+    "related_event": "Photo Walk",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FRAME",
+    "message": "Frame the story at Through the Lens.",
+    "category": "Art and Creativity",
+    "related_event": "Through the Lens",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FOCUS",
+    "message": "Focus on the moment at Through the Lens.",
+    "category": "Art and Creativity",
+    "related_event": "Through the Lens",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SHOTS",
+    "message": "Great shots tell great stories at Through the Lens.",
+    "category": "Art and Creativity",
+    "related_event": "Through the Lens",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ANGLE",
+    "message": "A fresh angle makes the winning picture at Through the Lens.",
+    "category": "Art and Creativity",
+    "related_event": "Through the Lens",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ALBUM",
+    "message": "Give the music a face at Album Cover Redesigning.",
+    "category": "Art and Creativity",
+    "related_event": "Album Cover Redesigning",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "COVER",
+    "message": "Design a cover that speaks before the music plays.",
+    "category": "Art and Creativity",
+    "related_event": "Album Cover Redesigning",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FONTS",
+    "message": "Typography tells a story at Album Cover Redesigning.",
+    "category": "Art and Creativity",
+    "related_event": "Album Cover Redesigning",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "VINYL",
+    "message": "Vinyl-worthy art starts at Album Cover Redesigning.",
+    "category": "Art and Creativity",
+    "related_event": "Album Cover Redesigning",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PAINT",
+    "message": "Paint your imagination at Canvas Under Canopy.",
+    "category": "Art and Creativity",
+    "related_event": "Canvas Under Canopy",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BRUSH",
+    "message": "Pick up a brush at Canvas Under Canopy.",
+    "category": "Art and Creativity",
+    "related_event": "Canvas Under Canopy",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SHADE",
+    "message": "Play with light and shade at Canvas Under Canopy.",
+    "category": "Art and Creativity",
+    "related_event": "Canvas Under Canopy",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "EASEL",
+    "message": "Set up your easel under the canopy.",
+    "category": "Art and Creativity",
+    "related_event": "Canvas Under Canopy",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RELAY",
+    "message": "Relay creativity at Passing Canvas.",
+    "category": "Art and Creativity",
+    "related_event": "Passing Canvas",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SHARE",
+    "message": "Share the canvas, share the story at Passing Canvas.",
+    "category": "Art and Creativity",
+    "related_event": "Passing Canvas",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BLEND",
+    "message": "Blend your strokes with your teammates at Passing Canvas.",
+    "category": "Art and Creativity",
+    "related_event": "Passing Canvas",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TOUCH",
+    "message": "Add your touch to the canvas at Passing Canvas.",
+    "category": "Art and Creativity",
+    "related_event": "Passing Canvas",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CROWN",
+    "message": "Design a look worthy of the Couture Crown.",
+    "category": "Art and Creativity",
+    "related_event": "Couture Crown",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STYLE",
+    "message": "Your style, your signature at Couture Crown.",
+    "category": "Art and Creativity",
+    "related_event": "Couture Crown",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DRESS",
+    "message": "Sketch a dress that turns heads at Couture Crown.",
+    "category": "Art and Creativity",
+    "related_event": "Couture Crown",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SEAMS",
+    "message": "Perfect seams make perfect couture.",
+    "category": "Art and Creativity",
+    "related_event": "Couture Crown",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MODEL",
+    "message": "Strut like a model at SATWALK.",
+    "category": "Art and Creativity",
+    "related_event": "SATWALK",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "POISE",
+    "message": "Poise, power and runway presence at SATWALK.",
+    "category": "Art and Creativity",
+    "related_event": "SATWALK",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TREND",
+    "message": "Set the next trend at SATWALK.",
+    "category": "Art and Creativity",
+    "related_event": "SATWALK",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LOOKS",
+    "message": "Show your best looks at SATWALK.",
+    "category": "Art and Creativity",
+    "related_event": "SATWALK",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FLAIR",
+    "message": "Bring your flair to the SATWALK.",
+    "category": "Art and Creativity",
+    "related_event": "SATWALK",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "QUEST",
+    "message": "Your next adventure begins with Lost Footage.",
+    "category": "Competitions",
+    "related_event": "Lost Footage - Treasure Hunt",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CLUES",
+    "message": "Follow the clues to the final story in Lost Footage.",
+    "category": "Competitions",
+    "related_event": "Lost Footage - Treasure Hunt",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SOLVE",
+    "message": "Solve the mystery in Lost Footage.",
+    "category": "Competitions",
+    "related_event": "Lost Footage - Treasure Hunt",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FOUND",
+    "message": "Found it! Piece together the film at Lost Footage.",
+    "category": "Competitions",
+    "related_event": "Lost Footage - Treasure Hunt",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SCANS",
+    "message": "Scan every QR and uncover the film at Lost Footage.",
+    "category": "Competitions",
+    "related_event": "Lost Footage - Treasure Hunt",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FACTS",
+    "message": "Facts, records and rhythm: Quizathon tests them all.",
+    "category": "Competitions",
+    "related_event": "Quizathon",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SPORT",
+    "message": "Sports and music collide at Quizathon.",
+    "category": "Competitions",
+    "related_event": "Quizathon",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STATS",
+    "message": "Know your stats and records at Quizathon.",
+    "category": "Competitions",
+    "related_event": "Quizathon",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GAMER",
+    "message": "Gamers, assemble for the E-Sports tournament.",
+    "category": "Competitions",
+    "related_event": "E-Sports",
+    "day": "Day 1, Day 2 & Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LEVEL",
+    "message": "Level up through the E-Sports qualifiers to the finals.",
+    "category": "Competitions",
+    "related_event": "E-Sports",
+    "day": "Day 1, Day 2 & Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SQUAD",
+    "message": "Gather your squad for E-Sports.",
+    "category": "Competitions",
+    "related_event": "E-Sports",
+    "day": "Day 1, Day 2 & Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CHAMP",
+    "message": "Chase the E-Sports championship title.",
+    "category": "Competitions",
+    "related_event": "E-Sports",
+    "day": "Day 1, Day 2 & Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "HACKS",
+    "message": "Build, innovate, and create at SatHack.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CODER",
+    "message": "Coders unite for a SatHack night.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DEBUG",
+    "message": "Debug, redeploy, repeat: SatHack never sleeps.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BUILD",
+    "message": "Build something real at SatHack.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STACK",
+    "message": "Pick your stack and ship at SatHack.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PITCH",
+    "message": "Pitch your idea to the judges at SatHack.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SILLY",
+    "message": "Silly ideas, serious skills: Stupid Hack.",
+    "category": "Technology and Engineering",
+    "related_event": "Stupid Hack",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WACKY",
+    "message": "Wacky solutions are welcome at Stupid Hack.",
+    "category": "Technology and Engineering",
+    "related_event": "Stupid Hack",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "JOKES",
+    "message": "Build a joke that actually runs at Stupid Hack.",
+    "category": "Technology and Engineering",
+    "related_event": "Stupid Hack",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CRAZY",
+    "message": "Crazy ideas win at Stupid Hack.",
+    "category": "Technology and Engineering",
+    "related_event": "Stupid Hack",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "VIBES",
+    "message": "Prompt, iterate and ship good vibes at the Vibe Coding Competition.",
+    "category": "Technology and Engineering",
+    "related_event": "Vibe Coding Competition",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TOKEN",
+    "message": "Spend your tokens wisely at the Vibe Coding Competition.",
+    "category": "Technology and Engineering",
+    "related_event": "Vibe Coding Competition",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "AGENT",
+    "message": "Let your AI agent help build at Vibe Coding.",
+    "category": "Technology and Engineering",
+    "related_event": "Vibe Coding Competition",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FIXES",
+    "message": "Spot the problem, craft the fix at Vibe2Fix.",
+    "category": "Technology and Engineering",
+    "related_event": "Vibe2Fix",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PATCH",
+    "message": "Ship the patch at Vibe2Fix.",
+    "category": "Technology and Engineering",
+    "related_event": "Vibe2Fix",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TRAIN",
+    "message": "Train your model at Kaggle Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Kaggle Wars",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LEARN",
+    "message": "Let the machine learn at Kaggle Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Kaggle Wars",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ARRAY",
+    "message": "Slice the array and find the insight at Kaggle Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Kaggle Wars",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SORTS",
+    "message": "Sort it out in the CP Contest.",
+    "category": "Technology and Engineering",
+    "related_event": "CP Contest",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GRAPH",
+    "message": "Walk the graph and win the CP Contest.",
+    "category": "Technology and Engineering",
+    "related_event": "CP Contest",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TREES",
+    "message": "Climb the trees in the CP Contest.",
+    "category": "Technology and Engineering",
+    "related_event": "CP Contest",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "QUEUE",
+    "message": "Mind your queue and your complexity at the CP Contest.",
+    "category": "Technology and Engineering",
+    "related_event": "CP Contest",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "INPUT",
+    "message": "Read the input, beat the clock at the CP Contest.",
+    "category": "Technology and Engineering",
+    "related_event": "CP Contest",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LOGIC",
+    "message": "Clean logic wins the CP Contest.",
+    "category": "Technology and Engineering",
+    "related_event": "CP Contest",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PIXEL",
+    "message": "Perfect every pixel at Designathon.",
+    "category": "Art and Creativity",
+    "related_event": "Designathon",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ICONS",
+    "message": "Craft icons with character at Designathon.",
+    "category": "Art and Creativity",
+    "related_event": "Designathon",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GRIDS",
+    "message": "Align to the grid at Designathon.",
+    "category": "Art and Creativity",
+    "related_event": "Designathon",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PARTS",
+    "message": "Every part counts at CADathon.",
+    "category": "Technology and Engineering",
+    "related_event": "CADathon",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SOLID",
+    "message": "Model it solid at CADathon.",
+    "category": "Technology and Engineering",
+    "related_event": "CADathon",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SCALE",
+    "message": "Draw it to scale at CADathon.",
+    "category": "Technology and Engineering",
+    "related_event": "CADathon",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BOATS",
+    "message": "Engineer a boat built for speed at Full Throttle.",
+    "category": "Technology and Engineering",
+    "related_event": "Full Throttle",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SPEED",
+    "message": "Chase speed at Full Throttle.",
+    "category": "Technology and Engineering",
+    "related_event": "Full Throttle",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "HULLS",
+    "message": "Design a hull that slices through at Full Throttle.",
+    "category": "Technology and Engineering",
+    "related_event": "Full Throttle",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WATER",
+    "message": "Race for glory beside the waterbody at Hydro Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "Hydro Grand Prix",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WAVES",
+    "message": "Make waves at Hydro Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "Hydro Grand Prix",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GEARS",
+    "message": "Gears turn, ideas spin at Project Mewtoo.",
+    "category": "Technology and Engineering",
+    "related_event": "Project Mewtoo",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SERVO",
+    "message": "Tune the servo for Project Mewtoo.",
+    "category": "Technology and Engineering",
+    "related_event": "Project Mewtoo",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TRICK",
+    "message": "Spot the trick behind the Mirage.",
+    "category": "Technology and Engineering",
+    "related_event": "Mirage",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MAGIC",
+    "message": "Where analysis meets magic: Mirage.",
+    "category": "Technology and Engineering",
+    "related_event": "Mirage",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DECOY",
+    "message": "Beware the decoy in Mirage.",
+    "category": "Technology and Engineering",
+    "related_event": "Mirage",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "THINK",
+    "message": "Think beyond conventional at Emporia.",
+    "category": "Competitions",
+    "related_event": "Emporia",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TWIST",
+    "message": "Expect a twist at Emporia.",
+    "category": "Competitions",
+    "related_event": "Emporia",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CRACK",
+    "message": "Crack the puzzle through the night at Emporia.",
+    "category": "Competitions",
+    "related_event": "Emporia",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PLANS",
+    "message": "Plan your next business move at Perplexed.",
+    "category": "Business and Finance",
+    "related_event": "Perplexed",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FIRMS",
+    "message": "Fix a failing firm at Perplexed.",
+    "category": "Business and Finance",
+    "related_event": "Perplexed",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BRAND",
+    "message": "Think you can outsmart the competition? Join Brand Wars.",
+    "category": "Business and Finance",
+    "related_event": "Brand Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LOGOS",
+    "message": "Great logos make great brands at Brand Wars.",
+    "category": "Business and Finance",
+    "related_event": "Brand Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MEDIA",
+    "message": "Win the media battle at Brand Wars.",
+    "category": "Business and Finance",
+    "related_event": "Brand Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SALES",
+    "message": "Pitch it, sell it, win it at Brand Wars.",
+    "category": "Business and Finance",
+    "related_event": "Brand Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STOCK",
+    "message": "Test your market instincts at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TRADE",
+    "message": "Make the right trade at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BONDS",
+    "message": "Balance stocks and bonds at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BULLS",
+    "message": "Bulls or bears? Decide at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BEARS",
+    "message": "Survive the bears at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "INDEX",
+    "message": "Watch the index at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MONEY",
+    "message": "Money, markets and smart choices at Money Ball Challenge.",
+    "category": "Business and Finance",
+    "related_event": "Money Ball Challenge",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "COINS",
+    "message": "Stack your coins wisely at Money Ball.",
+    "category": "Business and Finance",
+    "related_event": "Money Ball Challenge",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WORTH",
+    "message": "Know your worth at Money Ball Challenge.",
+    "category": "Business and Finance",
+    "related_event": "Money Ball Challenge",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MINDS",
+    "message": "Great minds meet at Game of the Minds.",
+    "category": "Competitions",
+    "related_event": "Game of the Minds (TMS)",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BRAIN",
+    "message": "Warm up your brain for Game of the Minds.",
+    "category": "Competitions",
+    "related_event": "Game of the Minds (TMS)",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CHESS",
+    "message": "Think three moves ahead, chess style, at Game of the Minds.",
+    "category": "Competitions",
+    "related_event": "Game of the Minds (TMS)",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SMART",
+    "message": "Smart choices win Game of the Minds.",
+    "category": "Competitions",
+    "related_event": "Game of the Minds (TMS)",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "HUNCH",
+    "message": "Trust your hunch at The Mentalist.",
+    "category": "Competitions",
+    "related_event": "The Mentalist",
+    "day": "Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SENSE",
+    "message": "Sharpen your sixth sense at The Mentalist.",
+    "category": "Competitions",
+    "related_event": "The Mentalist",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SHARP",
+    "message": "Stay sharp at The Mentalist.",
+    "category": "Competitions",
+    "related_event": "The Mentalist",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MIMES",
+    "message": "Speak without words at Silent Expressions.",
+    "category": "Music and Performance",
+    "related_event": "Silent Expressions",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "EMOTE",
+    "message": "Emote without a word at Silent Expressions.",
+    "category": "Music and Performance",
+    "related_event": "Silent Expressions",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MOODS",
+    "message": "Show every mood without a word at Silent Expressions.",
+    "category": "Music and Performance",
+    "related_event": "Silent Expressions",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WORDS",
+    "message": "Who needs words? Silent Expressions says it all.",
+    "category": "Music and Performance",
+    "related_event": "Silent Expressions",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ROLES",
+    "message": "Switch roles on command at Switch Skit.",
+    "category": "Music and Performance",
+    "related_event": "Switch Skit",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GENRE",
+    "message": "Comedy to thriller in one breath at Switch Skit.",
+    "category": "Music and Performance",
+    "related_event": "Switch Skit",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SHIFT",
+    "message": "Shift character when the command drops at Switch Skit.",
+    "category": "Music and Performance",
+    "related_event": "Switch Skit",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STORY",
+    "message": "One stage, one story at One Stop Act.",
+    "category": "Music and Performance",
+    "related_event": "One Stop Act",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DRAMA",
+    "message": "Bring the drama to One Stop Act.",
+    "category": "Music and Performance",
+    "related_event": "One Stop Act",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ACTOR",
+    "message": "Every actor gets a spotlight at Showcase Play.",
+    "category": "Music and Performance",
+    "related_event": "Showcase Play",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PLAYS",
+    "message": "Great plays come alive at Showcase Play.",
+    "category": "Music and Performance",
+    "related_event": "Showcase Play",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LINES",
+    "message": "Deliver your lines with feeling at Showcase Play.",
+    "category": "Music and Performance",
+    "related_event": "Showcase Play",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MOUSE",
+    "message": "A tiny robot, a giant maze: Micromouse.",
+    "category": "Technology and Engineering",
+    "related_event": "Micromouse",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MAZES",
+    "message": "Solve the maze at Micromouse.",
+    "category": "Technology and Engineering",
+    "related_event": "Micromouse",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TURNS",
+    "message": "Every turn counts at Micromouse.",
+    "category": "Technology and Engineering",
+    "related_event": "Micromouse",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PATHS",
+    "message": "Find the shortest path at Micromouse.",
+    "category": "Technology and Engineering",
+    "related_event": "Micromouse",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RACER",
+    "message": "Race your remote-controlled car at RC Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "RC Grand Prix",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TRACK",
+    "message": "Hit the track at RC Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "RC Grand Prix",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TURBO",
+    "message": "Go turbo at RC Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "RC Grand Prix",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DRIFT",
+    "message": "Drift through the corners at RC Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "RC Grand Prix",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WHEEL",
+    "message": "Hands on the wheel at RC Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "RC Grand Prix",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DRONE",
+    "message": "Fly your drone through Sky Circuit.",
+    "category": "Technology and Engineering",
+    "related_event": "Sky Circuit",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SKIES",
+    "message": "Rule the skies at Sky Circuit.",
+    "category": "Technology and Engineering",
+    "related_event": "Sky Circuit",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "HOVER",
+    "message": "Hover steady at Sky Circuit.",
+    "category": "Technology and Engineering",
+    "related_event": "Sky Circuit",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PLANE",
+    "message": "Take off with your plane at Aerosprint.",
+    "category": "Technology and Engineering",
+    "related_event": "Aerosprint",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "GLIDE",
+    "message": "Glide further at Aerosprint.",
+    "category": "Technology and Engineering",
+    "related_event": "Aerosprint",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "WINGS",
+    "message": "Give your design wings at Aerosprint.",
+    "category": "Technology and Engineering",
+    "related_event": "Aerosprint",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SOARS",
+    "message": "Watch your build soar at Aerosprint.",
+    "category": "Technology and Engineering",
+    "related_event": "Aerosprint",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PILOT",
+    "message": "Take the pilot's seat at Aerosprint.",
+    "category": "Technology and Engineering",
+    "related_event": "Aerosprint",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SPARK",
+    "message": "Spark a big idea at Synapse.",
+    "category": "Technology and Engineering",
+    "related_event": "Synapse",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "IDEAS",
+    "message": "Connect ideas at Synapse.",
+    "category": "Technology and Engineering",
+    "related_event": "Synapse",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DREAM",
+    "message": "Dream it, then build it at Somnium.",
+    "category": "Technology and Engineering",
+    "related_event": "Somnium",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SLEEP",
+    "message": "Dream big, sleep later at Somnium.",
+    "category": "Technology and Engineering",
+    "related_event": "Somnium",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "STARS",
+    "message": "Reach for the stars at Star Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Star Wars",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LASER",
+    "message": "Aim true at Star Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Star Wars",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FORCE",
+    "message": "The force is strong in engineers at Star Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Star Wars",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ORBIT",
+    "message": "Find your orbit at Star Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Star Wars",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BLOCK",
+    "message": "Block by block at the Minecraft Engineering Challenge.",
+    "category": "Technology and Engineering",
+    "related_event": "Minecraft Engineering Challenge",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CRAFT",
+    "message": "Craft a smart solution at the Minecraft Engineering Challenge.",
+    "category": "Technology and Engineering",
+    "related_event": "Minecraft Engineering Challenge",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CUBES",
+    "message": "Cubes become engineering at the Minecraft Engineering Challenge.",
+    "category": "Technology and Engineering",
+    "related_event": "Minecraft Engineering Challenge",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "EPOCH",
+    "message": "A new epoch begins with Saturnalia 51.",
+    "category": "Fest Spirit",
+    "related_event": "Opening Ceremony",
+    "day": "Day 0",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FUGUE",
+    "message": "Weave your melody like a fugue at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ETUDE",
+    "message": "Turn a practice etude into a stage showpiece at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CLEFS",
+    "message": "Read the clefs, then rule the stage at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RONDO",
+    "message": "Let your melody return like a rondo at Crescendo.",
+    "category": "Music and Performance",
+    "related_event": "Crescendo",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ALTOS",
+    "message": "Altos and sopranos, take the spotlight at Crescendo.",
+    "category": "Music and Performance",
+    "related_event": "Crescendo",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TENOR",
+    "message": "Hit the high note like a tenor at Crescendo.",
+    "category": "Music and Performance",
+    "related_event": "Crescendo",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RAGAS",
+    "message": "Let the ragas flow at Ruhaniyat.",
+    "category": "Music and Performance",
+    "related_event": "Ruhaniyat",
+    "day": "Day 3",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CROON",
+    "message": "Croon from the heart at Ruhaniyat.",
+    "category": "Music and Performance",
+    "related_event": "Ruhaniyat",
+    "day": "Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TACIT",
+    "message": "Tacit emotions speak loudest at Silent Expressions.",
+    "category": "Music and Performance",
+    "related_event": "Silent Expressions",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MUTED",
+    "message": "Muted voices, loud stories at Silent Expressions.",
+    "category": "Music and Performance",
+    "related_event": "Silent Expressions",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MIMIC",
+    "message": "Mimic life without a word at Silent Expressions.",
+    "category": "Music and Performance",
+    "related_event": "Silent Expressions",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CRYPT",
+    "message": "Unlock the crypt of secrets in Lost Footage.",
+    "category": "Competitions",
+    "related_event": "Lost Footage - Treasure Hunt",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "AXIOM",
+    "message": "Break every axiom at Emporia.",
+    "category": "Competitions",
+    "related_event": "Emporia",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ETHOS",
+    "message": "Ethos, logic and rebuttal power the British Parliamentary Debate.",
+    "category": "Competitions",
+    "related_event": "British Parliamentary Debate",
+    "day": "Day 3",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LUCRE",
+    "message": "Chase more than lucre at Money Ball Challenge.",
+    "category": "Business and Finance",
+    "related_event": "Money Ball Challenge",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "HEDGE",
+    "message": "Hedge your bets wisely at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BARON",
+    "message": "Become the next market baron at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SWAPS",
+    "message": "Swap smart at Wolf of Dalal Street.",
+    "category": "Business and Finance",
+    "related_event": "Wolf of Dalal Street",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "AXONS",
+    "message": "Axons fire, ideas spark: Synapse.",
+    "category": "Technology and Engineering",
+    "related_event": "Synapse",
+    "day": "Day 3",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "NEXUS",
+    "message": "Where ideas meet: the Synapse nexus.",
+    "category": "Technology and Engineering",
+    "related_event": "Synapse",
+    "day": "Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SKIFF",
+    "message": "Skim the water in a skiff at Hydro Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "Hydro Grand Prix",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "KAYAK",
+    "message": "Paddle like a pro at Hydro Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "Hydro Grand Prix",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "JOUST",
+    "message": "Joust with your moves at the Wild West Showdown.",
+    "category": "Music and Performance",
+    "related_event": "Wild West Showdown",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TWANG",
+    "message": "Add a twang to the Wild West Showdown.",
+    "category": "Music and Performance",
+    "related_event": "Wild West Showdown",
+    "day": "Day 1",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TRIAD",
+    "message": "Product, Consulting, Finance: a triad of tracks at PRIMUS.",
+    "category": "Business and Finance",
+    "related_event": "Primus (TVC)",
+    "day": "Day 0",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "OCTET",
+    "message": "An octet on stage? Battle of Bands welcomes bold line-ups.",
+    "category": "Music and Performance",
+    "related_event": "Battle of Bands",
+    "day": "Day 2",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "COMET",
+    "message": "Streak like a comet at Star Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Star Wars",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CRANK",
+    "message": "Crank up the precision at Project Mewtoo.",
+    "category": "Technology and Engineering",
+    "related_event": "Project Mewtoo",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LEVER",
+    "message": "The right lever moves a robot at Project Mewtoo.",
+    "category": "Technology and Engineering",
+    "related_event": "Project Mewtoo",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "AXLES",
+    "message": "Strong axles win the RC Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "RC Grand Prix",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "KARTS",
+    "message": "Karts, curves and speed at RC Grand Prix.",
+    "category": "Technology and Engineering",
+    "related_event": "RC Grand Prix",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PRISM",
+    "message": "Refract ideas like a prism at Designathon.",
+    "category": "Art and Creativity",
+    "related_event": "Designathon",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FARCE",
+    "message": "Turn farce into fine acting at Switch Skit.",
+    "category": "Music and Performance",
+    "related_event": "Switch Skit",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "IRONY",
+    "message": "Add a twist of irony to your One Stop Act.",
+    "category": "Music and Performance",
+    "related_event": "One Stop Act",
+    "day": "Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SKITS",
+    "message": "Skits get spontaneous at Switch Skit.",
+    "category": "Music and Performance",
+    "related_event": "Switch Skit",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PROXY",
+    "message": "No proxies here: deliver your own speech at MUN.",
+    "category": "Competitions",
+    "related_event": "MUN",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BLOCS",
+    "message": "Build blocs and forge alliances at MUN.",
+    "category": "Competitions",
+    "related_event": "MUN",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RAIDS",
+    "message": "Plan your raids with the E-Sports squad.",
+    "category": "Competitions",
+    "related_event": "E-Sports",
+    "day": "Day 1, Day 2 & Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LOBBY",
+    "message": "Wait in the lobby, then dominate at E-Sports.",
+    "category": "Competitions",
+    "related_event": "E-Sports",
+    "day": "Day 1, Day 2 & Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FRAGS",
+    "message": "Rack up frags at E-Sports.",
+    "category": "Competitions",
+    "related_event": "E-Sports",
+    "day": "Day 1, Day 2 & Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BUGGY",
+    "message": "Buggy code? Fix it at Vibe2Fix.",
+    "category": "Technology and Engineering",
+    "related_event": "Vibe2Fix",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FLAGS",
+    "message": "Raise the flag on a tough problem at the CP Contest.",
+    "category": "Technology and Engineering",
+    "related_event": "CP Contest",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CACHE",
+    "message": "Cache your insights at Kaggle Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Kaggle Wars",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LABEL",
+    "message": "Label the data, win Kaggle Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Kaggle Wars",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RIDGE",
+    "message": "Ridge, lasso or forest? Pick your model at Kaggle Wars.",
+    "category": "Technology and Engineering",
+    "related_event": "Kaggle Wars",
+    "day": "Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MERGE",
+    "message": "Merge your branches before the deadline at SatHack.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SHIPS",
+    "message": "Ship it before sunrise at SatHack.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DEMOS",
+    "message": "Ready your demo for the SatHack panel.",
+    "category": "Technology and Engineering",
+    "related_event": "SatHack",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "VIVID",
+    "message": "Vivid colours fill Canvas Under Canopy.",
+    "category": "Art and Creativity",
+    "related_event": "Canvas Under Canopy",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CHALK",
+    "message": "Chalk, charcoal or oil: pick your medium at Canvas Under Canopy.",
+    "category": "Art and Creativity",
+    "related_event": "Canvas Under Canopy",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CAMEO",
+    "message": "Add a cameo to your film at the Movie Making Competition.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Making Competition",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PLOTS",
+    "message": "Plot twists drive One Stop Act.",
+    "category": "Music and Performance",
+    "related_event": "One Stop Act",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BEATS",
+    "message": "Beatboxers turn breath into beats at MicDrop.",
+    "category": "Music and Performance",
+    "related_event": "MicDrop",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CHILL",
+    "message": "Chill between events at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "NACHO",
+    "message": "Nachos and fun at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PIZZA",
+    "message": "A slice of pizza keeps you going at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CHAAT",
+    "message": "Chaat and chatter at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "TACOS",
+    "message": "Tacos by the lane at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FRIES",
+    "message": "Hot fries, cool crowd at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DECOR",
+    "message": "Creative decor lines the Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BOOTH",
+    "message": "Every booth has a surprise at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CARDS",
+    "message": "Card games and quick challenges at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "DARTS",
+    "message": "Aim your darts at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "KIOSK",
+    "message": "Spot a kiosk with your favourite treat at Street Fest.",
+    "category": "Fest Spirit",
+    "related_event": "Street Fest",
+    "day": "Day 0",
+    "difficulty": "Hard",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SALVO",
+    "message": "Fire the opening salvo at Robowars.",
+    "category": "Technology and Engineering",
+    "related_event": "Robowars",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ROVER",
+    "message": "Send your rover across the arena at Project Mewtoo.",
+    "category": "Technology and Engineering",
+    "related_event": "Project Mewtoo",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ARMED",
+    "message": "Armed with code and courage at Project Mewtoo.",
+    "category": "Technology and Engineering",
+    "related_event": "Project Mewtoo",
+    "day": "Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SONIC",
+    "message": "Go sonic at Aerosprint.",
+    "category": "Technology and Engineering",
+    "related_event": "Aerosprint",
+    "day": "Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FLAPS",
+    "message": "Tune your flaps for the perfect landing at Aerosprint.",
+    "category": "Technology and Engineering",
+    "related_event": "Aerosprint",
+    "day": "Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LANDS",
+    "message": "Stick the landing at Aerosprint.",
+    "category": "Technology and Engineering",
+    "related_event": "Aerosprint",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "CARGO",
+    "message": "Carry cargo through the Sky Circuit.",
+    "category": "Technology and Engineering",
+    "related_event": "Sky Circuit",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "LOOPY",
+    "message": "Get loopy in the Sky Circuit.",
+    "category": "Technology and Engineering",
+    "related_event": "Sky Circuit",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SMASH",
+    "message": "Smash your verse at MicDrop.",
+    "category": "Music and Performance",
+    "related_event": "MicDrop",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "BOWED",
+    "message": "Bowed strings sing at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "HARPS",
+    "message": "Harps and horns, strings and keys at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "ORGAN",
+    "message": "Let an organ fill the Auxi Stage at Amplify.",
+    "category": "Music and Performance",
+    "related_event": "Amplify",
+    "day": "Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MELDS",
+    "message": "Meld three songs into one at Production Wars.",
+    "category": "Music and Performance",
+    "related_event": "Production Wars",
+    "day": "Day 3",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PRESS",
+    "message": "Win the press with a killer campaign at Brand Wars.",
+    "category": "Business and Finance",
+    "related_event": "Brand Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "MARKS",
+    "message": "Leave your mark at Brand Wars.",
+    "category": "Business and Finance",
+    "related_event": "Brand Wars",
+    "day": "Day 3",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "FUNDS",
+    "message": "Back the best idea with the right funds at PRIMUS.",
+    "category": "Business and Finance",
+    "related_event": "Primus (TVC)",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "RISKY",
+    "message": "Take a risky call, defend it well at PRIMUS.",
+    "category": "Business and Finance",
+    "related_event": "Primus (TVC)",
+    "day": "Day 0",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "OATHS",
+    "message": "Take the delegate's oath at MUN.",
+    "category": "Competitions",
+    "related_event": "MUN",
+    "day": "Day 1 & Day 2",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "EXTRA",
+    "message": "Even the extras get applause at the Movie Making Screening.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Making - Screening",
+    "day": "Day 2",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "EPICS",
+    "message": "Epics and classics on loop at the Movie Marathon.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Marathon",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Easy",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "SAGAS",
+    "message": "Sit through sagas at the Movie Marathon.",
+    "category": "Art and Creativity",
+    "related_event": "Movie Marathon",
+    "day": "Day 0 & Day 1",
+    "difficulty": "Medium",
+    "source_type": "Event-related"
+  },
+  {
+    "word": "PARTY",
+    "message": "Saturnalia is one big party and you are invited.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "SMILE",
+    "message": "Every smile counts at Saturnalia 51.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "LAUGH",
+    "message": "Laugh loud, the fest has just begun.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "HAPPY",
+    "message": "Happy hearts fill campus during Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "TREAT",
+    "message": "Saturnalia is a treat for every student.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "BLISS",
+    "message": "Pure bliss is four days of Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "UNITY",
+    "message": "Unity in celebration is the spirit of Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "YOUTH",
+    "message": "Saturnalia is where youthful energy takes over.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "SHINE",
+    "message": "Come shine at Saturnalia 51.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "BLAST",
+    "message": "Get ready for a blast at Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "BUDDY",
+    "message": "Grab a buddy and explore the fest.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "TRIBE",
+    "message": "Find your tribe at Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "BRAVE",
+    "message": "Be brave, step on stage at Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "PROUD",
+    "message": "Be proud of every moment you create at the fest.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "PRIDE",
+    "message": "Thapar's pride shines at Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "HEART",
+    "message": "Events are the heart of Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "HYPED",
+    "message": "Stay hyped, the fest is here.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "FIRST",
+    "message": "Your first Saturnalia will not be your last.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "ALIVE",
+    "message": "Campus comes alive with Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "AGLOW",
+    "message": "The whole campus is aglow with fest lights.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "CHARM",
+    "message": "Saturnalia charm wins everyone over.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "GRAND",
+    "message": "A grand celebration awaits at Saturnalia 51.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "FLAME",
+    "message": "Keep the flame of creativity burning.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "TORCH",
+    "message": "Carry the torch of Saturnalia forward.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "SHOUT",
+    "message": "Shout it out, Saturnalia is here.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "CLAPS",
+    "message": "Thunderous claps echo through the fest.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "CAROL",
+    "message": "The fest hums like a joyful carol.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "UNITE",
+    "message": "Unite with friends across every event.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "GIFTS",
+    "message": "Saturnalia gives memories that are better than gifts.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "FEAST",
+    "message": "Feast on fun, food and festivity.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "ROMAN",
+    "message": "Saturnalia was born in Rome, now it is born at Thapar.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "RITES",
+    "message": "Every fest has its rites, and ours is celebration.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "REVEL",
+    "message": "Revel in four days of Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "MERRY",
+    "message": "Merry times begin with Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "JOLLY",
+    "message": "A jolly crowd fills every corner of campus.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "MIRTH",
+    "message": "Mirth is in the air at Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "LOVED",
+    "message": "Loved by students, Saturnalia returns for its 51st year.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "LOVER",
+    "message": "Lovers of music, art and tech all belong here.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "GLOWS",
+    "message": "The whole fest glows with energy.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "FRESH",
+    "message": "Fresh ideas and fresh faces fill Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "CLASS",
+    "message": "Skip the routine, join the fest class of 51.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "DORMS",
+    "message": "Dorm doors stay open as friends rush to events.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "CLUBS",
+    "message": "Clubs bring Saturnalia to life.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "PRIZE",
+    "message": "Eyes on the prize at Saturnalia.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "MEDAL",
+    "message": "Dream of the medal and chase it.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "AWARD",
+    "message": "An award is waiting for the bold.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "GRADE",
+    "message": "Some things matter more than grades: memories.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "EXAMS",
+    "message": "Exams can wait, Saturnalia cannot.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "STUDY",
+    "message": "Take a break from study, join the fest.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "TUTOR",
+    "message": "Even your tutor will join the celebration.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "LAWNS",
+    "message": "Lawns turn into festival grounds.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "DESKS",
+    "message": "Leave the desks behind and head to the events.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "DEANS",
+    "message": "Even the deans cheer at Saturnalia.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "BATCH",
+    "message": "Bring your whole batch to the fest.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "MAJOR",
+    "message": "Your major event of the semester is Saturnalia.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "ESSAY",
+    "message": "Your best essay can wait, your best performance cannot.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "PAPER",
+    "message": "Trade paper for performances at Saturnalia.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "PEERS",
+    "message": "Compete with peers, cheer them too.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "LUNCH",
+    "message": "Skip the usual lunch, hit the Street Fest stalls.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "MATES",
+    "message": "Roommates and classmates become teammates at Saturnalia.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "ROOMS",
+    "message": "Rooms stay empty when events are on.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "HOSTS",
+    "message": "Meet the hosts who keep the fest running.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "LEADS",
+    "message": "Lead your team from the front.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "COACH",
+    "message": "A good coach brings out the champion in you.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "SKILL",
+    "message": "Show your skill on the biggest stage of campus.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "GROUP",
+    "message": "Form a group and register for an event.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "GRADS",
+    "message": "Grads and freshers party together at Saturnalia.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "STAFF",
+    "message": "Thank you to the staff who make the fest possible.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "CREED",
+    "message": "Thapar's creed: learn hard, celebrate harder.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "College-related"
+  },
+  {
+    "word": "MEETS",
+    "message": "Meet new faces, make new friends at the fest.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "BUSES",
+    "message": "Buses carry crowds to the fest grounds.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "SEATS",
+    "message": "Grab your seats early for the big shows.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "VENUE",
+    "message": "The venue is campus; the mood is fest.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "LATER",
+    "message": "Study later, Saturnalia now.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "WALLS",
+    "message": "Even the walls vibrate with fest energy.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "HALLS",
+    "message": "Halls echo with applause during Saturnalia.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "CLOCK",
+    "message": "Time flies at the fest; make every minute count.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "WIRES",
+    "message": "Wires, circuits and big ideas power Saturnalia tech.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "VOLTS",
+    "message": "Feel the volts when machines clash.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "WATTS",
+    "message": "Watts of energy light up the technical events.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CHIPS",
+    "message": "Chips, boards and brains build tomorrow.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BOARD",
+    "message": "Draw it on the board, then build it.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "MOTOR",
+    "message": "Motors roar across the technical arenas.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CLOUD",
+    "message": "Dream big with your head in the cloud.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BYTES",
+    "message": "Every byte counts when you hack.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "QUERY",
+    "message": "Query the data, find the story.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "FLASH",
+    "message": "A flash of insight can win a hackathon.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "NODES",
+    "message": "Every node connects to a bigger network.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TOOLS",
+    "message": "Pick your tools and start creating.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BOLTS",
+    "message": "Nuts and bolts build the future.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ATOMS",
+    "message": "Atoms to algorithms, tech fest covers it all.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SOLAR",
+    "message": "Solar-powered ideas shine at the fest.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "POWER",
+    "message": "Power up your project for the big day.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "METAL",
+    "message": "Metal frames, mighty machines.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "STEEL",
+    "message": "Steel nerves help when robots collide.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SCREW",
+    "message": "One loose screw can lose a robot battle.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CABLE",
+    "message": "Plug in the cable and start coding.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CYBER",
+    "message": "Cyber skills shine at Saturnalia.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ALPHA",
+    "message": "Alpha version today, champion tomorrow.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DELTA",
+    "message": "Small delta, big difference in tech.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "SIGMA",
+    "message": "Standard deviation or fest energy? Sigma at Saturnalia.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "OMEGA",
+    "message": "From alpha to omega, tech fest has it all.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "CRASH",
+    "message": "Crash, debug, rebuild: that is engineering.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RESET",
+    "message": "Hit reset and try again, innovators never quit.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LOGIN",
+    "message": "Log in to the fest of the year.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LINKS",
+    "message": "Links, networks and friendships form at Saturnalia.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "AUDIO",
+    "message": "Audio, light and tech make the nights unforgettable.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "MACRO",
+    "message": "Think macro, build micro.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "PRINT",
+    "message": "Print your prototype and test it.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PIVOT",
+    "message": "Pivot your design and keep going.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "GRIPS",
+    "message": "Strong grips win robot battles.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "BEAMS",
+    "message": "Beams of light cut through the Fete Area night.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RADAR",
+    "message": "Radar on, eyes on the prize.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DIODE",
+    "message": "A diode lets current pass one way and ideas the other.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "ROUTE",
+    "message": "Plan your route through campus events.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "HINGE",
+    "message": "Every great mechanism needs a good hinge.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "SPOOL",
+    "message": "Spool up your project for the big race.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "PRICE",
+    "message": "Priceless memories, zero regrets.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BANKS",
+    "message": "Banks may close, but Saturnalia keeps going.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RATES",
+    "message": "Rates may change but fest spirit holds steady.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BUYER",
+    "message": "Every buyer is a believer in a good pitch.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "OFFER",
+    "message": "An offer you cannot refuse: Saturnalia passes.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DEALS",
+    "message": "Great deals and greater times.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CHAIN",
+    "message": "A chain of events makes the fest.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GOODS",
+    "message": "Good goods and good times at Street Fest stalls.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "STORE",
+    "message": "Store these memories forever.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SHOPS",
+    "message": "Shops and stalls line the Street Fest.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LOANS",
+    "message": "Borrow time from your schedule for the fest.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TAXES",
+    "message": "The only tax at Saturnalia is your enthusiasm.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ASSET",
+    "message": "You are Saturnalia's greatest asset.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "YIELD",
+    "message": "High yield: maximum fun per minute.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "GAINS",
+    "message": "Gains beyond money: friends and skills.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CLOSE",
+    "message": "Close the deal, close the show.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "VALUE",
+    "message": "Value comes from the memories you make.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RAISE",
+    "message": "Raise your hand, raise your voice, raise the fest.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RACES",
+    "message": "Races, runs and relays energise the fest.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "JUDGE",
+    "message": "The judges are watching, make it count.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TIMED",
+    "message": "Timed rounds keep adrenaline high.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RANKS",
+    "message": "Climb the ranks one event at a time.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SCORE",
+    "message": "Every point scores toward the leaderboard.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "POINT",
+    "message": "Prove your point on the biggest stage.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RIVAL",
+    "message": "A worthy rival makes you better.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DEBUT",
+    "message": "Make your debut at Saturnalia.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "STAKE",
+    "message": "Stake your claim on the podium.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GOALS",
+    "message": "Goals are set, now chase them.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BADGE",
+    "message": "Wear your Saturnalia badge with pride.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "VIEWS",
+    "message": "Great views come to those who climb the leaderboard.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TUNES",
+    "message": "Hum your favourite tunes and dance.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "NOTES",
+    "message": "Every note you sing becomes a memory.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SOUND",
+    "message": "The sound of Saturnalia is pure joy.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DISCO",
+    "message": "Disco lights and dance floors await.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FUNKY",
+    "message": "Keep it funky at the fest.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BLUES",
+    "message": "Cure the blues with live music.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SONGS",
+    "message": "Sing along to songs that define the fest.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "OPERA",
+    "message": "Operatic voices carry across the Fete Area.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "RADIO",
+    "message": "Turn the radio up, Saturnalia is on air.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "MIXER",
+    "message": "The mixer decides the night.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "BANJO",
+    "message": "Even a banjo has a place at the fest.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "BASSY",
+    "message": "Bassy beats rattle the stage.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "SHOWY",
+    "message": "Be a little showy on stage, you deserve it.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "TWIRL",
+    "message": "Twirl into the spotlight.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "CHOIR",
+    "message": "The whole crowd becomes a choir at Artist Night.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SPINS",
+    "message": "Spins, flips and rhythm: dance is alive at Saturnalia.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LEAPS",
+    "message": "Leaps of faith make great performances.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "POSES",
+    "message": "Strike your best poses on stage.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "MURAL",
+    "message": "A wall becomes a mural at Saturnalia.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "CARVE",
+    "message": "Carve your name in fest history.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "DRAWS",
+    "message": "Whatever draws you in, create it.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "COMIC",
+    "message": "Turn your idea into a comic panel.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ANIME",
+    "message": "Anime fans, the fest welcomes you.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TOONS",
+    "message": "Toons, sketches and doodles fill the walls.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "INDIE",
+    "message": "Go indie, go bold at Saturnalia.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "IMAGE",
+    "message": "Every image tells a story.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SHEEN",
+    "message": "Add a sheen of creativity to everything.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "ARTSY",
+    "message": "Feeling artsy? The fest is for you.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "INKED",
+    "message": "Get inked in memories at the fest.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "PASTE",
+    "message": "Cut, paste and create a collage.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DRAWN",
+    "message": "Drawn to the fest like a magnet.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TONES",
+    "message": "Different tones, one vibrant fest.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GLYPH",
+    "message": "Every glyph tells a story.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "ANGEL",
+    "message": "Be an angel and cheer for others on stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BEACH",
+    "message": "Bring beach vibes to your fest outfit.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CANDY",
+    "message": "Candy-sweet moments fill the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CLIMB",
+    "message": "Climb the leaderboard one round at a time.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DAILY",
+    "message": "A new highlight every day of Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "EARTH",
+    "message": "Earth's greatest campus party is here.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "EAGLE",
+    "message": "Eagle-eyed fans spot every detail.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FAIRY",
+    "message": "Fairy lights glitter along the pathways.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FLOOR",
+    "message": "The floor is yours, so take it.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FRUIT",
+    "message": "Fresh fruit fuels long fest days.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GHOST",
+    "message": "Ghost stories on the night walk.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GIANT",
+    "message": "A giant crowd gathers at the Fete Area.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GLASS",
+    "message": "Raise a glass to Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GRAPE",
+    "message": "Grape juice stalls at Street Fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GREEN",
+    "message": "Go green, save the planet and still party.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "HONEY",
+    "message": "Sweet as honey: the fest's best moments.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "HOTEL",
+    "message": "Guests are welcomed like hotel royalty.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "JUICE",
+    "message": "Fresh juice for tired dancers.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LEMON",
+    "message": "Lemon-fresh energy for the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LUCKY",
+    "message": "Feeling lucky? Register now.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "MANGO",
+    "message": "Mango shakes at the Street Fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "NORTH",
+    "message": "North or south, everyone arrives at Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "OCEAN",
+    "message": "Dive into an ocean of ideas this Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PEACH",
+    "message": "Everything is peachy at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PLANT",
+    "message": "Plant the seeds of a great memory.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "QUIET",
+    "message": "Even the quiet ones shine at Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "QUICK",
+    "message": "Quick, registrations are closing.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RAINY",
+    "message": "Even rainy days cannot dampen the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RIVER",
+    "message": "The fest flows like a river of fun.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ROYAL",
+    "message": "Royal treatment for every fest-goer.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SALAD",
+    "message": "Healthy bites for hungry fest-goers.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SHARK",
+    "message": "Shark-level focus wins finals.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SHEEP",
+    "message": "Do not follow like sheep, create your own path.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SNAKE",
+    "message": "A snake or a ladder? Roll the dice at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SPACE",
+    "message": "Space for everyone at Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SPICE",
+    "message": "Add some spice to your fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "STONE",
+    "message": "Cast in stone: memories made here last.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "STORM",
+    "message": "Storm the stage with confidence.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SUGAR",
+    "message": "Sugar rush at Street Fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SUNNY",
+    "message": "Sunny days and sunny moods at Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SWEET",
+    "message": "Sweet moments make the sweetest memories.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TABLE",
+    "message": "A seat at the table for every talent.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TIGER",
+    "message": "Tiger-bold performances roar on stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TOWER",
+    "message": "Tower above doubt and step on stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "VALOR",
+    "message": "Valor is on show in every contest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "WORLD",
+    "message": "The world is a stage and Saturnalia is the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "YOUNG",
+    "message": "Young at heart, bold at fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ZEBRA",
+    "message": "Stand out like a zebra in a crowd.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ADORE",
+    "message": "Adore every moment you spend at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "AHEAD",
+    "message": "Great things lie ahead.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ALOFT",
+    "message": "Spirits aloft, hearts full.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "ARISE",
+    "message": "Arise, creators, Saturnalia is here.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "AWAKE",
+    "message": "Stay awake, the overnight events call.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BLAZE",
+    "message": "Blaze a trail on the stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BLOOM",
+    "message": "Talent blooms at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BOOST",
+    "message": "Boost your confidence with a performance.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BRAVO",
+    "message": "Bravo to all who dare.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BREAD",
+    "message": "Fresh bread at the night stalls.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BRIEF",
+    "message": "Keep it brief, then make it brilliant.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BRING",
+    "message": "Bring your friends to Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BUILT",
+    "message": "Built by students, for students.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BURST",
+    "message": "A burst of colour fills campus.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CATCH",
+    "message": "Catch the best shows of the year.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CAUSE",
+    "message": "Every fest has a cause: celebrate.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CHASE",
+    "message": "Chase your dreams on stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CHILD",
+    "message": "Let your inner child out for the games.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CIVIC",
+    "message": "Civic pride meets campus fun.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "CLAIM",
+    "message": "Claim your spot on the podium.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CLEAN",
+    "message": "Leave the grounds clean, take memories with you.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CLEAR",
+    "message": "Clear the floor for dancers.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "COAST",
+    "message": "Coast through the day with a cool drink.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "COUNT",
+    "message": "Count the memories, not the days.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CRAZE",
+    "message": "The latest craze is Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "CREAM",
+    "message": "Cream of the crop competes here.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CYCLE",
+    "message": "Cycle across campus to every event.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DEPTH",
+    "message": "Depth of talent on display.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DIARY",
+    "message": "Fill your diary with festival plans.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DRINK",
+    "message": "Drink in the atmosphere.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DRIVE",
+    "message": "Drive your passion forward.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "EARLY",
+    "message": "Come early, stay till the finale.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ENJOY",
+    "message": "Enjoy every moment.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ENTER",
+    "message": "Enter the arena of Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "EQUAL",
+    "message": "Everyone is equal on the stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "EVENT",
+    "message": "Pick your event and shine.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FAITH",
+    "message": "Have faith in your team.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FANCY",
+    "message": "Dress fancy for the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FIELD",
+    "message": "The field is open for champions.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FIFTY",
+    "message": "Fifty-one editions strong.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FIGHT",
+    "message": "Fight for the win, with a smile.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FRONT",
+    "message": "Front row seats to unforgettable shows.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FUNNY",
+    "message": "Funny moments at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GAUGE",
+    "message": "Gauge the crowd, then wow them.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "GENIE",
+    "message": "Your wish for a great fest is granted.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GLORY",
+    "message": "Chase glory at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GRASP",
+    "message": "Grasp the opportunity.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GREAT",
+    "message": "A great fest needs great people.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GUARD",
+    "message": "Guard your memories.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GUEST",
+    "message": "Every guest is family at Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GUIDE",
+    "message": "Let this guide help you plan.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "HAVEN",
+    "message": "Campus is a haven of joy.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "HOPES",
+    "message": "Hopes are high for Saturnalia 51.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "IDEAL",
+    "message": "The ideal way to spend a weekend.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LOCAL",
+    "message": "Local talent shines.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LOYAL",
+    "message": "Loyal fans return every year.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LUNAR",
+    "message": "Dance under a lunar glow.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "MATCH",
+    "message": "Find a match for your talent.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "MERIT",
+    "message": "Merit wins the day.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "MOUNT",
+    "message": "Mount the stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "NERVE",
+    "message": "Nerve beats nerves.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "NOBLE",
+    "message": "A noble effort wins hearts.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "NOISE",
+    "message": "Make some noise for the winners.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "OWNER",
+    "message": "Be the owner of your story.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PANEL",
+    "message": "The panel sees all.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PHASE",
+    "message": "A new phase begins with Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PIECE",
+    "message": "Be a piece of the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "QUEEN",
+    "message": "Queen of the stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "RAPID",
+    "message": "Rapid-fire rounds keep the crowd on its toes.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "REACH",
+    "message": "Reach for the stars.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "READY",
+    "message": "Ready, set, Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "REIGN",
+    "message": "Reign over the stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "RIGHT",
+    "message": "Right place, right time, right fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ROUND",
+    "message": "Another round, another win.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SHAKE",
+    "message": "Shake it off, shake it up.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SHIRT",
+    "message": "Wear your fest shirt with pride.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SIGHT",
+    "message": "A sight to behold: the Fete Area at night.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SLEEK",
+    "message": "Sleek, stylish, unforgettable.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "SPEND",
+    "message": "Spend your weekend wisely: at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "STAND",
+    "message": "Stand tall for your team.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "START",
+    "message": "Start the fest with a bang.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "STEEP",
+    "message": "A steep climb, a steeper reward.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SUPER",
+    "message": "Super fest, super friends.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SWEEP",
+    "message": "Sweep the awards.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SWIFT",
+    "message": "Swift hands win robot battles.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TASTE",
+    "message": "Taste the fun.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TEACH",
+    "message": "Teach each other new moves.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "THANK",
+    "message": "Thank you for being part of Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "THIRD",
+    "message": "The third day brings the big finale.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "THREE",
+    "message": "Three cheers for Saturnalia.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "THROW",
+    "message": "Throw yourself into the fun.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TRAIL",
+    "message": "Blaze a trail.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TRIAL",
+    "message": "Every trial leads to triumph.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TRUST",
+    "message": "Trust the process.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "VIDEO",
+    "message": "Capture a video to remember.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "VIRAL",
+    "message": "Go viral at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "WAGON",
+    "message": "Hop on the fest wagon.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "WATCH",
+    "message": "Watch the best shows.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "WEIRD",
+    "message": "Embrace the weird, embrace the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "WOMAN",
+    "message": "Women lead the stage, the code and the canvas.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "YEARS",
+    "message": "Fifty-one years of Saturnalia memories.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ZESTY",
+    "message": "Zesty energy at every corner.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "ZONES",
+    "message": "Fun zones everywhere.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GUSTO",
+    "message": "Gusto defines every Saturnalia crowd.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "VERVE",
+    "message": "Bring verve to every event.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "GALAS",
+    "message": "Galas, parades and nights to remember.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "CHANT",
+    "message": "Chant your team's name until the Fete Area shakes.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "ROARS",
+    "message": "Roars echo across the Fete Area.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "EMBER",
+    "message": "Let the embers of Saturnalia glow long after the fest.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "SHEER",
+    "message": "Sheer joy fills every corner of campus.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "BONUS",
+    "message": "Bonus points for the best fest spirit.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "PEAKS",
+    "message": "Saturnalia reaches its peak at the Artist Nights.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "HONOR",
+    "message": "Honor every performer who steps on stage.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "CLOUT",
+    "message": "Earn some clout with a stunning performance.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "BUZZY",
+    "message": "The whole campus is buzzy with excitement.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "RALLY",
+    "message": "Rally your team before the big round.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "NOTED",
+    "message": "Noted: do not miss Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "SLATE",
+    "message": "Your fest slate is full of options.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "CRAMS",
+    "message": "Cram sessions can wait, the fest cannot.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "College-related"
+  },
+  {
+    "word": "ALUMS",
+    "message": "Alums return to cheer on their old campus.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "College-related"
+  },
+  {
+    "word": "QUOTA",
+    "message": "Fill your fun quota with Saturnalia.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "College-related"
+  },
+  {
+    "word": "TERMS",
+    "message": "End the term with a bang.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "SHEET",
+    "message": "Pass the registration sheet down the row.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "TESTS",
+    "message": "Tests are over, the fest begins.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "SLIDE",
+    "message": "Slide into the fest with your squad.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "TIMES",
+    "message": "Good times start at the campus gate.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "SHELL",
+    "message": "Open a shell and start hacking.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ASCII",
+    "message": "ASCII art fits right into the fest posters.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "SCRUM",
+    "message": "Scrum with your team before the deadline.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "TIMER",
+    "message": "Set a timer and build.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SPAWN",
+    "message": "Spawn into the fest and level up.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "FIBER",
+    "message": "Fiber-fast internet keeps hackers happy.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "OPTIC",
+    "message": "Optic cables hum through the hackathon.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "HELIX",
+    "message": "The double helix of creativity and code.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "FUSES",
+    "message": "Fuses blow when robots collide.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PROBE",
+    "message": "Probe the problem before solving it.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "VAULT",
+    "message": "Unlock the vault of ideas.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CODED",
+    "message": "Coded in a night, loved for years.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "MODEM",
+    "message": "Hum along like an old modem.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "QUARK",
+    "message": "From quark to galaxy, tech fest covers it all.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "MATHS",
+    "message": "Maths and music meet at the fest.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PROOF",
+    "message": "Proof of concept becomes proof of talent.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "AGILE",
+    "message": "Stay agile, stay hackathon-ready.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "ADAPT",
+    "message": "Adapt like a start-up.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "AUDIT",
+    "message": "Audit your schedule and make room for more events.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "MOGUL",
+    "message": "Become a campus mogul at the fest.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "BOOMS",
+    "message": "Booms and busts keep the markets exciting.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DERBY",
+    "message": "Derby fever hits the fest.",
+    "category": "Competitions",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "SALSA",
+    "message": "Salsa steps on the dance floor.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "TANGO",
+    "message": "Take tango steps in the Fete Area.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "SAMBA",
+    "message": "Samba into the weekend.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "RUMBA",
+    "message": "Rumba rhythms shake the stage.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "CURVE",
+    "message": "Curves and colours define the best designs.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "COLOR",
+    "message": "Colour outside the lines at the fest.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GLOSS",
+    "message": "A little gloss makes a poster pop.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "STAMP",
+    "message": "Leave your stamp on the fest.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DECAL",
+    "message": "Slap a decal on your fest bag.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "WOVEN",
+    "message": "Woven together by creativity.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "QUILT",
+    "message": "Quilt the fest together with your ideas.",
+    "category": "Art and Creativity",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "APPLE",
+    "message": "An apple a day keeps fest fatigue away.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BERRY",
+    "message": "Berry-sweet moments at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "COCOA",
+    "message": "Warm cocoa for chilly fest nights.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CRISP",
+    "message": "A crisp winter night at the Fete Area.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DONUT",
+    "message": "A donut for the dancers.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "FIZZY",
+    "message": "Fizzy drinks, fizzy moods.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "FROST",
+    "message": "Frosty November mornings, fiery fest evenings.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GLEAM",
+    "message": "Gleam under the stage lights.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "KARMA",
+    "message": "Good karma comes to those who cheer.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "LLAMA",
+    "message": "Even a llama would join the conga line.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "MOCHA",
+    "message": "Mocha to wake you up for the morning events.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "OASIS",
+    "message": "Campus is an oasis of fun this weekend.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "OTTER",
+    "message": "Otter-ly delightful fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PANDA",
+    "message": "Panda-monium at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PASTA",
+    "message": "Pasta at the food court keeps you going.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "PLUSH",
+    "message": "Plush toys at the Street Fest stalls.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SAUCE",
+    "message": "Extra sauce on the fest memories.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SHINY",
+    "message": "Shiny trophies for shiny teams.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SKATE",
+    "message": "Skate across campus to the next event.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SMOKE",
+    "message": "Smoke machines and spotlights at night shows.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SPOON",
+    "message": "Spoon up dessert between events.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TWEET",
+    "message": "Tweet your favourite moments from the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "WHISK",
+    "message": "Whisk up a plan for the weekend.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "YEARN",
+    "message": "Yearn for more? Day 3 awaits.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "YUMMY",
+    "message": "Yummy snacks fuel fest days.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "ZIPPY",
+    "message": "Zippy energy keeps the fest rolling.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "GLINT",
+    "message": "A glint of excitement in every eye at Saturnalia.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "FLING",
+    "message": "One last fling before the semester ends.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "FETES",
+    "message": "Fetes, feasts and fireworks await.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "WOWED",
+    "message": "Get wowed by the Fete Area at night.",
+    "category": "Fest Spirit",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "Fest-related"
+  },
+  {
+    "word": "DOZEN",
+    "message": "A dozen friends, one fest.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "BORED",
+    "message": "Bored of lectures? The fest has the cure.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "GRIND",
+    "message": "Take a break from the grind and join the fun.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "CRUSH",
+    "message": "Your crush might be in the crowd.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "PRANK",
+    "message": "Harmless pranks keep hostels laughing.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "College-related"
+  },
+  {
+    "word": "MEMES",
+    "message": "Memes about the fest will be everywhere.",
+    "category": "College Life",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "College-related"
+  },
+  {
+    "word": "PROMO",
+    "message": "Promo videos need editors, coders and storytellers.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "TRACE",
+    "message": "Trace the error before the deadline.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SYNCS",
+    "message": "Sync your team before the final round.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "FUZZY",
+    "message": "Fuzzy logic or sharp logic, both win.",
+    "category": "Technology and Engineering",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "RETRO",
+    "message": "Retro brands make a comeback every fest.",
+    "category": "Business and Finance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "CHIME",
+    "message": "Chimes ring out across the Fete Area.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "STOMP",
+    "message": "Stomp your feet to the beat.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "BAGEL",
+    "message": "Bagels and banter at breakfast events.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "BRINK",
+    "message": "On the brink of an unforgettable weekend.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "CABIN",
+    "message": "Escape the cabin fever with a fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "CANAL",
+    "message": "Stroll by the canal path between events.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "DAISY",
+    "message": "Daisy-fresh mornings at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "EBONY",
+    "message": "Ebony night skies over the Fete Area.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "FEVER",
+    "message": "Fest fever is real.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "HAZEL",
+    "message": "Hazel eyes light up at the finale.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "IVORY",
+    "message": "Ivory keys and midnight tunes.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "JOKER",
+    "message": "The joker of every group shines at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LATTE",
+    "message": "A latte to start the fest morning.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "LUNGE",
+    "message": "Lunge into the next event.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "MAGMA",
+    "message": "Fiery as magma: the finale.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "PEARL",
+    "message": "Pearl-white lights on the main stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "QUAKE",
+    "message": "Feel the quake as the crowd roars.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "RAVEN",
+    "message": "Raven-black night, bright stage.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "RUSTY",
+    "message": "Shake the rust off before your performance.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SCOUT",
+    "message": "Scout the stalls and snacks.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SIREN",
+    "message": "The fest siren calls every student.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "SLICE",
+    "message": "Slice of fest life, anyone?",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "SPEAR",
+    "message": "Spear through the crowd to the front row.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Medium",
+    "source_type": "General"
+  },
+  {
+    "word": "TULIP",
+    "message": "Tulip-bright colours at the fest.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "VIOLA",
+    "message": "Violas add depth to the Battle of Bands.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  },
+  {
+    "word": "WRIST",
+    "message": "Wristbands get you through the gates.",
+    "category": "General Vocabulary",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Easy",
+    "source_type": "General"
+  },
+  {
+    "word": "GIDDA",
+    "message": "Gidda's claps and boliyan carry Punjab's spirit into the fest.",
+    "category": "Music and Performance",
+    "related_event": null,
+    "day": null,
+    "difficulty": "Hard",
+    "source_type": "General"
+  }
+]

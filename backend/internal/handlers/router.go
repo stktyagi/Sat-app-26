@@ -124,23 +124,24 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	adminOnly.PUT("/admin/app/accommodation", api.AdminUpdateAppAccommodation)
 	adminOnly.POST("/admin/app/accommodation/reconcile", api.AdminReconcileAccommodation)
 	adminOnly.POST("/admin/notifications", api.SendNotification)
+	adminOnly.POST("/admin/notifications/hospitality-summary", api.AdminTriggerHospitalitySummary)
 	adminOnly.GET("/admin/app/screens", api.AdminGetAdminScreens)
 	adminOnly.PATCH("/admin/app/screens", api.AdminUpdateAdminScreens)
 	adminOnly.PUT("/admin/app/screens", api.AdminUpdateAdminScreens)
 
 	// Events: Admin, EB_Events (coordinators can access scoped update/registrations)
-	ebEvents := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents))
+	ebEvents := staff.Group("", middleware.RequireScreenOrRoles(s, "events_management", models.RoleEBEvents))
 	ebEvents.POST("/admin/events", api.CreateEvent)
 	ebEvents.DELETE("/admin/events/:id", api.DeleteEvent)
 
-	eventsShared := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBOutreach, models.RoleEventPOC))
+	eventsShared := staff.Group("", middleware.RequireScreenOrRoles(s, "events_management", models.RoleEBEvents, models.RoleEBOutreach, models.RoleEventPOC))
 	eventsShared.PATCH("/admin/events/:id", api.UpdateEvent)
 	eventsShared.GET("/admin/events/:id/registrations", api.ListEventRegistrations)
 	eventsShared.PATCH("/admin/events/:id/registrations/:target/status", api.AdminUpdateRegistrationStatus)
 	eventsShared.DELETE("/admin/events/:id/registrations/:target", api.AdminDeleteRegistration)
 
 	// Venues: Admin, EB_Events
-	venues := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents))
+	venues := staff.Group("", middleware.RequireScreenOrRoles(s, "venue_management", models.RoleEBEvents))
 	venues.GET("/admin/venues", api.ListVenues)
 	venues.GET("/admin/venues/:id", api.GetVenue)
 	venues.POST("/admin/venues", api.CreateVenue)
@@ -153,7 +154,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	venues.DELETE("/admin/venues/:id", api.DeleteVenue)
 
 	// Banners: Admin, EB_Events, EB_Media
-	banners := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBMedia))
+	banners := staff.Group("", middleware.RequireScreenOrRoles(s, "banner_management", models.RoleEBEvents, models.RoleEBMedia))
 	banners.GET("/admin/banners", api.AdminListBanners)
 	banners.GET("/admin/banners/:id", api.AdminGetBanner)
 	banners.POST("/admin/banners", api.CreateBanner)
@@ -161,12 +162,12 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	banners.DELETE("/admin/banners/:id", api.DeleteBanner)
 
 	// Media: Admin, EB_Events, EB_Media
-	media := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBMedia))
+	media := staff.Group("", middleware.RequireScreenOrRoles(s, "story_management", models.RoleEBEvents, models.RoleEBMedia))
 	media.POST("/admin/media/upload", api.UploadMedia)
 	media.DELETE("/admin/media", api.DeleteMedia)
 
 	// Reels & Stories: Admin, EB_Media
-	mediaContent := staff.Group("", middleware.RequireAnyRole(models.RoleEBMedia))
+	mediaContent := staff.Group("", middleware.RequireScreenOrRoles(s, "reel_management", models.RoleEBMedia))
 	mediaContent.GET("/admin/reels", api.AdminListReels)
 	mediaContent.GET("/admin/reels/:id", api.AdminGetReel)
 	mediaContent.POST("/admin/reels", api.CreateReel)
@@ -180,14 +181,14 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	mediaContent.DELETE("/admin/stories/:id", api.DeleteStory)
 
 	// Payments: Admin, EB_Outreach, EB_Finance, EB_Events, Event_POC
-	paymentsRead := staff.Group("", middleware.RequireAnyRole(models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBEvents, models.RoleEventPOC))
+	paymentsRead := staff.Group("", middleware.RequireScreenOrRoles(s, "payment_management", models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBEvents, models.RoleEventPOC))
 	paymentsRead.GET("/admin/payments", api.AdminListPayments)
 
-	paymentsWrite := staff.Group("", middleware.RequireAnyRole(models.RoleEBOutreach, models.RoleEBFinance))
+	paymentsWrite := staff.Group("", middleware.RequireScreenOrRoles(s, "payment_management", models.RoleEBOutreach, models.RoleEBFinance))
 	paymentsWrite.PATCH("/admin/payments/:id", api.AdminUpdatePaymentStatus)
 
 	// Users Management: Admin, EB_Events, EB_Outreach, EB_Finance, EB_Hospitality
-	users := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBHospitality))
+	users := staff.Group("", middleware.RequireScreenOrRoles(s, "users_management", models.RoleEBEvents, models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBHospitality))
 	users.GET("/admin/users/by-email/:email", api.AdminGetUser)
 	users.PATCH("/admin/users/by-email/:email", api.AdminUpdateUser)
 	users.GET("/admin/users/by-email/:email/registrations", api.AdminGetUserEvents)
@@ -196,7 +197,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 
 	// Hospitality desks: Admin, EB/EC/Core Hospitality. Reverts are further
 	// restricted to EB/EC inside the handlers.
-	hosp := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality))
+	hosp := staff.Group("", middleware.RequireScreenOrRoles(s, "accommodation", models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality))
 	hosp.GET("/admin/accommodation", api.AdminListAccommodation)
 	hosp.GET("/admin/accommodation/stats", api.AdminAccommodationStats)
 	hosp.POST("/admin/accommodation/checkin", api.AdminHostelCheckIn)
@@ -210,7 +211,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	hosp.POST("/admin/desk/allot", api.AdminDeskAllot)
 
 	// Hospitality EB-only tools: Admin, EB_Hospitality
-	hospEB := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality))
+	hospEB := staff.Group("", middleware.RequireScreenOrRoles(s, "hospitality_eb", models.RoleEBHospitality))
 	hospEB.POST("/admin/hostels", api.AdminCreateHostel)
 	hospEB.PATCH("/admin/hostels/:id", api.AdminUpdateHostel)
 	hospEB.GET("/admin/accommodation/inhouse", api.AdminInHouse)
@@ -218,12 +219,12 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	hospEB.GET("/admin/food/logs", api.AdminListMealLogs)
 
 	// QR Event: Admin, EB_Events, Event_POC
-	eventQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBEvents, models.RoleEventPOC))
+	eventQR := staff.Group("", middleware.RequireScreenOrRoles(s, "qr_scanner", models.RoleEBEvents, models.RoleEventPOC, models.RoleCoreHospitality))
 	eventQR.POST("/admin/qr/event-checkin", api.AdminEventCheckIn)
 	eventQR.PATCH("/admin/qr/registrations/:id/status", api.AdminEventCheckIn)
 
 	// Unified Scan Endpoint: accessible to any QR role (category validation enforced in handler)
-	scanQR := staff.Group("", middleware.RequireAnyRole(models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality, models.RoleEBEvents, models.RoleEventPOC))
+	scanQR := staff.Group("", middleware.RequireScreenOrRoles(s, "qr_scanner", models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality, models.RoleEBEvents, models.RoleEventPOC))
 	scanQR.POST("/admin/qr/scan", api.AdminQRScan)
 
 	// Coupons

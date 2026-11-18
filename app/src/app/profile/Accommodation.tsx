@@ -459,6 +459,7 @@ export default function AccommodationScreen() {
                     color: textColor,
                     fontSize: 12,
                     marginLeft: 8,
+                    flex: 1,
                   }}
                 >
                   Allotted: {formatHostelDisplay(user.checkInStatus.Hostel, user.checkInStatus.RoomNo)}

@@ -253,7 +253,7 @@ const ItemDetailsScreen = () => {
                 fontSize: 14,
               }}
             >
-              Rs. {item.price}
+              {item.price} Coins
             </Text>
           </View>
 
@@ -537,7 +537,7 @@ const ItemDetailsScreen = () => {
             Total Price
           </Text>
           <Text style={{ fontFamily: 'Talina', fontSize: 24, color: textColor }}>
-            Rs. {item.price * quantity}
+            {item.price * quantity} Coins
           </Text>
         </View>
 

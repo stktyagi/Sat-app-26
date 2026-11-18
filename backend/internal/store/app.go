@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"strings"
 	"cloud.google.com/go/firestore"
 
 	"backend/internal/apierr"
@@ -428,6 +429,27 @@ func (s *Store) SetAdminScreens(ctx context.Context, screens []models.AdminScree
 	}
 	cfg.AdminScreens = cloneAdminScreens(screens)
 	return saveAppConfigLocked(s.configPath(), cfg)
+}
+
+// UserCanAccessScreen checks if the user has permission to access a screen by key or route.
+// Administrators always have full access.
+func (s *Store) UserCanAccessScreen(ctx context.Context, u *models.User, screenKey string) bool {
+	if u == nil {
+		return false
+	}
+	if u.IsAdmin() {
+		return true
+	}
+	screens, err := s.GetAdminScreens(ctx)
+	if err != nil {
+		return false
+	}
+	for _, sc := range screens {
+		if strings.EqualFold(sc.Key, screenKey) || strings.EqualFold(sc.Route, screenKey) {
+			return u.HasAnyRole(sc.RequiredRoles...)
+		}
+	}
+	return false
 }
 
 

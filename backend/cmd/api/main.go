@@ -70,6 +70,7 @@ func main() {
 	stories := store.NewListCache(provider, store.KeyStories, cfg.EventCacheTTL, st.AllStories)
 	storeItems := store.NewListCache(provider, store.KeyStore, cfg.EventCacheTTL, st.AllStoreItems)
 	api := handlers.New(st, events, faqs, venues, banners, reels, stories, storeItems, qr.New(cfg.QRSecret), cfg, cb, clients, mediaStore, s3Client)
+	api.StartAutomatedNotificationScheduler(ctx)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

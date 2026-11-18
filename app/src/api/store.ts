@@ -97,7 +97,7 @@ export async function fetchLeaderboard(): Promise<LeaderboardResponse> {
 /**
  * Claim daily coins from backend upon completing a game level
  */
-export async function claimGameCoins(game: 'zip' | 'patches' | 'quiz'): Promise<GameClaimResponse> {
+export async function claimGameCoins(game: 'zip' | 'patches' | 'quiz' | 'wordle' | string): Promise<GameClaimResponse> {
   const res = await apiFetch('/me/games/complete', {
     method: 'POST',
     body: JSON.stringify({ game }),

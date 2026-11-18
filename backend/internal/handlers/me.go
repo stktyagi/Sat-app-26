@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -215,7 +216,7 @@ func (a *API) ClaimDailyGameCoins(c *gin.Context) {
 		return
 	}
 
-	reward := 20
+	reward := 0
 	newCoins, awarded, alreadyClaimed, err := a.Store.ClaimDailyGame(c.Request.Context(), user.UserID, game, reward)
 	if err != nil {
 		log.Printf("ClaimDailyGameCoins error for user %s, game %s: %v", user.UserID, game, err)
@@ -223,9 +224,12 @@ func (a *API) ClaimDailyGameCoins(c *gin.Context) {
 		return
 	}
 
-	msg := "You earned 20 Saturnalia Coins!"
+	msg := "Daily challenge completed!"
+	if awarded > 0 {
+		msg = fmt.Sprintf("You earned +%d Saturnalia Coins!", awarded)
+	}
 	if alreadyClaimed {
-		msg = "You have already claimed today's coins for this game. Come back tomorrow!"
+		msg = "You have already completed today's challenge. Come back tomorrow!"
 	}
 
 	c.JSON(http.StatusOK, gin.H{

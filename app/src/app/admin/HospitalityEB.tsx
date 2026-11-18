@@ -25,6 +25,8 @@ import {
   getMealLogs,
   updateHostel,
   getCurrentEventDay,
+  AccommodationStats,
+  fetchAccommodationStats,
 } from "@/api/admin";
 import {
   ActionButton,
@@ -120,6 +122,9 @@ export default function HospitalityEBScreen() {
   const [hostels, setHostels] = useState<AdminHostel[]>([]);
   const [totals, setTotals] = useState({ cap: 0, occ: 0 });
   const [rows, setRows] = useState<HospitalityRow[]>([]);
+  const [stats, setStats] = useState<AccommodationStats[]>([]);
+  const [inhouseCount, setInhouseCount] = useState<number>(0);
+  const [checkoutsCount, setCheckoutsCount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -144,20 +149,46 @@ export default function HospitalityEBScreen() {
     setTotals({ cap: res.totalCapacity, occ: res.totalOccupied });
   }, []);
 
+  const loadStatsAndCounts = useCallback(async () => {
+    try {
+      const [statsRes, inhouseRes, checkoutsRes] = await Promise.allSettled([
+        fetchAccommodationStats(true),
+        getInHouse(),
+        getCheckoutsToday(),
+      ]);
+      if (statsRes.status === "fulfilled") {
+        setStats(statsRes.value || []);
+      }
+      if (inhouseRes.status === "fulfilled") {
+        setInhouseCount(inhouseRes.value?.count ?? inhouseRes.value?.users?.length ?? 0);
+      }
+      if (checkoutsRes.status === "fulfilled") {
+        setCheckoutsCount(checkoutsRes.value?.count ?? checkoutsRes.value?.users?.length ?? 0);
+      }
+    } catch {}
+  }, []);
+
   const load = useCallback(async () => {
     if (!allowed) return;
     setLoading(true);
     setError(null);
     try {
-      await loadHostels();
-      if (tab === "inhouse") setRows((await getInHouse(hostelFilter || undefined)).users);
-      else if (tab === "checkouts") setRows((await getCheckoutsToday()).users);
+      await Promise.all([loadHostels(), loadStatsAndCounts()]);
+      if (tab === "inhouse") {
+        const res = await getInHouse(hostelFilter || undefined);
+        setRows(res.users);
+        if (!hostelFilter) setInhouseCount(res.count ?? res.users.length);
+      } else if (tab === "checkouts") {
+        const res = await getCheckoutsToday();
+        setRows(res.users);
+        setCheckoutsCount(res.count ?? res.users.length);
+      }
     } catch (e: any) {
       setError(e?.message || "Failed to load");
     } finally {
       setLoading(false);
     }
-  }, [allowed, tab, hostelFilter, loadHostels]);
+  }, [allowed, tab, hostelFilter, loadHostels, loadStatsAndCounts]);
 
   useEffect(() => {
     setRows([]);
@@ -260,6 +291,38 @@ export default function HospitalityEBScreen() {
     fontFamily: "Poppins_400Regular",
   } as const;
 
+  const currentDayKey = useMemo(() => getCurrentEventDay(), []);
+  const currentDayIndex = useMemo(() => {
+    const n = parseInt(currentDayKey.replace("day", ""), 10);
+    return isNaN(n) ? 0 : n;
+  }, [currentDayKey]);
+
+  const todayStats = useMemo(() => {
+    return stats[currentDayIndex] || null;
+  }, [stats, currentDayIndex]);
+
+  const todayCheckIns = todayStats?.incomingCheckedIn ?? 0;
+  const todayIncomingTotal = todayStats?.incomingTotal ?? 0;
+  const todayCheckOuts = todayStats?.outgoingCheckedOut ?? 0;
+  const todayOutgoingTotal = todayStats?.outgoingTotal ?? 0;
+
+  const totalCheckInsAcrossFest = useMemo(() => {
+    const sum = stats.reduce((acc, s) => acc + (s.incomingCheckedIn || 0), 0);
+    return sum > 0 ? sum : inhouseCount;
+  }, [stats, inhouseCount]);
+
+  const totalCheckOutsAcrossFest = useMemo(() => {
+    const sum = stats.reduce((acc, s) => acc + (s.outgoingCheckedOut || 0), 0);
+    return sum > 0 ? sum : checkoutsCount;
+  }, [stats, checkoutsCount]);
+
+  const tabsWithBadges = useMemo(() => [
+    { key: "inhouse" as Tab, label: "In-house", icon: "bed-outline" as const, count: inhouseCount },
+    { key: "checkouts" as Tab, label: "Checkouts", icon: "log-out-outline" as const, count: checkoutsCount },
+    { key: "meals" as Tab, label: "Meals", icon: "restaurant-outline" as const },
+    { key: "hostels" as Tab, label: "Hostels", icon: "business-outline" as const, count: hostels.length },
+  ], [inhouseCount, checkoutsCount, hostels.length]);
+
   if (!allowed) {
     return (
       <View style={{ flex: 1, backgroundColor: c.isDark ? "#131316" : "#F3F4F6", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -295,9 +358,120 @@ export default function HospitalityEBScreen() {
         </View>
       </View>
 
+      {/* Hospitality Counters (Check-ins & Check-outs) */}
+      <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 }}>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          {/* Check-ins Counter Card */}
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: c.isDark ? "#18181B" : "#FFFFFF",
+              borderWidth: 1,
+              borderColor: c.isDark ? "#065F46" : "#A7F3D0",
+              borderRadius: 14,
+              padding: 12,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <View
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: c.isDark ? "rgba(16, 185, 129, 0.2)" : "#D1FAE5",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name="log-in-outline" size={14} color={c.success} />
+                </View>
+                <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12, color: c.textPrimary }}>
+                  Check-ins
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: c.isDark ? "rgba(16, 185, 129, 0.2)" : "#D1FAE5",
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: 6,
+                }}
+              >
+                <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 9.5, color: c.success }}>
+                  {DAY_LABELS[currentDayKey] || currentDayKey}
+                </Text>
+              </View>
+            </View>
+            <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 20, color: c.success }}>
+              {todayCheckIns}
+              <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: c.textSecondary }}>
+                {todayIncomingTotal > 0 ? ` / ${todayIncomingTotal} sched.` : " today"}
+              </Text>
+            </Text>
+            <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: c.textSecondary, marginTop: 2 }}>
+              {inhouseCount} in-house currently
+            </Text>
+          </View>
+
+          {/* Check-outs Counter Card */}
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: c.isDark ? "#18181B" : "#FFFFFF",
+              borderWidth: 1,
+              borderColor: c.isDark ? "#7F1D1D" : "#FECACA",
+              borderRadius: 14,
+              padding: 12,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <View
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: c.isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name="log-out-outline" size={14} color={c.danger} />
+                </View>
+                <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12, color: c.textPrimary }}>
+                  Check-outs
+                </Text>
+              </View>
+              <View
+                style={{
+                  backgroundColor: c.isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2",
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: 6,
+                }}
+              >
+                <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 9.5, color: c.danger }}>
+                  {DAY_LABELS[currentDayKey] || currentDayKey}
+                </Text>
+              </View>
+            </View>
+            <Text style={{ fontFamily: "Poppins_700Bold", fontSize: 20, color: c.danger }}>
+              {todayCheckOuts}
+              <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: c.textSecondary }}>
+                {todayOutgoingTotal > 0 ? ` / ${todayOutgoingTotal} sched.` : " today"}
+              </Text>
+            </Text>
+            <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11, color: c.textSecondary, marginTop: 2 }}>
+              {totalCheckOutsAcrossFest} total checked out
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* Tabs */}
       <View style={{ flexDirection: "row", paddingHorizontal: 12, paddingVertical: 10, gap: 6 }}>
-        {TABS.map((t) => {
+        {tabsWithBadges.map((t) => {
           const active = tab === t.key;
           return (
             <TouchableOpacity
@@ -314,8 +488,16 @@ export default function HospitalityEBScreen() {
               }}
             >
               <Ionicons name={t.icon} size={16} color={active ? "#fff" : c.textSecondary} />
-              <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 11, color: active ? "#fff" : c.textSecondary, marginTop: 2 }}>
-                {t.label}
+              <Text
+                style={{
+                  fontFamily: "Poppins_500Medium",
+                  fontSize: 10.5,
+                  color: active ? "#fff" : c.textSecondary,
+                  marginTop: 2,
+                }}
+                numberOfLines={1}
+              >
+                {t.label}{t.count !== undefined ? ` (${t.count})` : ""}
               </Text>
             </TouchableOpacity>
           );
