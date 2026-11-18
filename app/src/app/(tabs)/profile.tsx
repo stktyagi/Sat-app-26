@@ -119,6 +119,12 @@ const ProfileScreen = () => {
     (roomNo && typeof roomNo === 'string' && roomNo.trim().length > 0)
   );
 
+  const isCheckedOut = Boolean(
+    userProfile?.checkInStatus?.checkedOut ||
+    (userProfile?.checkInStatus as any)?.CheckedOut ||
+    (userProfile as any)?.checkedOut
+  );
+
   const formattedHostel = formatHostelDisplay(hostelRaw, roomNo);
   const hostelDisplay = formattedHostel && formattedHostel.trim().length > 0
     ? formattedHostel
@@ -544,7 +550,22 @@ const ProfileScreen = () => {
                   </Text>
                 </View>
 
-                {userProfile?.checkInStatus?.accommodation ? (
+                {isCheckedOut ? (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#EF4444',
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#EF4444' }}>
+                      Checked Out
+                    </Text>
+                  </View>
+                ) : userProfile?.checkInStatus?.accommodation ? (
                   <View
                     style={{
                       backgroundColor: isDark ? 'rgba(34, 197, 94, 0.18)' : '#DCFCE7',
@@ -608,11 +629,12 @@ const ProfileScreen = () => {
           {/* Bottom Row: Logout & Delete Account Buttons */}
           <View
             style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              flexWrap: "wrap",
               marginTop: 20,
-              gap: 10,
+              gap: 8,
             }}
           >
             {/* Logout Button */}
@@ -621,67 +643,67 @@ const ProfileScreen = () => {
               disabled={loggingOut || deletingAccount}
               onPress={handleSignOutPress}
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingHorizontal: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                paddingHorizontal: 12,
                 paddingVertical: 7,
                 borderRadius: 12,
-                backgroundColor: isDark ? '#1F2228' : '#FEE2E2',
+                backgroundColor: isDark ? "#1F2228" : "#FEE2E2",
                 borderWidth: 1,
-                borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FCA5A5',
+                borderColor: isDark ? "rgba(239, 68, 68, 0.35)" : "#FCA5A5",
                 opacity: loggingOut ? 0.6 : 1,
               }}
             >
               {loggingOut ? (
                 <ActivityIndicator size="small" color="#EF4444" />
               ) : (
-                <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+                <Ionicons name="log-out-outline" size={15} color="#EF4444" />
               )}
               <Text
                 style={{
-                  fontFamily: 'Poppins_600SemiBold',
-                  fontSize: 13,
-                  color: '#EF4444',
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 12,
+                  color: "#EF4444",
                 }}
               >
-                {loggingOut ? 'Logging out...': 'Logout'}
+                {loggingOut ? "Logging out..." : "Logout"}
               </Text>
             </TouchableOpacity>
 
-              {/* Delete Account Button */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                disabled={deletingAccount}
-                onPress={handleDeleteAccount}
+            {/* Delete Account Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              disabled={deletingAccount || loggingOut}
+              onPress={handleDeleteAccount}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                paddingHorizontal: 10,
+                paddingVertical: 7,
+                borderRadius: 12,
+                backgroundColor: isDark ? "#1F2228" : "#FEF2F2",
+                borderWidth: 1,
+                borderColor: "#EF4444",
+                opacity: deletingAccount ? 0.6 : 1,
+              }}
+            >
+              {deletingAccount ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+              )}
+              <Text
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 12,
-                  paddingVertical: 7,
-                  borderRadius: 12,
-                  backgroundColor: isDark ? '#1F2228' : '#FEF2F2',
-                  borderWidth: 1,
-                  borderColor: '#EF4444',
-                  opacity: deletingAccount ? 0.6 : 1,
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 12,
+                  color: "#EF4444",
                 }}
               >
-                {deletingAccount ? (
-                  <ActivityIndicator size="small" color="#EF4444" />
-                ) : (
-                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
-                )}
-                <Text
-                  style={{
-                    fontFamily: 'Poppins_600SemiBold',
-                    fontSize: 13,
-                    color: '#EF4444',
-                  }}
-                >
-                  {deletingAccount ? 'Deleting...' : 'Delete Account'}
-                </Text>
-              </TouchableOpacity>
+                {deletingAccount ? "Deleting..." : "Delete Account"}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1025,8 +1047,30 @@ const ProfileScreen = () => {
             {hasPaidAccommodation && (
               <ProfileMenuItem
                 icon="log-out-outline"
-                label="Hostel Checkout"
+                label={isCheckedOut ? "Hostel Checkout (Completed)" : "Hostel Checkout"}
                 onPress={() => router.push("/profile/CheckoutScan" as any)}
+                extra={
+                  isCheckedOut ? (
+                    <View
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                        backgroundColor: isDark ? "rgba(239, 68, 68, 0.15)" : "#FEE2E2",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: "Poppins_600SemiBold",
+                          fontSize: 11,
+                          color: "#EF4444",
+                        }}
+                      >
+                        Checked Out
+                      </Text>
+                    </View>
+                  ) : null
+                }
               />
             )}
           </>
