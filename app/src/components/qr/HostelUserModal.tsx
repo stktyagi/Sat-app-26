@@ -20,6 +20,8 @@ import {
   InfoRow,
   StatusPill,
   ToggleRow,
+  UserIdentityPhotos,
+  ZoomImageModal,
   hostelLabel,
   useHospitalityColors,
   DAY_LABELS,
@@ -55,6 +57,7 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, use
   const [roomNo, setRoomNo] = useState(userData?.checkInStatus?.RoomNo || "");
   const [loading, setLoading] = useState<HostelAction | null>(null);
   const [success, setSuccess] = useState("");
+  const [zoomUri, setZoomUri] = useState<string | null>(null);
 
   useEffect(() => {
     setData(userData);
@@ -165,6 +168,13 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, use
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
             {success ? <Banner text={`✓ ${success}`} tone={success.includes("not returned") ? "warning" : "success"} /> : null}
+
+            {/* Identity Photos */}
+            <UserIdentityPhotos
+              photoUrl={data.photoUrl}
+              collegeIdUrl={data.collegeIdUrl}
+              onZoom={setZoomUri}
+            />
 
             <Text style={{ fontFamily: "Talina", color: c.textPrimary, fontSize: 22, textAlign: "center", marginBottom: 6 }}>
               {data.displayName || data.name || "User"}
@@ -281,6 +291,7 @@ const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, use
           </ScrollView>
         </View>
       </View>
+      <ZoomImageModal uri={zoomUri} onClose={() => setZoomUri(null)} />
     </Modal>
   );
 };

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, Switch } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, Switch, Image, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeStore } from "@/state/themeStore";
 import { findHostel, formatHostelDisplay } from "@/data/hostels";
@@ -216,5 +216,79 @@ export const Banner: React.FC<{ text: string; tone: "success" | "warning" | "dan
     >
       <Text style={{ fontFamily: "Poppins_600SemiBold", color: col, textAlign: "center", fontSize: 13 }}>{text}</Text>
     </View>
+  );
+};
+
+export const UserIdentityPhotos: React.FC<{
+  photoUrl?: string | null;
+  collegeIdUrl?: string | null;
+  onZoom?: (uri: string) => void;
+}> = ({ photoUrl, collegeIdUrl, onZoom }) => {
+  const c = useHospitalityColors();
+  const items = [
+    { uri: photoUrl, label: "Photo" },
+    { uri: collegeIdUrl, label: "College ID" },
+  ];
+
+  return (
+    <View style={{ flexDirection: "row", gap: 12, justifyContent: "center", marginBottom: 12 }}>
+      {items.map((img) => (
+        <TouchableOpacity
+          key={img.label}
+          disabled={!img.uri}
+          onPress={() => img.uri && onZoom?.(img.uri)}
+          style={{ alignItems: "center" }}
+          activeOpacity={0.8}
+        >
+          {img.uri ? (
+            <Image
+              source={{ uri: img.uri }}
+              style={{ width: 110, height: 110, borderRadius: 14, backgroundColor: c.cardBg }}
+            />
+          ) : (
+            <View
+              style={{
+                width: 110,
+                height: 110,
+                borderRadius: 14,
+                backgroundColor: c.cardBg,
+                borderWidth: 1,
+                borderColor: c.cardBorder,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name="image-outline" size={28} color={c.textSecondary} />
+            </View>
+          )}
+          <Text style={{ fontFamily: "Poppins_400Regular", color: c.textSecondary, fontSize: 11, marginTop: 4 }}>
+            {img.uri ? `${img.label} (tap)` : `No ${img.label.toLowerCase()}`}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+};
+
+export const ZoomImageModal: React.FC<{
+  uri: string | null;
+  onClose: () => void;
+}> = ({ uri, onClose }) => {
+  return (
+    <Modal visible={Boolean(uri)} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onClose}
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }}
+      >
+        <TouchableOpacity
+          style={{ position: "absolute", top: 50, right: 24, zIndex: 10, padding: 8 }}
+          onPress={onClose}
+        >
+          <Ionicons name="close" size={30} color="#FFFFFF" />
+        </TouchableOpacity>
+        {uri ? <Image source={{ uri }} style={{ width: "100%", height: "80%" }} resizeMode="contain" /> : null}
+      </TouchableOpacity>
+    </Modal>
   );
 };

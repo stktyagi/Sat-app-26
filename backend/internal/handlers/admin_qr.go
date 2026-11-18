@@ -165,12 +165,16 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 	userName := "Participant"
 	userEmail := ""
 	userPhone := ""
+	photoURL := ""
+	collegeIDURL := ""
 	if u != nil {
 		if u.DisplayName != "" {
 			userName = u.DisplayName
 		}
 		userEmail = u.Email
 		userPhone = u.PhoneNumber
+		photoURL = u.PhotoURL
+		collegeIDURL = u.CollegeIDURL
 	}
 
 	chkStatus := models.NormalizeCheckinStatus(reg.CheckingStatus)
@@ -234,6 +238,8 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 			"displayName":    userName,
 			"email":          userEmail,
 			"phoneNumber":    userPhone,
+			"photoUrl":       photoURL,
+			"collegeIdUrl":   collegeIDURL,
 			"status":         reg.Status,
 			"checkingStatus": chkStatus,
 			"paymentStatus":  reg.PaymentStatus,
@@ -311,6 +317,9 @@ func (a *API) handleUserQRScan(c *gin.Context, rawData, category string) {
 		"phoneNumber":          user.PhoneNumber,
 		"collegeName":          user.CollegeName,
 		"gender":               user.Gender,
+		"rollNumber":           user.RollNumber,
+		"photoUrl":             user.PhotoURL,
+		"collegeIdUrl":         user.CollegeIDURL,
 		"isHostCollegeStudent": resolvedUser.IsHostCollegeStudent,
 		"accommodationNeeded":  user.AccommodationNeeded,
 		"accommodation":        user.Accommodation,

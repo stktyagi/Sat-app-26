@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Modal, TouchableOpacity, ScrollView, Image, TextInput } from "react-native";
+import { View, Text, Modal, TouchableOpacity, ScrollView, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../index";
 import { HostelPickerModal } from "@/components/admin/HostelPickerModal";
@@ -11,6 +11,8 @@ import {
   DayChips,
   InfoRow,
   StatusPill,
+  UserIdentityPhotos,
+  ZoomImageModal,
   hostelLabel,
   useHospitalityColors,
 } from "./hospitalityUi";
@@ -130,36 +132,11 @@ const RegistrationDeskModal: React.FC<Props> = ({ visible, onClose, userData, on
             {success ? <Banner text={`✓ ${success}`} tone="success" /> : null}
 
             {/* Identity */}
-            <View style={{ flexDirection: "row", gap: 12, justifyContent: "center", marginBottom: 12 }}>
-              {[
-                { uri: data.photoUrl, label: "Photo" },
-                { uri: data.collegeIdUrl, label: "College ID" },
-              ].map((img) => (
-                <TouchableOpacity key={img.label} disabled={!img.uri} onPress={() => img.uri && setZoomUri(img.uri)} style={{ alignItems: "center" }}>
-                  {img.uri ? (
-                    <Image source={{ uri: img.uri }} style={{ width: 110, height: 110, borderRadius: 14, backgroundColor: c.cardBg }} />
-                  ) : (
-                    <View
-                      style={{
-                        width: 110,
-                        height: 110,
-                        borderRadius: 14,
-                        backgroundColor: c.cardBg,
-                        borderWidth: 1,
-                        borderColor: c.cardBorder,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Ionicons name="image-outline" size={28} color={c.textSecondary} />
-                    </View>
-                  )}
-                  <Text style={{ fontFamily: "Poppins_400Regular", color: c.textSecondary, fontSize: 11, marginTop: 4 }}>
-                    {img.uri ? `${img.label} (tap)` : `No ${img.label.toLowerCase()}`}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <UserIdentityPhotos
+              photoUrl={data.photoUrl}
+              collegeIdUrl={data.collegeIdUrl}
+              onZoom={setZoomUri}
+            />
 
             <Text style={{ fontFamily: "Talina", color: c.textPrimary, fontSize: 22, textAlign: "center", marginBottom: 6 }}>
               {data.displayName || data.name || "Participant"}
@@ -262,15 +239,7 @@ const RegistrationDeskModal: React.FC<Props> = ({ visible, onClose, userData, on
         title="Allot hostel"
       />
 
-      <Modal visible={Boolean(zoomUri)} transparent animationType="fade" onRequestClose={() => setZoomUri(null)}>
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setZoomUri(null)}
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.92)", justifyContent: "center", alignItems: "center", padding: 16 }}
-        >
-          {zoomUri ? <Image source={{ uri: zoomUri }} style={{ width: "100%", height: "80%" }} resizeMode="contain" /> : null}
-        </TouchableOpacity>
-      </Modal>
+      <ZoomImageModal uri={zoomUri} onClose={() => setZoomUri(null)} />
     </Modal>
   );
 };

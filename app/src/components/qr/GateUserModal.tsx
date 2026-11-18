@@ -14,6 +14,7 @@ import { useThemeStore } from "@/state/themeStore";
 import { useUserStore } from "@/state/userStore";
 import { hasAnyRole, HOSPITALITY_LEAD_ROLES } from "@/utils/roles";
 import { formatHostelDisplay } from "@/data/hostels";
+import { UserIdentityPhotos, ZoomImageModal } from "./hospitalityUi";
 import {
   UserGateData,
   updateGateFestStatus,
@@ -50,6 +51,7 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
   const [showRemarkInput, setShowRemarkInput] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [zoomUri, setZoomUri] = useState<string | null>(null);
 
   const modalBg = isDark ? "#1C1C20" : "#FFFFFF";
   const modalBorder = isDark ? "#2A2A30" : "#D5D5D5";
@@ -197,6 +199,13 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
           )}
 
           <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Identity Photos */}
+            <UserIdentityPhotos
+              photoUrl={currentUserData.photoUrl}
+              collegeIdUrl={currentUserData.collegeIdUrl}
+              onZoom={setZoomUri}
+            />
+
             {/* Header */}
             <View style={{ alignItems: "center", marginBottom: 20 }}>
               <Text
@@ -769,6 +778,7 @@ const GateUserModal: React.FC<GateUserModalProps> = ({
           )}
         </View>
       </View>
+      <ZoomImageModal uri={zoomUri} onClose={() => setZoomUri(null)} />
     </Modal>
   );
 };
