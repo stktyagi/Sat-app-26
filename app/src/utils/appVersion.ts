@@ -1,19 +1,17 @@
 // src/utils/appVersion.ts
 import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 
 /**
- * Get the current app version from app.json
- * This reads from the expo config at runtime
+ * Get the version the installed binary actually reports
+ * (iOS CFBundleShortVersionString / Android versionName).
+ *
+ * Don't use Constants.expoConfig.version: that's the top-level app.json
+ * "version" (the Android one), not ios.version, so iOS compared the wrong
+ * number against the server minimum and got stuck on the update screen.
  */
 export function getAppVersion(): string {
-  try {
-    // expo-constants reads from app.json/app.config.js
-    const version = Constants.expoConfig?.version || '1.0.3';
-    return version;
-  } catch (error) {
-    console.error('[AppVersion] Error getting app version:', error);
-    return '1.0.0'; // Fallback version
-  }
+  return Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '1.0.0';
 }
 
 /**
@@ -22,8 +20,8 @@ export function getAppVersion(): string {
 export function getVersionInfo() {
   return {
     appVersion: getAppVersion(),
-    nativeAppVersion: Constants.nativeAppVersion,
-    nativeBuildVersion: Constants.nativeBuildVersion,
+    nativeAppVersion: Application.nativeApplicationVersion,
+    nativeBuildVersion: Application.nativeBuildVersion,
     expoVersion: Constants.expoVersion,
   };
 }

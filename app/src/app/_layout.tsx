@@ -37,7 +37,7 @@ import SplashScreen from '@/components/SplashScreen';
 import { useThemeStore } from '@/state/themeStore';
 import { loadCollegesAsync } from '@/data/Colleges';
 import ConnectivityWrapper from '@/components/system/ConnectivityWrapper';
-import Constants from 'expo-constants';
+import { getAppVersion } from '@/utils/appVersion';
 import Sentry from '@/config/sentry';
 
 // Register background message handler outside React component lifecycle
@@ -125,7 +125,7 @@ function RootLayout() {
     <SafeAreaProvider>
       <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: asyncStoragePersister }}>
         <AlertProvider>
-          <ConnectivityWrapper currentVersion={Constants.expoConfig?.version ?? '1.0.0'}>
+          <ConnectivityWrapper currentVersion={getAppVersion()}>
             <SafeAreaView edges={['left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>
               <StatusBar
                 backgroundColor={colors.background}

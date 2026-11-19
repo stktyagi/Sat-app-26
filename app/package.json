@@ -22,6 +22,7 @@
     "@tanstack/react-query-persist-client": "^5.102.8",
     "expo": "~57.0.30",
     "expo-apple-authentication": "~57.0.2",
+    "expo-application": "~57.0.3",
     "expo-build-properties": "~57.0.22",
     "expo-camera": "~57.0.6",
     "expo-clipboard": "~57.0.2",
