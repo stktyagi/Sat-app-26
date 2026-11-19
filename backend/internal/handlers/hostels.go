@@ -155,6 +155,17 @@ func (a *API) AdminDeskAllot(c *gin.Context) {
 		return
 	}
 	h, _ := a.Store.GetHostel(c.Request.Context(), hid)
+	caller := middleware.CurrentUser(c)
+	hName := hid
+	if h != nil && h.Name != "" {
+		hName = h.Name
+	}
+	a.LogAudit("desk_allot", "hospitality", caller, u, map[string]any{
+		"hostelId":   hid,
+		"hostelName": hName,
+		"roomNo":     strings.TrimSpace(req.RoomNo),
+	})
+
 	resp := gin.H{
 		"success": true,
 		"data": gin.H{

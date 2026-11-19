@@ -226,6 +226,20 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 		})
 	}
 
+	a.LogAuditTarget("qr_scan_event", "qr_scanner", caller, &models.AuditTarget{
+		UserID: reg.UserID,
+		Name:   userName,
+		Email:  userEmail,
+		Phone:  userPhone,
+	}, map[string]any{
+		"category":       "event",
+		"registrationId": reg.ID,
+		"eventId":        reg.EventID,
+		"eventName":      eventName,
+		"checkingStatus": chkStatus,
+		"paymentStatus":  reg.PaymentStatus,
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
 		"category": "event",
@@ -348,6 +362,15 @@ func (a *API) handleUserQRScan(c *gin.Context, rawData, category string) {
 		data["hostels"] = list
 	}
 
+	caller := middleware.CurrentUser(c)
+	a.LogAudit("qr_scan_"+category, "qr_scanner", caller, user, map[string]any{
+		"category":      category,
+		"gateStatus":    user.CheckInStatus.Fest,
+		"hostel":        user.CheckInStatus.Hostel,
+		"roomNo":        user.CheckInStatus.RoomNo,
+		"accommodation": user.CheckInStatus.Accommodation,
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
 		"category": category,
@@ -425,6 +448,18 @@ func (a *API) AdminGateCheckIn(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not update gate check-in status"))
 		return
 	}
+
+	caller := middleware.CurrentUser(c)
+	actionName := "gate_checkin"
+	if u.CheckInStatus.Fest && !festStatus {
+		actionName = "revert_gate"
+	}
+	a.LogAudit(actionName, "hospitality", caller, updatedUser, map[string]any{
+		"fest":           festStatus,
+		"previousFest":   u.CheckInStatus.Fest,
+		"remark":         remark,
+		"previousRemark": u.CheckInStatus.Remark,
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -555,6 +590,24 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 		return
 	}
 
+	actionName := "hostel_" + action
+	if action == store.HostelActionRevert {
+		actionName = "revert_hostel"
+	} else if action == store.HostelActionCheckIn {
+		actionName = "hostel_checkin"
+	} else if action == store.HostelActionCheckOut {
+		actionName = "hostel_checkout"
+	}
+	a.LogAudit(actionName, "hospitality", caller, updatedUser, map[string]any{
+		"action":         action,
+		"hostel":         updatedUser.CheckInStatus.Hostel,
+		"roomNo":         updatedUser.CheckInStatus.RoomNo,
+		"previousHostel": u.CheckInStatus.Hostel,
+		"previousRoomNo": u.CheckInStatus.RoomNo,
+		"items":          req.Items,
+		"unreturned":     updatedUser.CheckInStatus.Items.Unreturned(),
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":    true,
 		"message":    "Accommodation status updated successfully",
@@ -625,6 +678,20 @@ func (a *API) AdminEventCheckIn(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not update registration check-in status"))
 		return
 	}
+
+	u, _ := a.Store.GetUser(ctx, reg.UserID)
+	evt, _ := a.Cache.Get(ctx, reg.EventID)
+	evtTitle := reg.EventID
+	if evt != nil && evt.Title != "" {
+		evtTitle = evt.Title
+	}
+	a.LogAudit("event_checkin", "event", caller, u, map[string]any{
+		"registrationId": reg.ID,
+		"eventId":        reg.EventID,
+		"eventName":      evtTitle,
+		"checkingStatus": status,
+		"previousStatus": reg.CheckingStatus,
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

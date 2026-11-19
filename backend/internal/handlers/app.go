@@ -359,5 +359,10 @@ func (a *API) AdminUpdateMealPassScanner(c *gin.Context) {
 		return
 	}
 
+	caller := middleware.CurrentUser(c)
+	a.LogAudit("meal_scanner_toggle", "food", caller, nil, map[string]any{
+		"enabled": *body.Enabled,
+	})
+
 	c.JSON(http.StatusOK, gin.H{"enabled": *body.Enabled})
 }

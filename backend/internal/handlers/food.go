@@ -172,6 +172,15 @@ func (a *API) ScanFoodQR(c *gin.Context) {
 
 	r := a.checkAndLogMeal(c.Request.Context(), u, qrDay, "qr", u.UserID)
 
+	a.LogAudit("meal_qr_scan", "food", u, u, map[string]any{
+		"qrDay":   qrDay,
+		"allowed": r.Allowed,
+		"reason":  r.Reason,
+		"day":     r.Day,
+		"slot":    r.Slot,
+		"method":  "qr",
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"allowed":                   r.Allowed,
 		"reason":                    r.Reason,
@@ -233,7 +242,16 @@ func (a *API) AdminVerifyMealCode(c *gin.Context) {
 		apierr.Respond(c, apierr.Internal("could not look up meal code"))
 		return
 	}
-	r := a.checkAndLogMeal(ctx, u, "", "code", callerID(middleware.CurrentUser(c)))
+	caller := middleware.CurrentUser(c)
+	r := a.checkAndLogMeal(ctx, u, "", "code", callerID(caller))
+	a.LogAudit("meal_code_verify", "food", caller, u, map[string]any{
+		"code":    code,
+		"allowed": r.Allowed,
+		"reason":  r.Reason,
+		"day":     r.Day,
+		"slot":    r.Slot,
+		"method":  "code",
+	})
 	c.JSON(http.StatusOK, gin.H{
 		"allowed":     r.Allowed,
 		"reason":      r.Reason,

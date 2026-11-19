@@ -69,6 +69,14 @@ func (a *API) UserCheckout(c *gin.Context) {
 		return
 	}
 
+	a.LogAudit("checkout", "hospitality", u, updatedUser, map[string]any{
+		"action":     "checkout",
+		"method":     "qr",
+		"hostel":     updatedUser.CheckInStatus.Hostel,
+		"roomNo":     updatedUser.CheckInStatus.RoomNo,
+		"unreturned": updatedUser.CheckInStatus.Items.Unreturned(),
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":    true,
 		"message":    "Checkout confirmed. Please move to the gate.",

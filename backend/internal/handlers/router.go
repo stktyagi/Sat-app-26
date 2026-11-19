@@ -227,6 +227,7 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	hospEB.GET("/admin/accommodation/inhouse", api.AdminInHouse)
 	hospEB.GET("/admin/accommodation/checkouts-today", api.AdminCheckoutsToday)
 	hospEB.GET("/admin/food/logs", api.AdminListMealLogs)
+	hospEB.GET("/admin/audit-logs", api.AdminListAuditLogs)
 
 	// QR Event: Admin, EB_Events, Event_POC
 	eventQR := staff.Group("", middleware.RequireScreenOrRoles(s, "qr_scanner", models.RoleEBEvents, models.RoleEventPOC, models.RoleCoreHospitality))
