@@ -15,8 +15,8 @@
       },
       "bundleIdentifier": "aaravgupta.events",
       "appleTeamId": "3YK32DPS3W",
-      "version": "1.4.1",
-      "buildNumber": "9",
+      "version": "1.4.2",
+      "buildNumber": "10",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Saturnalia needs camera access to scan event tickets, merchandise QR codes, and entry passes.",
