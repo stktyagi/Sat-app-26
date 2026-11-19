@@ -190,6 +190,11 @@ func (a *API) AdminUpdateUser(c *gin.Context) {
 		return
 	}
 
+	// Tell the user's devices to refetch their profile so role gates update
+	// live, and realign role topics when roles changed.
+	_, rolesChanged := fields["roles"]
+	a.notifyProfileChanged(updated, rolesChanged)
+
 	c.JSON(http.StatusOK, gin.H{"user": updated.ResolveHostStatus(a.Cfg.HostEmailDomain)})
 }
 

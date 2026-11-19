@@ -31,7 +31,8 @@ import {
 } from "lucide-react-native";
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
-import { verifyMealPassQR, MealVerificationResult } from "@/api/mealPass";
+import { verifyMealPassQR, MealVerificationResult, getMyMealCode } from "@/api/mealPass";
+import { getMealPassScannerStatus } from "@/api/appConfig";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SCANNER_SIZE = Math.min(SCREEN_WIDTH * 0.72, 280);
@@ -46,12 +47,51 @@ export default function MealPassScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraKey, setCameraKey] = useState(Date.now());
   const [torchOn, setTorchOn] = useState(false);
+  const [scannerActive, setScannerActive] = useState<boolean>(true);
+  const [checkingScanner, setCheckingScanner] = useState<boolean>(true);
+
+  useEffect(() => {
+    let mounted = true;
+    getMealPassScannerStatus()
+      .then((active) => {
+        if (mounted) {
+          setScannerActive(active);
+          setCheckingScanner(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setCheckingScanner(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Scanning & verification state
   const [scanned, setScanned] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<MealVerificationResult | null>(null);
   const [showCheckInAlert, setShowCheckInAlert] = useState(true);
+
+  // Typed fallback when the mess QR can't be scanned
+  const [mealCode, setMealCode] = useState<string | null>(null);
+  const [showMealCode, setShowMealCode] = useState(false);
+  const [mealCodeLoading, setMealCodeLoading] = useState(false);
+  const [mealCodeError, setMealCodeError] = useState<string | null>(null);
+
+  const openMealCode = async () => {
+    setShowMealCode(true);
+    if (mealCode) return;
+    setMealCodeLoading(true);
+    setMealCodeError(null);
+    try {
+      setMealCode(await getMyMealCode());
+    } catch (e: any) {
+      setMealCodeError(e?.message || "Could not get your meal code");
+    } finally {
+      setMealCodeLoading(false);
+    }
+  };
 
   // ── Animations ────────────────────────────────────────────────────────────
   // 1. Scanning laser beam animation
@@ -326,6 +366,114 @@ export default function MealPassScreen() {
     outputRange: [0, SCANNER_SIZE - 6],
   });
 
+  const hasPaidMeal = Boolean(
+    (user?.food && typeof user.food === "object" && Object.values(user.food).some(Boolean)) ||
+    (user as any)?.hasPaidMeal ||
+    (user as any)?.mealPaid
+  );
+
+  if (!checkingScanner && (!scannerActive || !hasPaidMeal)) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: bgColor,
+          paddingTop: Math.max(insets.top + 16, 24),
+          paddingHorizontal: 24,
+          justifyContent: "space-between",
+          paddingBottom: Math.max(insets.bottom + 20, 24),
+        }}
+      >
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.75}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: cardBg,
+              borderWidth: 1,
+              borderColor: cardBorder,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ArrowLeft size={20} color={textPrimary} />
+          </TouchableOpacity>
+          <Text style={{ fontFamily: "Talina", fontSize: 22, color: textPrimary }}>
+            Meal Pass
+          </Text>
+        </View>
+
+        <View
+          style={{
+            backgroundColor: cardBg,
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: cardBorder,
+            padding: 24,
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: "rgba(239, 68, 68, 0.15)",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 16,
+            }}
+          >
+            <AlertCircle size={32} color="#EF4444" />
+          </View>
+          <Text
+            style={{
+              fontFamily: "Poppins_600SemiBold",
+              fontSize: 18,
+              color: textPrimary,
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            {!hasPaidMeal ? "No Meal Pass Found" : "Scanner Inactive"}
+          </Text>
+          <Text
+            style={{
+              fontFamily: "Poppins_400Regular",
+              fontSize: 13,
+              color: textSecondary,
+              textAlign: "center",
+              lineHeight: 20,
+            }}
+          >
+            {!hasPaidMeal
+              ? "You do not have a paid meal pass for Saturnalia. Please purchase a meal pass with your accommodation to avail meals."
+              : "The participant meal pass scanner is currently disabled by hospitality administrators. Please try again later or reach out to the hospitality desk."}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+          style={{
+            backgroundColor: "#41B8F0",
+            borderRadius: 16,
+            paddingVertical: 16,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 16 }}>
+            Back to Profile
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   // Camera Permission Handling
   if (!permission) {
     return (
@@ -446,7 +594,7 @@ export default function MealPassScreen() {
           style={{ flex: 1 }}
           facing="back"
           enableTorch={torchOn}
-          onBarcodeScanned={scanned || verifying ? undefined : handleBarcodeScanned}
+          onBarcodeScanned={scanned || verifying || showMealCode ? undefined : handleBarcodeScanned}
           barcodeScannerSettings={{
             barcodeTypes: ["qr"],
           }}
@@ -685,6 +833,100 @@ export default function MealPassScreen() {
           {torchOn ? <Zap size={20} color="#FFFFFF" /> : <ZapOff size={20} color="#FFFFFF" />}
         </TouchableOpacity>
       </View>
+
+      {/* ── Meal code fallback ── */}
+      {!verificationResult && !verifying && !showMealCode && (
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: insets.bottom + 28, alignItems: "center", zIndex: 30 }}>
+          <TouchableOpacity
+            onPress={openMealCode}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              borderWidth: 1,
+              borderColor: "rgba(65, 184, 240, 0.5)",
+              borderRadius: 999,
+              paddingHorizontal: 18,
+              paddingVertical: 10,
+            }}
+          >
+            <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 13, color: "#41B8F0" }}>
+              Can't scan? Show meal code
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {showMealCode && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.82)",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 24,
+            zIndex: 45,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 360,
+              backgroundColor: cardBg,
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: cardBorder,
+              padding: 24,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 16, color: textPrimary, marginBottom: 6 }}>
+              Your meal code
+            </Text>
+            <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 12, color: textSecondary, textAlign: "center", marginBottom: 18 }}>
+              Show this to the mess counter staff. They'll enter it to verify your meal.
+            </Text>
+            {mealCodeLoading ? (
+              <ActivityIndicator size="large" color="#41B8F0" style={{ marginVertical: 16 }} />
+            ) : mealCodeError ? (
+              <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 13, color: "#EF4444", textAlign: "center", marginVertical: 12 }}>
+                {mealCodeError}
+              </Text>
+            ) : (
+              <Text
+                selectable
+                style={{
+                  fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+                  fontSize: 34,
+                  fontWeight: "700",
+                  letterSpacing: 6,
+                  color: "#41B8F0",
+                  marginVertical: 12,
+                }}
+              >
+                {mealCode ? `${mealCode.slice(0, 4)} ${mealCode.slice(4)}` : ""}
+              </Text>
+            )}
+            <TouchableOpacity
+              onPress={() => setShowMealCode(false)}
+              style={{ marginTop: 16, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, backgroundColor: "#41B8F0" }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 14, color: "#FFFFFF" }}>
+                {mealCodeError ? "Close" : "Done"}
+              </Text>
+            </TouchableOpacity>
+            {mealCodeError ? (
+              <TouchableOpacity onPress={() => { setMealCode(null); openMealCode(); }} style={{ marginTop: 10 }}>
+                <Text style={{ fontFamily: "Poppins_500Medium", fontSize: 13, color: "#41B8F0" }}>Retry</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      )}
 
       {/* ── Verifying Loading Indicator ── */}
       {verifying && (

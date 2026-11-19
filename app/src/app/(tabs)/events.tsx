@@ -437,11 +437,19 @@ export default function EventsTabScreen() {
       return dateMap[a].dateObj.getTime() - dateMap[b].dateObj.getTime();
     });
 
-    return sortedKeys.map((key) => ({
-      dateKey: key,
-      dateLabel: dateMap[key].label,
-      events: dateMap[key].events,
-    }));
+    return sortedKeys.map((key) => {
+      const sortedEvents = [...dateMap[key].events].sort((a, b) => {
+        const da = parseEventDate(a.dateTime || a.startDateTime)?.getTime() || 0;
+        const db = parseEventDate(b.dateTime || b.startDateTime)?.getTime() || 0;
+        if (da !== db) return da - db;
+        return (a.title || '').localeCompare(b.title || '');
+      });
+      return {
+        dateKey: key,
+        dateLabel: dateMap[key].label,
+        events: sortedEvents,
+      };
+    });
   }, [events]);
 
   // Search and Category Filter Results (shown when searching or category selected)

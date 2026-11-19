@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 
 	"cloud.google.com/go/firestore"
@@ -39,6 +40,9 @@ func (s *Store) DeleteRegistration(ctx context.Context, id string) error {
 // only completed/paid registrations (paymentStatus == "success"). For free events,
 // it counts all confirmed registrations normally.
 func (s *Store) CountPaidRegistrations(ctx context.Context, eventID string) (int, error) {
+	if s.FS == nil {
+		return 0, nil
+	}
 	paidEvent := false
 	if ev, err := s.GetEvent(ctx, eventID); err == nil && ev != nil {
 		paidEvent = ev.PaymentRequired
@@ -160,4 +164,58 @@ func (s *Store) MarkRegistrationCovered(ctx context.Context, id string) error {
 		{Path: "paymentDetails.coveredByTeam", Value: true},
 	})
 	return wrap(err)
+}
+
+// UpdateRegistrationResponses updates the responses field on a registration document.
+func (s *Store) UpdateRegistrationResponses(ctx context.Context, id string, responses []models.Response) error {
+	if responses == nil {
+		responses = []models.Response{}
+	}
+	_, err := s.FS.Collection(ColRegistrations).Doc(id).Set(ctx, map[string]any{
+		"responses": responses,
+	}, firestore.MergeAll)
+	return wrap(err)
+}
+
+// HasUserPaidForEvent checks Firestore directly to determine if a user has registered and paid
+// for a specific event. It directly inspects userEventRegistrations and payments without relying on event cache or visibility.
+func (s *Store) HasUserPaidForEvent(ctx context.Context, eventID, userID string) (bool, error) {
+	if s.FS == nil {
+		return false, nil
+	}
+
+	// 1. Direct registration doc lookup: {eventId}_{userId}
+	regID := models.RegistrationID(eventID, userID)
+	reg, err := s.GetRegistration(ctx, regID)
+
+	// 2. Fallback query on collection if not found by deterministic ID
+	if err != nil || reg == nil {
+		iter := s.FS.Collection(ColRegistrations).
+			Where("eventId", "==", eventID).
+			Where("userId", "==", userID).
+			Limit(1).
+			Documents(ctx)
+		defer iter.Stop()
+		doc, docErr := iter.Next()
+		if docErr == nil && doc != nil && doc.Exists() {
+			if r, errDec := decodeRegistration(doc); errDec == nil {
+				reg = r
+			}
+		}
+	}
+
+	// 3. If registration is found, check if it is paid
+	if reg != nil {
+		if strings.EqualFold(reg.PaymentStatus, models.RegPaymentSuccess) || reg.PaidAt != "" {
+			return true, nil
+		}
+		// If in a team, check if team is marked paid
+		if reg.TeamID != "" {
+			if team, errTeam := s.GetTeam(ctx, reg.TeamID); errTeam == nil && team != nil && team.Paid {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }

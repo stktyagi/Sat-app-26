@@ -30,11 +30,28 @@ export interface AppAccommodation {
   culturalFoodDays?: Record<string, number>;
 }
 
+export interface AdminScreenConfig {
+  key: string;
+  label: string;
+  icon: string;
+  route: string;
+  requiredRoles: string[];
+}
+
+export interface AdminNavigationItem {
+  key: string;
+  label: string;
+  icon: string;
+  route: string;
+}
+
 export interface AppConfigResponse {
   links: AppLinks;
   maintenance: AppMaintenance;
   versions: AppVersions;
   accommodation?: AppAccommodation;
+  adminScreens?: AdminScreenConfig[];
+  userMealPassScanner?: boolean;
 }
 
 /**
@@ -95,6 +112,52 @@ export async function getAppAccommodation(): Promise<AppAccommodation> {
     throw new Error(msg);
   }
   return res.json();
+}
+
+/**
+ * Fetch visible admin screens for current authenticated user (filtered on backend).
+ */
+export async function getAdminNavigation(): Promise<AdminNavigationItem[]> {
+  const res = await apiFetch('/admin/navigation', { method: 'GET' }, 'required');
+  if (!res.ok) {
+    const msg = await readError(res, 'Failed to fetch admin navigation');
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data.items || [];
+}
+
+/**
+ * Admin: Fetch all screen configurations and required roles.
+ */
+export async function adminGetScreensConfig(): Promise<AdminScreenConfig[]> {
+  const res = await apiFetch('/admin/app/screens', { method: 'GET' }, 'required');
+  if (!res.ok) {
+    const msg = await readError(res, 'Failed to fetch admin screen configurations');
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data.screens || [];
+}
+
+/**
+ * Admin: Update screen configurations and required roles on the fly.
+ */
+export async function adminUpdateScreensConfig(screens: AdminScreenConfig[]): Promise<AdminScreenConfig[]> {
+  const res = await apiFetch(
+    '/admin/app/screens',
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ screens }),
+    },
+    'required'
+  );
+  if (!res.ok) {
+    const msg = await readError(res, 'Failed to update admin screen configurations');
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data.screens || [];
 }
 
 /**
@@ -187,4 +250,40 @@ export async function adminGetAppConfig(): Promise<AppConfigResponse> {
     throw new Error(msg);
   }
   return res.json();
+}
+
+/**
+ * Fetch current meal pass scanner status (Public / Authenticated).
+ */
+export async function getMealPassScannerStatus(): Promise<boolean> {
+  try {
+    const res = await apiFetch("/food/meal-pass-scanner", { method: "GET" }, "none");
+    if (!res.ok) return true;
+    const data = await res.json();
+    return Boolean(data.enabled);
+  } catch (err) {
+    console.warn("Could not fetch meal pass scanner status:", err);
+    return true;
+  }
+}
+
+/**
+ * Admin / Hospitality: Update user meal pass scanner status.
+ */
+export async function adminUpdateMealPassScanner(enabled: boolean): Promise<boolean> {
+  const res = await apiFetch(
+    "/admin/food/meal-pass-scanner",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    },
+    "required"
+  );
+  if (!res.ok) {
+    const msg = await readError(res, "Failed to update meal pass scanner status");
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return Boolean(data.enabled);
 }

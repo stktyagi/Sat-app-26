@@ -3,6 +3,7 @@ package qr
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base32"
 	"encoding/base64"
 	"errors"
 	"strings"
@@ -48,4 +49,11 @@ func (s *Signer) mac(id string) []byte {
 	m := hmac.New(sha256.New, s.secret)
 	m.Write([]byte(id))
 	return m.Sum(nil)
+}
+
+// Code derives a short, deterministic, human-typeable code for payload. It is
+// used for the meal-pass fallback when a QR cannot be scanned.
+func (s *Signer) Code(payload string) string {
+	sum := s.mac("code:" + payload)
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(sum)[:8]
 }

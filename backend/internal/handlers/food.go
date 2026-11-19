@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -10,7 +13,10 @@ import (
 
 	"backend/internal/apierr"
 	"backend/internal/config"
+	"backend/internal/isotime"
 	"backend/internal/middleware"
+	"backend/internal/models"
+	"backend/internal/store"
 )
 
 // Food QRs reuse the registration QR signer; the prefix keeps the two
@@ -47,8 +53,97 @@ func (a *API) AdminGenerateFoodQR(c *gin.Context) {
 	})
 }
 
-// ScanFoodQR checks the caller has food booked for today.
-// Supports day-specific mess QRs ("food:dayX") as well as all-day multi-day mess QRs ("food:all").
+// clock returns the API's notion of now; tests may override Now.
+func (a *API) clock() time.Time {
+	if a.Now != nil {
+		return a.Now()
+	}
+	return time.Now()
+}
+
+// currentMealSlot returns the meal slot whose IST window contains now.
+func currentMealSlot(now time.Time) (string, bool) {
+	n := now.In(config.IST)
+	mins := n.Hour()*60 + n.Minute()
+	for _, s := range models.MealSlots {
+		start, ok1 := hhmm(s.Start)
+		end, ok2 := hhmm(s.End)
+		if ok1 && ok2 && mins >= start && mins < end {
+			return s.Key, true
+		}
+	}
+	return "", false
+}
+
+func hhmm(v string) (int, bool) {
+	t, err := time.Parse("15:04", v)
+	if err != nil {
+		return 0, false
+	}
+	return t.Hour()*60 + t.Minute(), true
+}
+
+type mealResult struct {
+	Allowed bool
+	Reason  string
+	Day     string
+	Slot    string
+}
+
+// checkAndLogMeal decides whether u may eat now and, if so, records the meal.
+// qrDay is "" for code entry, else the day encoded in the mess QR ("all" or dayN).
+func (a *API) checkAndLogMeal(ctx context.Context, u *models.User, qrDay, method, by string) mealResult {
+	now := a.clock()
+	day, isFestDay := festDay(a.Cfg.FestDay0, now)
+	slot, inSlot := currentMealSlot(now)
+	r := mealResult{Day: day, Slot: slot}
+
+	switch {
+	case !isFestDay:
+		r.Reason = "not_fest_day"
+	case qrDay != "" && qrDay != "all" && stayDays[qrDay] && qrDay != day:
+		r.Reason = "wrong_day"
+	case u.Food == nil || !u.Food[day]:
+		r.Reason = "no_food_today"
+	case !inSlot:
+		r.Reason = "no_active_slot"
+	}
+	if r.Reason != "" {
+		return r
+	}
+
+	// Store is nil only in handler unit tests.
+	if a.Store != nil {
+		err := a.Store.LogMeal(ctx, &models.MealLog{
+			UserID:     u.UserID,
+			Name:       u.DisplayName,
+			Email:      u.Email,
+			Phone:      u.PhoneNumber,
+			College:    u.CollegeName,
+			Gender:     u.Gender,
+			Day:        day,
+			Slot:       slot,
+			At:         isotime.Format(now),
+			Method:     method,
+			VerifiedBy: by,
+		})
+		if errors.Is(err, store.ErrMealAvailed) {
+			r.Reason = "already_availed"
+			return r
+		}
+		if err != nil {
+			log.Printf("[food] could not log meal for %s: %v", u.UserID, err)
+			r.Reason = "log_failed"
+			return r
+		}
+	}
+	r.Allowed = true
+	return r
+}
+
+// ScanFoodQR checks the caller has food booked for the current day and meal
+// slot, and logs the meal so each slot can be availed once.
+// Supports day-specific mess QRs ("food:dayX") as well as all-day QRs ("food:all").
 // Blocked scans are 200 with allowed=false.
 // Accommodation check-in is not mandatory to receive food, but an alert flag is returned.
 func (a *API) ScanFoodQR(c *gin.Context) {
@@ -75,30 +170,110 @@ func (a *API) ScanFoodQR(c *gin.Context) {
 		return
 	}
 
-	currentDay, ok := festDay(a.Cfg.FestDay0, time.Now())
-
-	reason := ""
-	switch {
-	case !ok:
-		reason = "not_fest_day"
-	case qrDay != "all" && stayDays[qrDay] && qrDay != currentDay:
-		reason = "wrong_day"
-	case u.Food == nil || !u.Food[currentDay]:
-		reason = "no_food_today"
-	}
-
-	// Accommodation check-in is not mandatory to receive food, but attendees
-	// who haven't checked into their hostel are flagged so the app can show a closable alert.
-	needsCheckIn := !u.CheckInStatus.Accommodation
+	r := a.checkAndLogMeal(c.Request.Context(), u, qrDay, "qr", u.UserID)
 
 	c.JSON(http.StatusOK, gin.H{
-		"allowed":                   reason == "",
-		"reason":                    reason,
-		"day":                       currentDay,
+		"allowed":                   r.Allowed,
+		"reason":                    r.Reason,
+		"day":                       r.Day,
+		"slot":                      r.Slot,
 		"qrDay":                     qrDay,
 		"name":                      u.DisplayName,
-		"needsAccommodationCheckIn": needsCheckIn,
+		"needsAccommodationCheckIn": !u.CheckInStatus.Accommodation,
 	})
+}
+
+func (a *API) mealCodeFor(uid string) string {
+	return a.QR.Code("meal:" + uid)
+}
+
+// GetMyMealCode returns the caller's typed meal code, storing it on first use
+// so staff can look the user up by it.
+func (a *API) GetMyMealCode(c *gin.Context) {
+	u := middleware.CurrentUser(c)
+	if u == nil {
+		apierr.Respond(c, apierr.Unauthorized("unauthorized", "login required"))
+		return
+	}
+	code := a.mealCodeFor(u.UserID)
+	if u.MealCode != code {
+		if err := a.Store.SetMealCode(c.Request.Context(), u.UserID, code); err != nil {
+			apierr.Respond(c, apierr.Internal("could not save meal code"))
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"code": code})
+}
+
+// AdminVerifyMealCode is the staff-side fallback for an unscannable mess QR:
+// the participant shows their meal code and staff type it in.
+func (a *API) AdminVerifyMealCode(c *gin.Context) {
+	var req struct {
+		Code string `json:"code"`
+	}
+	if !bind(c, &req) {
+		return
+	}
+	code := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(req.Code), " ", ""))
+	if len(code) != 8 {
+		apierr.Respond(c, apierr.BadRequest("invalid_code", "meal code must be 8 characters"))
+		return
+	}
+	if a.Cfg.FestDay0.IsZero() {
+		apierr.Respond(c, apierr.New(http.StatusServiceUnavailable, "food_not_configured", "fest dates not configured"))
+		return
+	}
+	ctx := c.Request.Context()
+	u, err := a.Store.GetUserByMealCode(ctx, code)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			apierr.Respond(c, apierr.NotFound("code_not_found", "no participant has this meal code"))
+			return
+		}
+		apierr.Respond(c, apierr.Internal("could not look up meal code"))
+		return
+	}
+	r := a.checkAndLogMeal(ctx, u, "", "code", callerID(middleware.CurrentUser(c)))
+	c.JSON(http.StatusOK, gin.H{
+		"allowed":     r.Allowed,
+		"reason":      r.Reason,
+		"day":         r.Day,
+		"slot":        r.Slot,
+		"userId":      u.UserID,
+		"name":        u.DisplayName,
+		"email":       u.Email,
+		"collegeName": u.CollegeName,
+		"photoUrl":    u.PhotoURL,
+	})
+}
+
+// AdminListMealLogs returns who availed meals, filtered by day and optional slot.
+func (a *API) AdminListMealLogs(c *gin.Context) {
+	day := strings.TrimSpace(c.Query("day"))
+	slot := strings.ToLower(strings.TrimSpace(c.Query("slot")))
+	if day == "" || !stayDays[day] {
+		apierr.Respond(c, apierr.BadRequest("invalid_day", "day must be one of day0..day4"))
+		return
+	}
+	if slot == "all" {
+		slot = ""
+	}
+	if slot != "" && !models.IsMealSlot(slot) {
+		apierr.Respond(c, apierr.BadRequest("invalid_slot", "slot must be breakfast, lunch, dinner or all"))
+		return
+	}
+	logs, err := a.Store.ListMealLogs(c.Request.Context(), day, slot)
+	if err != nil {
+		apierr.Respond(c, apierr.Internal("could not load meal logs"))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"day": day, "slot": slot, "count": len(logs), "logs": logs})
+}
+
+// GetMealSlots exposes the slot windows so the app can label them.
+func (a *API) GetMealSlots(c *gin.Context) {
+	slot, _ := currentMealSlot(a.clock())
+	c.JSON(http.StatusOK, gin.H{"slots": models.MealSlots, "current": slot})
 }
 
 // festDay maps now to "day0".."day4" counting IST calendar days from day0.

@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"backend/internal/cache"
 	"backend/internal/config"
 )
 
@@ -23,6 +24,7 @@ const (
 	ColStories       = "stories"
 	ColApp           = "app"
 	ColStore         = "store"
+	KeyAccommodationAvailability = "accommodation:availability"
 )
 
 var (
@@ -31,8 +33,9 @@ var (
 )
 
 type Store struct {
-	FS  *firestore.Client
-	Cfg *config.Config
+	FS    *firestore.Client
+	Cfg   *config.Config
+	Cache cache.Provider
 }
 
 func New(fs *firestore.Client, cfg *config.Config) *Store {

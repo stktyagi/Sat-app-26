@@ -37,7 +37,8 @@ const EventTicketCard: React.FC<EventTicketCardProps> = ({ registration, eventDa
     }
   };
 
-  const { date, time } = eventData?.startDateTime ? formatDateTime(eventData.startDateTime) : { date: 'TBD', time: 'TBD' };
+  const rawDateTime = eventData?.dateTime || eventData?.startDateTime;
+  const { date, time } = rawDateTime ? formatDateTime(rawDateTime) : { date: 'TBD', time: 'TBD' };
 
   // Pass Number
   const eventIdPart = (registration.eventId || '').slice(0, 6).toUpperCase() || 'EVT';

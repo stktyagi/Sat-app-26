@@ -20,10 +20,10 @@ interface DayInfo {
 }
 
 const FESTIVAL_DAYS: DayInfo[] = [
-  { key: 'day1', title: '20 Nov', date: 'Thursday' },
-  { key: 'day2', title: '21 Nov', date: 'Friday' },
-  { key: 'day3', title: '22 Nov', date: 'Saturday' },
-  { key: 'day4', title: '23 Nov', date: 'Sunday' },
+  { key: 'day1', title: '20 Nov', date: 'Friday' },
+  { key: 'day2', title: '21 Nov', date: 'Saturday' },
+  { key: 'day3', title: '22 Nov', date: 'Sunday' },
+  { key: 'day4', title: '23 Nov', date: 'Monday' },
 ];
 
 export default function AccommodationScreen() {
@@ -438,7 +438,7 @@ export default function AccommodationScreen() {
               ))}
             </View>
 
-            {(user?.checkInStatus?.Hostel || user?.checkInStatus?.RoomNo) && (
+            {(user?.checkInStatus?.Hostel || user?.checkInStatus?.RoomNo) ? (
               <View
                 style={{
                   marginTop: 12,
@@ -459,9 +459,36 @@ export default function AccommodationScreen() {
                     color: textColor,
                     fontSize: 12,
                     marginLeft: 8,
+                    flex: 1,
                   }}
                 >
                   Allotted: {formatHostelDisplay(user.checkInStatus.Hostel, user.checkInStatus.RoomNo)}
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={{
+                  marginTop: 12,
+                  paddingVertical: 9,
+                  paddingHorizontal: 12,
+                  backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "#F3F4F6",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: isDark ? "rgba(255, 255, 255, 0.1)" : "#E5E7EB",
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="home-outline" size={16} color={subTextColor} />
+                <Text
+                  style={{
+                    fontFamily: "Poppins_500Medium",
+                    color: subTextColor,
+                    fontSize: 12,
+                    marginLeft: 8,
+                  }}
+                >
+                  No hostel alloted for now
                 </Text>
               </View>
             )}

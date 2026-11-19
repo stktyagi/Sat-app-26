@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"slices"
 	"google.golang.org/api/iterator"
 
 	"backend/internal/isotime"
@@ -95,6 +96,27 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*models.User,
 	return u, nil
 }
 
+// GetUserByReferralCode finds a user by their unique referral code.
+func (s *Store) GetUserByReferralCode(ctx context.Context, code string) (*models.User, error) {
+	q := s.FS.Collection(ColUsers).Where("referralCode", "==", code).Limit(1)
+	iter := q.Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, wrap(err)
+	}
+	u, err := decodeUser(doc)
+	if err != nil {
+		return nil, err
+	}
+	setUserInCache(u)
+	return u, nil
+}
+
 // GetUsers reads many users in one round trip. This is what replaces copying a
 // profile snapshot onto every team and registration document: rosters hydrate
 // from the source of truth instead of from a duplicate that can go stale.
@@ -163,6 +185,152 @@ func (s *Store) UpdateUser(ctx context.Context, uid string, fields map[string]an
 	return s.GetUser(ctx, uid)
 }
 
+// AddCoins atomically increments a user's coin balance by the specified amount.
+func (s *Store) AddCoins(ctx context.Context, uid string, amount int) (int, error) {
+	if amount == 0 {
+		u, err := s.GetUser(ctx, uid)
+		if err != nil {
+			return 0, err
+		}
+		return u.Coins, nil
+	}
+	updates := []firestore.Update{
+		{Path: "coins", Value: firestore.Increment(amount)},
+		{Path: "updatedAt", Value: isotime.Now()},
+	}
+	if _, err := s.FS.Collection(ColUsers).Doc(uid).Update(ctx, updates); err != nil {
+		return 0, wrap(err)
+	}
+	evictUserFromCache(uid)
+	s.InvalidateLeaderboardCache()
+
+	u, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return 0, err
+	}
+	return u.Coins, nil
+}
+
+// ClaimDailyGame checks if the user has already received the daily coins for the
+// specified game today. If not, it awards the coins and marks today as completed.
+func (s *Store) ClaimDailyGame(ctx context.Context, uid string, game string, rewardCoins int) (newCoins int, awarded int, alreadyClaimed bool, err error) {
+	todayStr := time.Now().UTC().Format("2006-01-02")
+
+	user, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return 0, 0, false, err
+	}
+
+	if user.DailyGameRewards != nil && user.DailyGameRewards[game] == todayStr {
+		return user.Coins, 0, true, nil
+	}
+
+	updates := []firestore.Update{
+		{Path: "coins", Value: firestore.Increment(rewardCoins)},
+		{Path: "dailyGameRewards." + game, Value: todayStr},
+		{Path: "updatedAt", Value: isotime.Now()},
+	}
+
+	if _, err := s.FS.Collection(ColUsers).Doc(uid).Update(ctx, updates); err != nil {
+		return 0, 0, false, wrap(err)
+	}
+
+	evictUserFromCache(uid)
+	s.InvalidateLeaderboardCache()
+
+	updated, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return 0, rewardCoins, false, nil
+	}
+	return updated.Coins, rewardCoins, false, nil
+}
+
+var (
+	leaderboardMu    sync.RWMutex
+	leaderboardCache []models.LeaderboardEntry
+	leaderboardTime  time.Time
+	leaderboardTTL   = 30 * time.Second
+)
+
+// InvalidateLeaderboardCache clears the in-memory leaderboard cache.
+func (s *Store) InvalidateLeaderboardCache() {
+	leaderboardMu.Lock()
+	leaderboardCache = nil
+	leaderboardMu.Unlock()
+}
+
+// GetLeaderboard returns the top users by coins descending.
+func (s *Store) GetLeaderboard(ctx context.Context, limit int) ([]models.LeaderboardEntry, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	leaderboardMu.RLock()
+	if leaderboardCache != nil && time.Since(leaderboardTime) < leaderboardTTL {
+		cached := leaderboardCache
+		leaderboardMu.RUnlock()
+		if len(cached) > limit {
+			return cached[:limit], nil
+		}
+		return cached, nil
+	}
+	leaderboardMu.RUnlock()
+
+	leaderboardMu.Lock()
+	defer leaderboardMu.Unlock()
+
+	if leaderboardCache != nil && time.Since(leaderboardTime) < leaderboardTTL {
+		if len(leaderboardCache) > limit {
+			return leaderboardCache[:limit], nil
+		}
+		return leaderboardCache, nil
+	}
+
+	iter := s.FS.Collection(ColUsers).OrderBy("coins", firestore.Desc).Limit(limit).Documents(ctx)
+	defer iter.Stop()
+
+	var list []models.LeaderboardEntry
+	rank := 1
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, wrap(err)
+		}
+		u, err := decodeUser(doc)
+		if err != nil {
+			continue
+		}
+		name := u.DisplayName
+		if name == "" {
+			name = "Participant"
+		}
+		college := u.CollegeName
+		if college == "" {
+			if u.IsHostCollegeStudent {
+				college = "Thapar Institute"
+			} else {
+				college = "Saturnalia"
+			}
+		}
+		list = append(list, models.LeaderboardEntry{
+			Rank:        rank,
+			UserID:      u.UserID,
+			DisplayName: name,
+			CollegeName: college,
+			Coins:       u.Coins,
+		})
+		rank++
+	}
+
+	leaderboardCache = list
+	leaderboardTime = time.Now()
+
+	return list, nil
+}
+
 // DeleteUser removes a user document, associated registrations, and cleans up team memberships
 // (handing over leadership to the next member or disbanding empty teams).
 // This is an irreversible operation that should be used with caution.
@@ -218,6 +386,7 @@ func (s *Store) DeleteUser(ctx context.Context, uid string) error {
 	// 6. Evict from memory caches
 	evictUserFromCache(uid)
 	s.InvalidateAccommodationCache()
+	s.InvalidateLeaderboardCache()
 	return nil
 }
 
@@ -239,6 +408,8 @@ func (s *Store) UpdateUserAccommodation(ctx context.Context, userID string, need
 	_, err := s.FS.Collection(ColUsers).Doc(userID).Update(ctx, updates)
 	if err == nil {
 		evictUserFromCache(userID)
+		s.InvalidateAccommodationCache()
+		_, _ = s.ReconcileAccommodationAvailability(ctx)
 	}
 	return wrap(err)
 }
@@ -320,4 +491,102 @@ func (s *Store) ListAccommodationUsers(ctx context.Context) ([]*models.User, err
 	accomCache = users
 	accomCacheTime = time.Now()
 	return users, nil
+}
+
+// GetUsersByRoles returns all users that hold at least one of the specified roles.
+func (s *Store) GetUsersByRoles(ctx context.Context, roles []string) ([]*models.User, error) {
+	if len(roles) == 0 {
+		return nil, nil
+	}
+
+	normRoles := make([]string, 0, len(roles))
+	for _, r := range roles {
+		norm := models.NormalizeRole(r)
+		if norm != "" && !slices.Contains(normRoles, norm) {
+			normRoles = append(normRoles, norm)
+		}
+	}
+	if len(normRoles) == 0 {
+		return nil, nil
+	}
+
+	if len(normRoles) > 30 {
+		normRoles = normRoles[:30]
+	}
+
+	iter := s.FS.Collection(ColUsers).Where("roles", "array-contains-any", normRoles).Documents(ctx)
+	defer iter.Stop()
+
+	var users []*models.User
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, wrap(err)
+		}
+		u, err := decodeUser(doc)
+		if err != nil {
+			continue
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+// maxFCMTokens caps how many devices one account keeps push tokens for.
+const maxFCMTokens = 5
+
+// AddFCMToken records a device token for the user (newest last, capped) and
+// mirrors it into the legacy single-token field.
+func (s *Store) AddFCMToken(ctx context.Context, uid, token string) (*models.User, error) {
+	evictUserFromCache(uid)
+	u, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	tokens := make([]string, 0, len(u.FCMTokens)+1)
+	for _, t := range u.AllFCMTokens() {
+		if t != token {
+			tokens = append(tokens, t)
+		}
+	}
+	tokens = append(tokens, token)
+	if len(tokens) > maxFCMTokens {
+		tokens = tokens[len(tokens)-maxFCMTokens:]
+	}
+	return s.UpdateUser(ctx, uid, map[string]any{"fcmTokens": tokens, "fcmToken": token})
+}
+
+// RemoveFCMTokens drops the given device tokens from the user's profile.
+func (s *Store) RemoveFCMTokens(ctx context.Context, uid string, tokens []string) error {
+	if len(tokens) == 0 {
+		return nil
+	}
+	evictUserFromCache(uid)
+	u, err := s.GetUser(ctx, uid)
+	if err != nil {
+		return err
+	}
+	drop := make(map[string]bool, len(tokens))
+	for _, t := range tokens {
+		drop[t] = true
+	}
+	kept := make([]string, 0, len(u.FCMTokens))
+	for _, t := range u.FCMTokens {
+		if !drop[t] {
+			kept = append(kept, t)
+		}
+	}
+	fields := map[string]any{"fcmTokens": kept}
+	if drop[u.FCMToken] {
+		legacy := ""
+		if len(kept) > 0 {
+			legacy = kept[len(kept)-1]
+		}
+		fields["fcmToken"] = legacy
+	}
+	_, err = s.UpdateUser(ctx, uid, fields)
+	return err
 }

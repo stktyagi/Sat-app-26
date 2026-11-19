@@ -11,19 +11,26 @@ import (
 // administrator carries RoleAdmin alongside it, so a check is a membership test
 // rather than an equality test.
 const (
-	RoleUser          = "user"
-	RoleAdmin         = "admin"
-	RoleEBEvents      = "eb_events"
-	RoleEBOutreach    = "eb_outreach"
-	RoleEBFinance     = "eb_finance"
-	RoleEBMedia       = "eb_media"
-	RoleEBHospitality = "eb_hospitality"
-	RoleECHospitality = "ec_hospitality"
-	RoleEventPOC      = "event_poc"
+	RoleUser            = "user"
+	RoleAdmin           = "admin"
+	RoleEBEvents        = "eb_events"
+	RoleEBOutreach      = "eb_outreach"
+	RoleEBFinance       = "eb_finance"
+	RoleEBMedia         = "eb_media"
+	RoleEBHospitality   = "eb_hospitality"
+	RoleECHospitality   = "ec_hospitality"
+	RoleCoreHospitality = "core_hospitality"
+	RoleEventPOC        = "event_poc"
 
 	AccommodationTierCultural  = "cultural"
 	AccommodationTierTechnical = "technical"
 )
+
+// AllRoles lists every canonical role, used to build the full set of role topics.
+var AllRoles = []string{
+	RoleUser, RoleAdmin, RoleEBEvents, RoleEBOutreach, RoleEBFinance, RoleEBMedia,
+	RoleEBHospitality, RoleECHospitality, RoleCoreHospitality, RoleEventPOC,
+}
 
 // NormalizeRole maps legacy names, typos, and mixed casings to canonical role identifiers.
 func NormalizeRole(r string) string {
@@ -43,6 +50,8 @@ func NormalizeRole(r string) string {
 		return RoleEBHospitality
 	case "ec_hospitality", "hospitality_member":
 		return RoleECHospitality
+	case "core_hospitality", "hospitality_core", "core":
+		return RoleCoreHospitality
 	case "event_poc", "coordinator", "event_coordinator":
 		return RoleEventPOC
 	case "user":
@@ -53,32 +62,40 @@ func NormalizeRole(r string) string {
 }
 
 type User struct {
-	UserID                      string          `json:"userId"                      firestore:"userId"`
-	Email                       string          `json:"email"                       firestore:"email"`
-	DisplayName                 string          `json:"displayName"                 firestore:"displayName"`
-	PhoneNumber                 string          `json:"phoneNumber"                 firestore:"phoneNumber"`
-	RollNumber                  string          `json:"rollNumber"                  firestore:"rollNumber"`
-	CollegeName                 string          `json:"collegeName"                 firestore:"collegeName"`
-	Roles                       []string        `json:"roles"                       firestore:"roles"`
-	Gender                      string          `json:"gender"                      firestore:"gender"`
-	Age                         string          `json:"age"                         firestore:"age"`
-	GraduationYear              string          `json:"graduationYear"              firestore:"graduationYear"`
-	Interests                   []string        `json:"interests"                   firestore:"interests"`
-	FullyRegistered             bool            `json:"fullyRegistered"             firestore:"fullyRegistered"`
-	IsVerified                  bool            `json:"isVerified"                  firestore:"isVerified"`
-	IsAmbassador                bool            `json:"isAmbassador"                firestore:"isAmbassador"`
-	AccommodationNeeded         bool            `json:"accommodationNeeded"         firestore:"accommodationNeeded"`
-	Accommodation               map[string]bool `json:"accommodation"               firestore:"accommodation"`
-	Food                        map[string]bool `json:"food"                        firestore:"food"`
-	AccommodationTransactionIds []string        `json:"accommodationTransactionIds" firestore:"accommodationTransactionIds"`
-	AccommodationTier           string          `json:"accommodationTier,omitempty" firestore:"accommodationTier,omitempty"`
-	CheckInStatus               CheckInStatus   `json:"checkInStatus"               firestore:"checkInStatus"`
-	ReferralCode                string          `json:"referralCode"                firestore:"referralCode"`
-	ReferredBy                  string          `json:"referredBy"                  firestore:"referredBy"`
-	Coins                       int             `json:"coins"                       firestore:"coins"`
-	CreatedAt                   string          `json:"createdAt"                   firestore:"createdAt"`
-	UpdatedAt                   string          `json:"updatedAt"                   firestore:"updatedAt"`
-	FCMToken                    string          `json:"fcmToken"                    firestore:"fcmToken"`
+	UserID                      string            `json:"userId"                      firestore:"userId"`
+	Email                       string            `json:"email"                       firestore:"email"`
+	DisplayName                 string            `json:"displayName"                 firestore:"displayName"`
+	PhoneNumber                 string            `json:"phoneNumber"                 firestore:"phoneNumber"`
+	RollNumber                  string            `json:"rollNumber"                  firestore:"rollNumber"`
+	CollegeName                 string            `json:"collegeName"                 firestore:"collegeName"`
+	Roles                       []string          `json:"roles"                       firestore:"roles"`
+	Gender                      string            `json:"gender"                      firestore:"gender"`
+	Age                         string            `json:"age"                         firestore:"age"`
+	GraduationYear              string            `json:"graduationYear"              firestore:"graduationYear"`
+	Interests                   []string          `json:"interests"                   firestore:"interests"`
+	FullyRegistered             bool              `json:"fullyRegistered"             firestore:"fullyRegistered"`
+	IsVerified                  bool              `json:"isVerified"                  firestore:"isVerified"`
+	IsAmbassador                bool              `json:"isAmbassador"                firestore:"isAmbassador"`
+	AccommodationNeeded         bool              `json:"accommodationNeeded"         firestore:"accommodationNeeded"`
+	Accommodation               map[string]bool   `json:"accommodation"               firestore:"accommodation"`
+	Food                        map[string]bool   `json:"food"                        firestore:"food"`
+	AccommodationTransactionIds []string          `json:"accommodationTransactionIds" firestore:"accommodationTransactionIds"`
+	AccommodationTier           string            `json:"accommodationTier,omitempty" firestore:"accommodationTier,omitempty"`
+	CheckInStatus               CheckInStatus     `json:"checkInStatus"               firestore:"checkInStatus"`
+	ReferralCode                string            `json:"referralCode"                firestore:"referralCode"`
+	ReferredBy                  string            `json:"referredBy"                  firestore:"referredBy"`
+	Coins                       int               `json:"coins"                       firestore:"coins"`
+	DailyGameRewards            map[string]string `json:"dailyGameRewards,omitempty"  firestore:"dailyGameRewards,omitempty"`
+	CreatedAt                   string            `json:"createdAt"                   firestore:"createdAt"`
+	UpdatedAt                   string            `json:"updatedAt"                   firestore:"updatedAt"`
+	FCMToken                    string            `json:"fcmToken"                    firestore:"fcmToken"`
+	// FCMTokens holds one push token per signed-in device (newest last).
+	// FCMToken is the legacy single-device field, still read for old docs.
+	FCMTokens []string `json:"-" firestore:"fcmTokens"`
+
+	// MealCode is the typed fallback for the mess QR, derived from the uid and
+	// stored only so staff can look the user up by it.
+	MealCode string `json:"-" firestore:"mealCode,omitempty"`
 
 	// Face photo and college ID card. The refs are storage handles, kept
 	// server-side so the files can be replaced or deleted; only the URLs go out.
@@ -99,8 +116,50 @@ type CheckInStatus struct {
 	Fest          bool   `json:"fest"                    firestore:"fest"`
 	Remark        string `json:"remark,omitempty"        firestore:"remark"`
 	Accommodation bool   `json:"accommodation"           firestore:"accommodation"`
+	CheckedOut    bool   `json:"checkedOut"              firestore:"checkedOut"`
+	CheckedOutAt  string `json:"checkedOutAt,omitempty"  firestore:"checkedOutAt"`
 	Hostel        string `json:"Hostel,omitempty"        firestore:"Hostel"`
 	RoomNo        string `json:"RoomNo,omitempty"        firestore:"RoomNo"`
+
+	GateAt      string      `json:"gateAt,omitempty"      firestore:"gateAt,omitempty"`
+	AllottedAt  string      `json:"allottedAt,omitempty"  firestore:"allottedAt,omitempty"`
+	AllottedBy  string      `json:"allottedBy,omitempty"  firestore:"allottedBy,omitempty"`
+	CheckedInAt string      `json:"checkedInAt,omitempty" firestore:"checkedInAt,omitempty"`
+	Items       HostelItems `json:"items"                firestore:"items"`
+}
+
+// HostelItems tracks bedding handed out at hostel check-in and collected at checkout.
+type HostelItems struct {
+	PillowGiven      bool `json:"pillowGiven"      firestore:"pillowGiven"`
+	MattressGiven    bool `json:"mattressGiven"    firestore:"mattressGiven"`
+	BedsheetGiven    bool `json:"bedsheetGiven"    firestore:"bedsheetGiven"`
+	PillowReturned   bool `json:"pillowReturned"   firestore:"pillowReturned"`
+	MattressReturned bool `json:"mattressReturned" firestore:"mattressReturned"`
+	BedsheetReturned bool `json:"bedsheetReturned" firestore:"bedsheetReturned"`
+}
+
+// Unreturned lists items given at check-in that have not come back.
+func (i HostelItems) Unreturned() []string {
+	out := []string{}
+	if i.PillowGiven && !i.PillowReturned {
+		out = append(out, "pillow")
+	}
+	if i.MattressGiven && !i.MattressReturned {
+		out = append(out, "mattress")
+	}
+	if i.BedsheetGiven && !i.BedsheetReturned {
+		out = append(out, "bedsheet")
+	}
+	return out
+}
+
+type LeaderboardEntry struct {
+	Rank        int    `json:"rank"`
+	UserID      string `json:"userId"`
+	DisplayName string `json:"displayName"`
+	CollegeName string `json:"collegeName"`
+	Coins       int    `json:"coins"`
+	PhotoURL    string `json:"photoUrl,omitempty"`
 }
 
 // NewUser is the document written at first sign-in. Everything else the profile
@@ -162,6 +221,41 @@ func (u *User) HasAnyRole(roles ...string) bool {
 		}
 	}
 	return false
+}
+
+// AllFCMTokens returns every device token on the profile, deduped, including
+// the legacy single-token field.
+func (u *User) AllFCMTokens() []string {
+	if u == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, len(u.FCMTokens)+1)
+	for _, t := range append(append([]string{}, u.FCMTokens...), u.FCMToken) {
+		t = strings.TrimSpace(t)
+		if t != "" && !seen[t] {
+			seen[t] = true
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// IsHospitality reports whether the user may run hospitality desks (gate,
+// registration desk, hostel check-in/out, meals).
+func (u *User) IsHospitality() bool {
+	return u.IsAdmin() || u.HasAnyRole(RoleEBHospitality, RoleECHospitality, RoleCoreHospitality)
+}
+
+// IsHospitalityLead reports whether the user may undo hospitality actions
+// (gate revert, hostel check-in revert). Core members cannot.
+func (u *User) IsHospitalityLead() bool {
+	return u.IsAdmin() || u.HasAnyRole(RoleEBHospitality, RoleECHospitality)
+}
+
+// IsHospitalityEB reports whether the user may use EB-only hospitality tools.
+func (u *User) IsHospitalityEB() bool {
+	return u.IsAdmin() || u.HasRole(RoleEBHospitality)
 }
 
 // IsStaffOrAdmin reports whether the user holds any role beyond basic participant.

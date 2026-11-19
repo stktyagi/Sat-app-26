@@ -1,15 +1,41 @@
-import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Alert, AppState } from 'react-native';
 import { useUserStore } from '@/state/userStore';
-import { getFCMToken, setupForegroundNotificationHandler } from '@/utils/fcm';
-import { getAuth } from '@react-native-firebase/auth';
-import { API_BASE_URL } from '@/config/api';
+import {
+  getFCMToken,
+  setupForegroundNotificationHandler,
+  setupTokenRefreshListener,
+} from '@/utils/fcm';
+import {
+  consumeProfileStale,
+  isProfileUpdateMessage,
+  registerPushToken,
+} from '@/utils/pushSync';
+
+// Don't refetch the profile on every quick app switch.
+const FOREGROUND_REFRESH_MIN_MS = 30_000;
 
 export function useNotifications() {
-  const { userData: userProfile } = useUserStore();
+  const userId = useUserStore((s) => s.userData?.userId);
+  const lastRefresh = useRef(0);
 
+  const refreshProfile = (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastRefresh.current < FOREGROUND_REFRESH_MIN_MS) return;
+    lastRefresh.current = now;
+    useUserStore
+      .getState()
+      .refreshUserProfile()
+      .catch(() => {});
+  };
+
+  // Foreground messages: silent profile pushes refresh roles; others alert.
   useEffect(() => {
     const unsubscribe = setupForegroundNotificationHandler((message) => {
+      if (isProfileUpdateMessage(message.data)) {
+        refreshProfile(true);
+        return;
+      }
       if (message.notification) {
         Alert.alert(
           message.notification.title || 'New Notification',
@@ -20,37 +46,24 @@ export function useNotifications() {
     return unsubscribe;
   }, []);
 
+  // Register this device's token, and re-register whenever FCM rotates it.
   useEffect(() => {
-    if (!userProfile) return;
-    
-    (async () => {
-      try {
-        const token = await getFCMToken();
-        if (!token) return;
-        
-        const auth = getAuth();
-        const firebaseUser = auth.currentUser;
-        if (!firebaseUser) return;
-        
-        const idToken = await firebaseUser.getIdToken(true);
-        
-        const response = await fetch(`${API_BASE_URL}/me/fcm-token`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({ fcmToken: token }),
-        });
-        
-        if (response.ok) {
-          console.log('FCM token registered with backend successfully');
-        } else {
-          console.error('Failed to register FCM token with backend, status:', response.status);
-        }
-      } catch (error) {
-        console.error('Failed to register FCM token with backend:', error);
-      }
-    })();
-  }, [userProfile?.userId]);
+    if (!userId) return;
+    getFCMToken().then((token) => {
+      if (token) registerPushToken(token);
+    });
+    return setupTokenRefreshListener((token) => registerPushToken(token));
+  }, [userId]);
+
+  // Returning to the app: refresh the profile (always if a silent push
+  // arrived while backgrounded, otherwise throttled).
+  useEffect(() => {
+    if (!userId) return;
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state !== 'active') return;
+      const stale = await consumeProfileStale();
+      refreshProfile(stale);
+    });
+    return () => sub.remove();
+  }, [userId]);
 }

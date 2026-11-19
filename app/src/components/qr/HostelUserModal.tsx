@@ -1,924 +1,357 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  TextInput,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, Modal, TouchableOpacity, ScrollView, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../index";
-import { useThemeStore } from "@/state/themeStore";
-import { HostelPickerModal } from "@/components/admin/HostelPickerModal";
-import { formatHostelDisplay } from "@/data/hostels";
+import { useUserStore } from "@/state/userStore";
+import { hasAnyRole, HOSPITALITY_LEAD_ROLES } from "@/utils/roles";
 import {
   UserGateData,
+  HostelItems,
+  HostelAction,
+  EMPTY_ITEMS,
   updateHostelStatus,
-  getUserRegisteredEvents,
   getCurrentEventDay,
 } from "@/api/admin";
+import {
+  ActionButton,
+  Banner,
+  Card,
+  DayChips,
+  InfoRow,
+  StatusPill,
+  ToggleRow,
+  UserIdentityPhotos,
+  ZoomImageModal,
+  hostelLabel,
+  useHospitalityColors,
+  DAY_LABELS,
+} from "./hospitalityUi";
 
 interface HostelUserModalProps {
   visible: boolean;
   onClose: () => void;
   userData: UserGateData | null;
   onUserDataUpdate?: (updatedData: UserGateData) => void;
+  onActionComplete?: (action: HostelAction) => void;
 }
 
-type DayCode = "day00" | "day0" | "day1" | "day2" | "day3" | "day4";
+const itemsLabel = (list: string[]) =>
+  list.map((i) => (i === "pillow" ? "Pillow" : i === "bedsheet" ? "Bedsheet" : "Mattress")).join(" & ");
 
-const getDayLabel = (dayCode: string): string => {
-  const dayLabels: { [key: string]: string } = {
-    day00: "Day 00 (Pre-Fest)",
-    day0: "Day 0",
-    day1: "Day 1",
-    day2: "Day 2",
-    day3: "Day 3",
-    day4: "Day 4",
-  };
-  return dayLabels[dayCode] || dayCode.toUpperCase();
+const unreturnedOf = (i: HostelItems) => {
+  const out: string[] = [];
+  if (i.mattressGiven && !i.mattressReturned) out.push("mattress");
+  if (i.pillowGiven && !i.pillowReturned) out.push("pillow");
+  if (i.bedsheetGiven && !i.bedsheetReturned) out.push("bedsheet");
+  return out;
 };
 
-const HostelUserModal: React.FC<HostelUserModalProps> = ({
-  visible,
-  onClose,
-  userData,
-  onUserDataUpdate,
-}) => {
-  const { isDark } = useThemeStore();
-  const [loading, setLoading] = useState(false);
-  const [showHostelInput, setShowHostelInput] = useState(false);
-  const [selectedHostelCode, setSelectedHostelCode] = useState("");
-  const [roomNo, setRoomNo] = useState("");
-  const [showHostelPicker, setShowHostelPicker] = useState(false);
-  const [currentUserData, setCurrentUserData] = useState<UserGateData | null>(
-    userData
-  );
-  const [userEvents, setUserEvents] = useState<any[]>(
-    userData?.userEvents || []
-  );
-  const [showEventsList, setShowEventsList] = useState(false);
-  const [loadingEvents, setLoadingEvents] = useState(false);
-  const [updateSuccess, setUpdateSuccess] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+/**
+ * Hostel desk: check a participant in (hand out pillow/mattress) or out
+ * (collect them). Hostel allotment happens at the registration desk.
+ */
+const HostelUserModal: React.FC<HostelUserModalProps> = ({ visible, onClose, userData, onUserDataUpdate, onActionComplete }) => {
+  const c = useHospitalityColors();
+  const { userData: me } = useUserStore();
+  const isLead = hasAnyRole(me, HOSPITALITY_LEAD_ROLES);
 
-  const modalBg = isDark ? "#1C1C20" : "#FFFFFF";
-  const modalBorder = isDark ? "#2A2A30" : "#D5D5D5";
-  const cardBg = isDark ? "#131316" : "#F3F4F6";
-  const cardBorder = isDark ? "#2A2A30" : "#E5E7EB";
-  const textPrimary = isDark ? "#FFFFFF" : "#111827";
-  const textSecondary = isDark ? "#9CA3AF" : "#6B7280";
-  const inputBg = isDark ? "#18181C" : "#FFFFFF";
+  const [data, setData] = useState<UserGateData | null>(userData);
+  const [items, setItems] = useState<HostelItems>(userData?.checkInStatus?.items || EMPTY_ITEMS);
+  const [roomNo, setRoomNo] = useState(userData?.checkInStatus?.RoomNo || "");
+  const [loading, setLoading] = useState<HostelAction | null>(null);
+  const [success, setSuccess] = useState("");
+  const [zoomUri, setZoomUri] = useState<string | null>(null);
 
-  // Update local state when userData prop changes
-  React.useEffect(() => {
-    setCurrentUserData(userData);
-    setUserEvents(userData?.userEvents || []);
-    setShowHostelInput(false);
-    setSelectedHostelCode(userData?.checkInStatus?.Hostel || "");
+  useEffect(() => {
+    setData(userData);
+    setItems({ ...EMPTY_ITEMS, ...(userData?.checkInStatus?.items || {}) });
     setRoomNo(userData?.checkInStatus?.RoomNo || "");
+    setSuccess("");
   }, [userData]);
 
-  // Fetch user events when modal opens
-  React.useEffect(() => {
-    const fetchEvents = async () => {
-      if (
-        visible &&
-        userData?.userId &&
-        (!userData.userEvents || userData.userEvents.length === 0)
-      ) {
-        setLoadingEvents(true);
-        try {
-          const events = await getUserRegisteredEvents(userData.userId);
-          setUserEvents(events);
-        } catch (e) {
-          console.error("Failed to load user events:", e);
-        } finally {
-          setLoadingEvents(false);
-        }
+  if (!data) return null;
+
+  const st = data.checkInStatus || ({} as UserGateData["checkInStatus"]);
+  const allotted = Boolean(st.Hostel);
+  const checkedIn = Boolean(st.accommodation) && !st.checkedOut;
+  const checkedOut = Boolean(st.checkedOut);
+  const today = getCurrentEventDay();
+  const bookedToday = Boolean(data.accommodation?.[today]);
+
+  const run = async (action: HostelAction, okMsg: string, nextItems: HostelItems = items) => {
+    setLoading(action);
+    try {
+      const res = await updateHostelStatus(
+        data.userId,
+        action !== "revert",
+        undefined,
+        action === "revert" ? undefined : roomNo.trim(),
+        action,
+        action === "revert" ? undefined : nextItems
+      );
+      if (!res.success) {
+        const msg = res.error || "Failed to update accommodation status";
+        showAlert(msg.includes("registration desk") ? "Not allotted" : "Update failed", msg);
+        return;
       }
-    };
-    fetchEvents();
-  }, [visible, userData?.userId]);
+      const cs = res.data?.checkInStatus || {};
+      const updated: UserGateData = { ...data, checkInStatus: { ...st, ...cs } };
+      setData(updated);
+      setItems({ ...EMPTY_ITEMS, ...(cs.items || {}) });
+      onUserDataUpdate?.(updated);
+      onActionComplete?.(action);
+      const left = res.unreturned || [];
+      setSuccess(action === "checkout" && left.length ? `${okMsg} — ${itemsLabel(left)} not returned!` : okMsg);
+    } finally {
+      setLoading(null);
+    }
+  };
 
-  if (!currentUserData) return null;
-
-  const currentDay: DayCode = (getCurrentEventDay() as DayCode) || "day1";
-
-  const handleHostelCheckin = async () => {
-    if (!selectedHostelCode.trim()) {
-      showAlert("Error", "Please select a hostel from the list");
+  const onCheckIn = () => {
+    const missing = [
+      !items.mattressGiven && "mattress",
+      !items.pillowGiven && "pillow",
+      !items.bedsheetGiven && "bedsheet",
+    ].filter(Boolean) as string[];
+    if (missing.length) {
+      showAlert("Items not marked", `${itemsLabel(missing)} not marked as given. Check in anyway?`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Check in", onPress: () => run("checkin", "Checked in to hostel") },
+      ]);
       return;
     }
-
-    setLoading(true);
-    try {
-      const result = await updateHostelStatus(
-        currentUserData.userId,
-        true,
-        selectedHostelCode.trim(),
-        roomNo.trim()
-      );
-
-      if (result.success) {
-        const updatedData = {
-          ...currentUserData,
-          checkInStatus: {
-            ...currentUserData.checkInStatus,
-            accommodation: true,
-            Hostel: selectedHostelCode.trim(),
-            RoomNo: roomNo.trim(),
-          },
-        };
-        setCurrentUserData(updatedData);
-
-        if (onUserDataUpdate) {
-          onUserDataUpdate(updatedData);
-        }
-
-        setShowHostelInput(false);
-        setSuccessMessage("Hostel check-in confirmed successfully!");
-        setUpdateSuccess(true);
-        setTimeout(() => setUpdateSuccess(false), 3000);
-      } else {
-        showAlert(
-          result.error || "Update Failed",
-          result.message || "Failed to update accommodation status"
-        );
-      }
-    } catch (error) {
-      showAlert(
-        "Error",
-        "Failed to update accommodation status. Please try again."
-      );
-    } finally {
-      setLoading(false);
-    }
+    run("checkin", "Checked in to hostel");
   };
 
-  const handleRevertCheckin = async () => {
-    setLoading(true);
-    try {
-      const result = await updateHostelStatus(
-        currentUserData.userId,
-        false,
-        ""
-      );
-
-      if (result.success) {
-        const updatedData = {
-          ...currentUserData,
-          checkInStatus: {
-            ...currentUserData.checkInStatus,
-            accommodation: false,
-            Hostel: null,
-            RoomNo: null,
-          },
-        };
-        setCurrentUserData(updatedData);
-
-        if (onUserDataUpdate) {
-          onUserDataUpdate(updatedData);
-        }
-
-        setSuccessMessage("Hostel check-in reverted to pending!");
-        setUpdateSuccess(true);
-        setTimeout(() => setUpdateSuccess(false), 3000);
-      } else {
-        showAlert(
-          result.error || "Update Failed",
-          result.message || "Failed to revert accommodation status"
-        );
-      }
-    } catch (error) {
-      showAlert(
-        "Error",
-        "Failed to revert accommodation status. Please try again."
-      );
-    } finally {
-      setLoading(false);
-    }
+  const onCheckOut = () => {
+    const left = unreturnedOf(items);
+    const who = data.displayName || data.name || "this participant";
+    showAlert(
+      left.length ? "Items not returned" : "Confirm check-out",
+      left.length
+        ? `${itemsLabel(left)} not marked returned for ${who}. Check out anyway?`
+        : `Check out ${who} from the hostel?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Check out", style: "destructive", onPress: () => run("checkout", "Checked out from hostel") },
+      ]
+    );
   };
 
-  const bookedDays = Object.entries(currentUserData.accommodation || {})
-    .filter(([_, booked]) => Boolean(booked))
-    .map(([dayKey]) => dayKey);
+  const onRevert = () =>
+    showAlert("Revert to pending?", "This clears the check-in and the hostel allotment, freeing the bed.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Revert", style: "destructive", onPress: () => run("revert", "Reset to pending") },
+    ]);
+
+  const setItem = (k: keyof HostelItems, v: boolean) => {
+    setItems((p) => {
+      const next = { ...p, [k]: v };
+      if (k === "mattressGiven" && !v) next.mattressReturned = false;
+      if (k === "pillowGiven" && !v) next.pillowReturned = false;
+      if (k === "bedsheetGiven" && !v) next.bedsheetReturned = false;
+      return next;
+    });
+  };
+
+  const statusPill = checkedOut
+    ? { label: "Checked out", color: c.textSecondary }
+    : checkedIn
+      ? { label: "Checked in", color: c.success }
+      : allotted
+        ? { label: "Allotted — pending check-in", color: c.accent }
+        : { label: "Not allotted", color: c.warning };
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.75)",
-          justifyContent: "center",
-          alignItems: "center",
-          paddingHorizontal: 20,
-        }}
-      >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", alignItems: "center", paddingHorizontal: 20 }}>
         <View
           style={{
-            backgroundColor: modalBg,
+            backgroundColor: c.modalBg,
             borderRadius: 24,
-            padding: 22,
+            padding: 20,
             width: "100%",
-            maxWidth: 380,
+            maxWidth: 400,
+            maxHeight: "88%",
             borderWidth: 1,
-            borderColor: modalBorder,
-            maxHeight: "84%",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.35,
-            shadowRadius: 16,
-            elevation: 8,
+            borderColor: c.modalBorder,
           }}
         >
-          {/* Success Banner */}
-          {updateSuccess && (
-            <View
-              style={{
-                backgroundColor: "rgba(16, 185, 129, 0.15)",
-                borderWidth: 1,
-                borderColor: "rgba(16, 185, 129, 0.35)",
-                borderRadius: 14,
-                padding: 12,
-                marginBottom: 14,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: "Poppins_600SemiBold",
-                  color: "#10B981",
-                  textAlign: "center",
-                  fontSize: 13,
-                }}
-              >
-                ✓ {successMessage}
-              </Text>
-            </View>
-          )}
-
+          <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+            <TouchableOpacity onPress={onClose} hitSlop={10}>
+              <Ionicons name="close" size={22} color={c.textSecondary} />
+            </TouchableOpacity>
+          </View>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Header */}
-            <View style={{ alignItems: "center", marginBottom: 20 }}>
-              <Text
-                style={{
-                  fontFamily: "Talina",
-                  color: textPrimary,
-                  fontSize: 22,
-                  textAlign: "center",
-                  marginBottom: 6,
-                }}
-              >
-                {currentUserData.displayName || currentUserData.name || "User"}
-              </Text>
-              <View
-                style={{
-                  backgroundColor: isDark ? "rgba(65, 184, 240, 0.15)" : "rgba(65, 184, 240, 0.12)",
-                  borderRadius: 20,
-                  paddingHorizontal: 12,
-                  paddingVertical: 4,
-                  borderWidth: 1,
-                  borderColor: "rgba(65, 184, 240, 0.3)",
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: "Poppins_600SemiBold",
-                    color: "#41B8F0",
-                    fontSize: 12,
-                  }}
-                >
-                  Hostel Accommodation
-                </Text>
-              </View>
-            </View>
+            {success ? <Banner text={`✓ ${success}`} tone={success.includes("not returned") ? "warning" : "success"} /> : null}
 
-            {/* Information Cards */}
-            <View style={{ gap: 12 }}>
-              {/* College */}
-              <View
-                style={{
-                  backgroundColor: cardBg,
-                  borderRadius: 16,
-                  padding: 16,
-                  borderWidth: 1,
-                  borderColor: cardBorder,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: "Poppins_400Regular",
-                    color: textSecondary,
-                    fontSize: 12,
-                    marginBottom: 4,
-                  }}
-                >
-                  College
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: "Poppins_600SemiBold",
-                    color: textPrimary,
-                    fontSize: 15,
-                  }}
-                >
-                  {currentUserData.collegeName || "Not specified"}
-                </Text>
-                {currentUserData.isHostCollegeStudent && (
-                  <View
-                    style={{
-                      backgroundColor: "rgba(65, 184, 240, 0.15)",
-                      borderRadius: 12,
-                      paddingHorizontal: 10,
-                      paddingVertical: 3,
-                      marginTop: 8,
-                      alignSelf: "flex-start",
-                      borderWidth: 1,
-                      borderColor: "rgba(65, 184, 240, 0.3)",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: "Poppins_600SemiBold",
-                        color: "#41B8F0",
-                        fontSize: 11,
-                      }}
-                    >
-                      Host College Student
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Fest Gate Entry Status */}
-              <View
-                style={{
-                  backgroundColor: cardBg,
-                  borderRadius: 16,
-                  padding: 16,
-                  borderWidth: 1,
-                  borderColor: cardBorder,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: "Poppins_600SemiBold",
-                    color: textPrimary,
-                    fontSize: 14,
-                    marginBottom: 10,
-                  }}
-                >
-                  Fest Gate Entry
-                </Text>
-
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
-                    Gate Verification:
-                  </Text>
-                  <View
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 20,
-                      backgroundColor: currentUserData.checkInStatus.fest
-                        ? "rgba(16, 185, 129, 0.2)"
-                        : "rgba(239, 68, 68, 0.2)",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: "Poppins_600SemiBold",
-                        fontSize: 12,
-                        color: currentUserData.checkInStatus.fest ? "#10B981" : "#EF4444",
-                      }}
-                    >
-                      {currentUserData.checkInStatus.fest ? "Confirmed" : "Not Entered"}
-                    </Text>
-                  </View>
-                </View>
-
-                {currentUserData.checkInStatus.remark && (
-                  <View
-                    style={{
-                      backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)",
-                      borderRadius: 10,
-                      padding: 10,
-                      marginTop: 10,
-                    }}
-                  >
-                    <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, fontSize: 11 }}>
-                      Gate Remark:
-                    </Text>
-                    <Text style={{ fontFamily: "Poppins_400Regular", color: textPrimary, fontSize: 12, marginTop: 2 }}>
-                      {currentUserData.checkInStatus.remark}
-                    </Text>
-                  </View>
-                )}
-
-                {!currentUserData.checkInStatus.fest && (
-                  <View
-                    style={{
-                      backgroundColor: "rgba(239, 68, 68, 0.12)",
-                      borderWidth: 1,
-                      borderColor: "rgba(239, 68, 68, 0.25)",
-                      borderRadius: 10,
-                      padding: 10,
-                      marginTop: 10,
-                    }}
-                  >
-                    <Text style={{ fontFamily: "Poppins_500Medium", color: "#EF4444", fontSize: 12, textAlign: "center" }}>
-                      ⚠️ User must enter through the gate first
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* User Events Accordion */}
-              <TouchableOpacity
-                style={{
-                  backgroundColor: cardBg,
-                  borderRadius: 16,
-                  padding: 16,
-                  borderWidth: 1,
-                  borderColor: cardBorder,
-                }}
-                onPress={() => {
-                  if (userEvents.length > 0) {
-                    setShowEventsList(!showEventsList);
-                  }
-                }}
-                disabled={userEvents.length === 0}
-                activeOpacity={userEvents.length > 0 ? 0.7 : 1}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <Text style={{ fontFamily: "Poppins_600SemiBold", color: textPrimary, fontSize: 14 }}>
-                    Events Registered
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    {loadingEvents ? (
-                      <ActivityIndicator size="small" color="#41B8F0" />
-                    ) : (
-                      <>
-                        <View
-                          style={{
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            borderRadius: 12,
-                            backgroundColor: userEvents.length > 0 ? "rgba(65, 184, 240, 0.15)" : "rgba(107, 114, 128, 0.15)",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontFamily: "Poppins_600SemiBold",
-                              fontSize: 12,
-                              color: userEvents.length > 0 ? "#41B8F0" : textSecondary,
-                            }}
-                          >
-                            {userEvents.length}
-                          </Text>
-                        </View>
-                        {userEvents.length > 0 && (
-                          <Ionicons
-                            name={showEventsList ? "chevron-up" : "chevron-down"}
-                            size={16}
-                            color="#41B8F0"
-                          />
-                        )}
-                      </>
-                    )}
-                  </View>
-                </View>
-
-                {showEventsList && userEvents.length > 0 && (
-                  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: cardBorder, gap: 8 }}>
-                    {userEvents.map((event, index) => (
-                      <View
-                        key={event.eventId || index}
-                        style={{
-                          paddingVertical: 6,
-                          borderBottomWidth: index !== userEvents.length - 1 ? 1 : 0,
-                          borderBottomColor: cardBorder,
-                        }}
-                      >
-                        <Text style={{ fontFamily: "Poppins_500Medium", color: textPrimary, fontSize: 13 }}>
-                          {event.eventName}
-                        </Text>
-                        <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 11, marginTop: 2 }}>
-                          Status: {event.status} {event.checkingStatus ? `(${event.checkingStatus})` : ""}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              {/* Accommodation Status & Actions */}
-              <View
-                style={{
-                  backgroundColor: cardBg,
-                  borderRadius: 16,
-                  padding: 16,
-                  borderWidth: 1,
-                  borderColor: cardBorder,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: "Poppins_600SemiBold",
-                    color: textPrimary,
-                    fontSize: 14,
-                    marginBottom: 12,
-                  }}
-                >
-                  Accommodation Details
-                </Text>
-
-                {/* Day-wise Booking Breakdown */}
-                <View style={{ gap: 8, marginBottom: 12 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
-                      Today ({getDayLabel(currentDay)}):
-                    </Text>
-                    <View
-                      style={{
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        borderRadius: 12,
-                        backgroundColor: currentUserData.accommodation?.[currentDay]
-                          ? "rgba(16, 185, 129, 0.2)"
-                          : "rgba(107, 114, 128, 0.15)",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontFamily: "Poppins_600SemiBold",
-                          fontSize: 11,
-                          color: currentUserData.accommodation?.[currentDay] ? "#10B981" : textSecondary,
-                        }}
-                      >
-                        {currentUserData.accommodation?.[currentDay] ? "Booked" : "Not Booked"}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {bookedDays
-                    .filter((day) => day !== currentDay)
-                    .map((day) => (
-                      <View key={day} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                        <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
-                          {getDayLabel(day)}:
-                        </Text>
-                        <View
-                          style={{
-                            paddingHorizontal: 8,
-                            paddingVertical: 3,
-                            borderRadius: 12,
-                            backgroundColor: "rgba(16, 185, 129, 0.2)",
-                          }}
-                        >
-                          <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 11, color: "#10B981" }}>
-                            Booked
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                </View>
-
-                {/* Current Hostel Check-in Status */}
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
-                    Check-in Status:
-                  </Text>
-                  <View
-                    style={{
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                      borderRadius: 20,
-                      backgroundColor: currentUserData.checkInStatus.accommodation
-                        ? "rgba(16, 185, 129, 0.2)"
-                        : "rgba(234, 179, 8, 0.2)",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: "Poppins_600SemiBold",
-                        fontSize: 12,
-                        color: currentUserData.checkInStatus.accommodation ? "#10B981" : "#FBBF24",
-                      }}
-                    >
-                      {currentUserData.checkInStatus.accommodation ? "Checked In" : "Pending"}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Assigned Hostel */}
-                {(currentUserData.checkInStatus.Hostel || currentUserData.checkInStatus.RoomNo) && (
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                    <Text style={{ fontFamily: "Poppins_400Regular", color: textSecondary, fontSize: 13 }}>
-                      Assigned Hostel:
-                    </Text>
-                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#41B8F0", fontSize: 13, flex: 1, textAlign: "right", marginLeft: 8 }}>
-                      {formatHostelDisplay(currentUserData.checkInStatus.Hostel, currentUserData.checkInStatus.RoomNo)}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Check-in Action Button */}
-                {currentUserData.checkInStatus.fest ? (
-                  !currentUserData.checkInStatus.accommodation ? (
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: "#41B8F0",
-                        paddingVertical: 12,
-                        borderRadius: 12,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginTop: 4,
-                      }}
-                      onPress={() => setShowHostelInput(true)}
-                      disabled={loading}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>
-                        Confirm Hostel Check-in
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: "#EF4444",
-                        paddingVertical: 12,
-                        borderRadius: 12,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginTop: 4,
-                      }}
-                      onPress={handleRevertCheckin}
-                      disabled={loading}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>
-                        {loading ? "Updating..." : "Revert to Pending"}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                ) : (
-                  <View
-                    style={{
-                      backgroundColor: "rgba(239, 68, 68, 0.12)",
-                      borderRadius: 10,
-                      padding: 10,
-                      marginTop: 4,
-                    }}
-                  >
-                    <Text style={{ fontFamily: "Poppins_500Medium", color: "#EF4444", fontSize: 12, textAlign: "center" }}>
-                      ❌ Cannot check-in: User must enter through gate first
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Close Button */}
-            <TouchableOpacity
-              style={{
-                backgroundColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.06)",
-                paddingVertical: 14,
-                borderRadius: 14,
-                marginTop: 20,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              onPress={onClose}
-              activeOpacity={0.7}
-              disabled={loading}
-            >
-              <Text
-                style={{
-                  fontFamily: "Poppins_600SemiBold",
-                  color: textPrimary,
-                  fontSize: 14,
-                }}
-              >
-                Close
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-
-          {/* Loading Overlay */}
-          {loading && (
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                left: 0,
-                right: 0,
-                backgroundColor: "rgba(0, 0, 0, 0.6)",
-                borderRadius: 24,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <ActivityIndicator size="large" color="#41B8F0" />
-              <Text style={{ fontFamily: "Poppins_500Medium", color: "#FFFFFF", fontSize: 13, marginTop: 8 }}>
-                Updating...
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* Hostel & Room Input Modal */}
-      <Modal
-        visible={showHostelInput}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowHostelInput(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0, 0, 0, 0.75)",
-            justifyContent: "center",
-            alignItems: "center",
-            paddingHorizontal: 20,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: modalBg,
-              borderRadius: 22,
-              padding: 20,
-              width: "100%",
-              maxWidth: 350,
-              borderWidth: 1,
-              borderColor: modalBorder,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.35,
-              shadowRadius: 16,
-              elevation: 8,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: "Talina",
-                color: textPrimary,
-                fontSize: 20,
-                marginBottom: 6,
-                textAlign: "center",
-              }}
-            >
-              Assign Hostel & Room
-            </Text>
-            <Text
-              style={{
-                fontFamily: "Poppins_400Regular",
-                color: textSecondary,
-                fontSize: 12,
-                marginBottom: 16,
-                textAlign: "center",
-              }}
-            >
-              Select the hostel and enter room number
-            </Text>
-
-            {/* Hostel Dropdown Trigger */}
-            <Text
-              style={{
-                fontFamily: "Poppins_600SemiBold",
-                fontSize: 11,
-                color: textSecondary,
-                marginBottom: 6,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-              }}
-            >
-              Hostel Name
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowHostelPicker(true)}
-              style={{
-                backgroundColor: inputBg,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                borderRadius: 12,
-                marginBottom: 14,
-                borderWidth: 1,
-                borderColor: selectedHostelCode ? "#41B8F0" : cardBorder,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text
-                  style={{
-                    fontFamily: "Poppins_500Medium",
-                    fontSize: 13,
-                    color: selectedHostelCode ? textPrimary : textSecondary,
-                  }}
-                  numberOfLines={1}
-                >
-                  {selectedHostelCode
-                    ? formatHostelDisplay(selectedHostelCode)
-                    : "Select Hostel..."}
-                </Text>
-              </View>
-              <Ionicons name="chevron-down" size={16} color={textSecondary} />
-            </TouchableOpacity>
-
-            {/* Room Number Input */}
-            <Text
-              style={{
-                fontFamily: "Poppins_600SemiBold",
-                fontSize: 11,
-                color: textSecondary,
-                marginBottom: 6,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-              }}
-            >
-              Room Number
-            </Text>
-            <TextInput
-              style={{
-                backgroundColor: inputBg,
-                color: textPrimary,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                borderRadius: 12,
-                marginBottom: 18,
-                fontSize: 13,
-                fontFamily: "Poppins_500Medium",
-                borderWidth: 1,
-                borderColor: cardBorder,
-              }}
-              placeholder="e.g. 102, B-204"
-              placeholderTextColor={textSecondary}
-              value={roomNo}
-              onChangeText={setRoomNo}
-              autoCapitalize="characters"
+            {/* Identity Photos */}
+            <UserIdentityPhotos
+              photoUrl={data.photoUrl}
+              collegeIdUrl={data.collegeIdUrl}
+              onZoom={setZoomUri}
             />
 
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onPress={() => {
-                  setShowHostelInput(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={{ fontFamily: "Poppins_500Medium", color: textSecondary, fontSize: 13 }}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  backgroundColor: !selectedHostelCode.trim() || loading ? "rgba(65, 184, 240, 0.5)" : "#41B8F0",
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onPress={handleHostelCheckin}
-                disabled={!selectedHostelCode.trim() || loading}
-                activeOpacity={0.7}
-              >
-                <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 13 }}>
-                  {loading ? "Confirming..." : "Confirm"}
-                </Text>
-              </TouchableOpacity>
+            <Text style={{ fontFamily: "Talina", color: c.textPrimary, fontSize: 22, textAlign: "center", marginBottom: 6 }}>
+              {data.displayName || data.name || "User"}
+            </Text>
+            <Text style={{ fontFamily: "Poppins_400Regular", color: c.textSecondary, fontSize: 13, textAlign: "center", marginBottom: 8 }}>
+              {data.collegeName}
+            </Text>
+            <View style={{ marginBottom: 14 }}>
+              <StatusPill label={statusPill.label} color={statusPill.color} />
             </View>
-          </View>
-        </View>
-      </Modal>
 
-      {/* Hostel Picker Modal */}
-      <HostelPickerModal
-        visible={showHostelPicker}
-        onClose={() => setShowHostelPicker(false)}
-        selectedCode={selectedHostelCode}
-        onSelect={(code) => setSelectedHostelCode(code)}
-      />
+            {!allotted ? (
+              <Banner text="No hostel allotted. Send them to the registration desk first." tone="warning" />
+            ) : null}
+            {!bookedToday && !checkedOut ? (
+              <Banner text={`No accommodation booked for today (${DAY_LABELS[today] || today}).`} tone="warning" />
+            ) : null}
+
+            <Card title="Stay">
+              <InfoRow label="Hostel" value={hostelLabel(st.Hostel)} />
+              <InfoRow label="Phone" value={data.phoneNumber} />
+              <InfoRow label="Gender" value={data.gender} />
+              {st.checkedInAt ? <InfoRow label="Checked in" value={new Date(st.checkedInAt).toLocaleString()} /> : null}
+              {st.checkedOutAt ? <InfoRow label="Checked out" value={new Date(st.checkedOutAt).toLocaleString()} /> : null}
+              <DayChips label="Booked nights" days={data.accommodation} />
+              {allotted && !checkedOut ? (
+                <TextInput
+                  value={roomNo}
+                  onChangeText={setRoomNo}
+                  placeholder="Room no."
+                  placeholderTextColor={c.textSecondary}
+                  autoCapitalize="characters"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: c.cardBorder,
+                    backgroundColor: c.inputBg,
+                    borderRadius: 12,
+                    padding: 12,
+                    marginTop: 10,
+                    color: c.textPrimary,
+                    fontFamily: "Poppins_400Regular",
+                  }}
+                />
+              ) : null}
+            </Card>
+
+            {allotted ? (
+              <Card title={checkedIn ? "Bedding Items (Issued & Returned)" : checkedOut ? "Returned at checkout" : "Hand out at check-in"}>
+                {!checkedIn && !checkedOut ? (
+                  <>
+                    <ToggleRow icon="bed-outline" label="Mattress given" value={items.mattressGiven} onChange={(v) => setItem("mattressGiven", v)} />
+                    <ToggleRow icon="cloud-outline" label="Pillow given" value={items.pillowGiven} onChange={(v) => setItem("pillowGiven", v)} />
+                    <ToggleRow icon="layers-outline" label="Bedsheet given" value={items.bedsheetGiven} onChange={(v) => setItem("bedsheetGiven", v)} />
+                  </>
+                ) : checkedIn ? (
+                  <>
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: c.accent, fontSize: 11, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      Issued Items
+                    </Text>
+                    <ToggleRow icon="bed-outline" label="Mattress given" value={items.mattressGiven} onChange={(v) => setItem("mattressGiven", v)} />
+                    <ToggleRow icon="cloud-outline" label="Pillow given" value={items.pillowGiven} onChange={(v) => setItem("pillowGiven", v)} />
+                    <ToggleRow icon="layers-outline" label="Bedsheet given" value={items.bedsheetGiven} onChange={(v) => setItem("bedsheetGiven", v)} />
+
+                    <View style={{ height: 1, backgroundColor: c.cardBorder, marginVertical: 8 }} />
+
+                    <Text style={{ fontFamily: "Poppins_600SemiBold", color: c.textSecondary, fontSize: 11, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      Returned Items
+                    </Text>
+                    <ToggleRow
+                      icon="bed-outline"
+                      label={`Mattress returned${items.mattressGiven ? "" : " (not given)"}`}
+                      value={items.mattressReturned}
+                      onChange={(v) => setItem("mattressReturned", v)}
+                      disabled={!items.mattressGiven}
+                    />
+                    <ToggleRow
+                      icon="cloud-outline"
+                      label={`Pillow returned${items.pillowGiven ? "" : " (not given)"}`}
+                      value={items.pillowReturned}
+                      onChange={(v) => setItem("pillowReturned", v)}
+                      disabled={!items.pillowGiven}
+                    />
+                    <ToggleRow
+                      icon="layers-outline"
+                      label={`Bedsheet returned${items.bedsheetGiven ? "" : " (not given)"}`}
+                      value={items.bedsheetReturned}
+                      onChange={(v) => setItem("bedsheetReturned", v)}
+                      disabled={!items.bedsheetGiven}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ToggleRow
+                      icon="bed-outline"
+                      label={`Mattress returned${items.mattressGiven ? "" : " (not given)"}`}
+                      value={items.mattressReturned}
+                      onChange={(v) => setItem("mattressReturned", v)}
+                      disabled={!items.mattressGiven || checkedOut}
+                    />
+                    <ToggleRow
+                      icon="cloud-outline"
+                      label={`Pillow returned${items.pillowGiven ? "" : " (not given)"}`}
+                      value={items.pillowReturned}
+                      onChange={(v) => setItem("pillowReturned", v)}
+                      disabled={!items.pillowGiven || checkedOut}
+                    />
+                    <ToggleRow
+                      icon="layers-outline"
+                      label={`Bedsheet returned${items.bedsheetGiven ? "" : " (not given)"}`}
+                      value={items.bedsheetReturned}
+                      onChange={(v) => setItem("bedsheetReturned", v)}
+                      disabled={!items.bedsheetGiven || checkedOut}
+                    />
+                  </>
+                )}
+                {checkedOut && unreturnedOf(items).length ? (
+                  <Text style={{ fontFamily: "Poppins_600SemiBold", color: c.warning, fontSize: 12, marginTop: 6 }}>
+                    Not returned: {itemsLabel(unreturnedOf(items))}
+                  </Text>
+                ) : null}
+              </Card>
+            ) : null}
+
+            {allotted && !checkedIn && !checkedOut ? (
+              <ActionButton label="Check in" icon="log-in-outline" color={c.success} onPress={onCheckIn} loading={loading === "checkin"} />
+            ) : null}
+            {checkedIn ? (
+              <>
+                <ActionButton
+                  label="Save items / room"
+                  variant="outline"
+                  icon="save-outline"
+                  onPress={() => run("items", "Saved")}
+                  loading={loading === "items"}
+                />
+                <ActionButton label="Check out" icon="log-out-outline" color={c.danger} onPress={onCheckOut} loading={loading === "checkout"} />
+              </>
+            ) : null}
+            {checkedOut ? (
+              <ActionButton
+                label="Undo check-out"
+                variant="outline"
+                icon="arrow-undo-outline"
+                onPress={() => run("undo_checkout", "Check-out undone")}
+                loading={loading === "undo_checkout"}
+              />
+            ) : null}
+            {isLead && (checkedIn || allotted) && !checkedOut ? (
+              <ActionButton
+                label="Revert to pending"
+                variant="outline"
+                color={c.danger}
+                icon="refresh-outline"
+                onPress={onRevert}
+                loading={loading === "revert"}
+              />
+            ) : null}
+          </ScrollView>
+        </View>
+      </View>
+      <ZoomImageModal uri={zoomUri} onClose={() => setZoomUri(null)} />
     </Modal>
   );
 };

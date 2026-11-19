@@ -15,7 +15,7 @@ import (
 
 type qrScanRequest struct {
 	Data     string `json:"data"`
-	Category string `json:"category"` // "gate" | "hostel" | "event"
+	Category string `json:"category"` // "gate" | "hostel" | "desk" | "event"
 }
 
 type gateCheckInRequest struct {
@@ -25,11 +25,14 @@ type gateCheckInRequest struct {
 }
 
 type hostelCheckInRequest struct {
-	UserID        *string `json:"userId"`
-	Accommodation *bool   `json:"accommodation"`
-	Hostel        *string `json:"hostel"`
-	RoomNo        *string `json:"roomNo"`
-	RoomNoAlt     *string `json:"RoomNo"`
+	UserID        *string             `json:"userId"`
+	Accommodation *bool               `json:"accommodation"`
+	CheckedOut    *bool               `json:"checkedOut"`
+	Action        *string             `json:"action"` // "checkin" | "checkout" | "undo_checkout" | "revert"
+	Hostel        *string             `json:"hostel"`
+	RoomNo        *string             `json:"roomNo"`
+	RoomNoAlt     *string             `json:"RoomNo"`
+	Items         *models.HostelItems `json:"items"`
 }
 
 type eventCheckInRequest struct {
@@ -56,14 +59,19 @@ func (a *API) AdminQRScan(c *gin.Context) {
 	}
 
 	caller := middleware.CurrentUser(c)
-	if category == "gate" || category == "hostel" {
-		if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBHospitality) && !caller.HasRole(models.RoleECHospitality) {
-			apierr.Respond(c, apierr.Forbidden("insufficient_permissions", "hospitality role required for gate and hostel scanning"))
+	switch category {
+	case "gate", "hostel", "desk":
+		if caller != nil && !caller.IsHospitality() {
+			apierr.Respond(c, apierr.Forbidden("insufficient_permissions", "hospitality role required for gate, desk and hostel scanning"))
 			return
 		}
+	case "event":
+	default:
+		apierr.Respond(c, apierr.BadRequest("invalid_category", "category must be gate, hostel, desk or event"))
+		return
 	}
 	if category == "event" {
-		if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) && !caller.HasRole(models.RoleEventPOC) {
+		if caller != nil && !caller.IsAdmin() && !caller.HasRole(models.RoleEBEvents) && !caller.HasRole(models.RoleEventPOC) && !caller.HasRole(models.RoleCoreHospitality) {
 			apierr.Respond(c, apierr.Forbidden("insufficient_permissions", "event role required for event scanning"))
 			return
 		}
@@ -157,12 +165,16 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 	userName := "Participant"
 	userEmail := ""
 	userPhone := ""
+	photoURL := ""
+	collegeIDURL := ""
 	if u != nil {
 		if u.DisplayName != "" {
 			userName = u.DisplayName
 		}
 		userEmail = u.Email
 		userPhone = u.PhoneNumber
+		photoURL = u.PhotoURL
+		collegeIDURL = u.CollegeIDURL
 	}
 
 	chkStatus := models.NormalizeCheckinStatus(reg.CheckingStatus)
@@ -226,6 +238,8 @@ func (a *API) handleEventQRScan(c *gin.Context, rawData string) {
 			"displayName":    userName,
 			"email":          userEmail,
 			"phoneNumber":    userPhone,
+			"photoUrl":       photoURL,
+			"collegeIdUrl":   collegeIDURL,
 			"status":         reg.Status,
 			"checkingStatus": chkStatus,
 			"paymentStatus":  reg.PaymentStatus,
@@ -295,33 +309,71 @@ func (a *API) handleUserQRScan(c *gin.Context, rawData, category string) {
 
 	resolvedUser := user.ResolveHostStatus(a.Cfg.HostEmailDomain)
 
+	data := gin.H{
+		"userId":               user.UserID,
+		"displayName":          user.DisplayName,
+		"name":                 user.DisplayName,
+		"email":                user.Email,
+		"phoneNumber":          user.PhoneNumber,
+		"collegeName":          user.CollegeName,
+		"gender":               user.Gender,
+		"rollNumber":           user.RollNumber,
+		"photoUrl":             user.PhotoURL,
+		"collegeIdUrl":         user.CollegeIDURL,
+		"isHostCollegeStudent": resolvedUser.IsHostCollegeStudent,
+		"accommodationNeeded":  user.AccommodationNeeded,
+		"accommodation":        user.Accommodation,
+		"food":                 user.Food,
+		"checkInStatus":        checkInStatusJSON(user.CheckInStatus),
+		"userEvents":           eventsList,
+	}
+
+	if category == "desk" {
+		data["rollNumber"] = user.RollNumber
+		data["photoUrl"] = user.PhotoURL
+		data["collegeIdUrl"] = user.CollegeIDURL
+		data["accommodationTier"] = user.AccommodationTier
+		data["age"] = user.Age
+		hostels, err := a.Store.ListHostels(ctx)
+		if err != nil {
+			hostels = nil
+		}
+		list := make([]gin.H, 0, len(hostels))
+		for _, h := range hostels {
+			if !h.Active || !h.AcceptsGender(user.Gender) {
+				continue
+			}
+			list = append(list, hostelJSON(h))
+		}
+		data["hostels"] = list
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
 		"category": category,
-		"data": gin.H{
-			"userId":               user.UserID,
-			"displayName":          user.DisplayName,
-			"name":                 user.DisplayName,
-			"email":                user.Email,
-			"phoneNumber":          user.PhoneNumber,
-			"collegeName":          user.CollegeName,
-			"isHostCollegeStudent": resolvedUser.IsHostCollegeStudent,
-			"accommodationNeeded":  user.AccommodationNeeded,
-			"accommodation":        user.Accommodation,
-			"food":                 user.Food,
-			"checkInStatus": gin.H{
-				"fest":          user.CheckInStatus.Fest,
-				"remark":        user.CheckInStatus.Remark,
-				"accommodation": user.CheckInStatus.Accommodation,
-				"Hostel":        user.CheckInStatus.Hostel,
-				"RoomNo":        user.CheckInStatus.RoomNo,
-			},
-			"userEvents": eventsList,
-		},
+		"data":     data,
 	})
 }
 
-// AdminGateCheckIn updates gate entry and remark for a user.
+func checkInStatusJSON(st models.CheckInStatus) gin.H {
+	return gin.H{
+		"fest":          st.Fest,
+		"remark":        st.Remark,
+		"gateAt":        st.GateAt,
+		"accommodation": st.Accommodation,
+		"checkedOut":    st.CheckedOut,
+		"checkedOutAt":  st.CheckedOutAt,
+		"checkedInAt":   st.CheckedInAt,
+		"allottedAt":    st.AllottedAt,
+		"allottedBy":    st.AllottedBy,
+		"Hostel":        st.Hostel,
+		"RoomNo":        st.RoomNo,
+		"items":         st.Items,
+	}
+}
+
+// AdminGateCheckIn updates gate entry and remark for a user. Reverting an
+// entry (fest true -> false) is restricted to EB/EC hospitality.
 func (a *API) AdminGateCheckIn(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -356,23 +408,19 @@ func (a *API) AdminGateCheckIn(c *gin.Context) {
 	if req.Fest != nil {
 		festStatus = *req.Fest
 	}
+	if u.CheckInStatus.Fest && !festStatus {
+		if caller := middleware.CurrentUser(c); !caller.IsHospitalityLead() {
+			apierr.Respond(c, apierr.Forbidden("lead_required", "only EB/EC hospitality can revert a gate check-in"))
+			return
+		}
+	}
 
 	remark := u.CheckInStatus.Remark
 	if req.Remark != nil {
 		remark = strings.TrimSpace(*req.Remark)
 	}
 
-	fields := map[string]any{
-		"checkInStatus": map[string]any{
-			"fest":          festStatus,
-			"remark":        remark,
-			"accommodation": u.CheckInStatus.Accommodation,
-			"Hostel":        u.CheckInStatus.Hostel,
-			"RoomNo":        u.CheckInStatus.RoomNo,
-		},
-	}
-
-	updatedUser, err := a.Store.UpdateUser(ctx, uid, fields)
+	updatedUser, err := a.Store.SetGateStatus(ctx, uid, festStatus, remark)
 	if err != nil {
 		apierr.Respond(c, apierr.Internal("could not update gate check-in status"))
 		return
@@ -382,19 +430,57 @@ func (a *API) AdminGateCheckIn(c *gin.Context) {
 		"success": true,
 		"message": "Gate entry updated successfully",
 		"data": gin.H{
-			"userId": updatedUser.UserID,
-			"checkInStatus": gin.H{
-				"fest":          updatedUser.CheckInStatus.Fest,
-				"remark":        updatedUser.CheckInStatus.Remark,
-				"accommodation": updatedUser.CheckInStatus.Accommodation,
-				"Hostel":        updatedUser.CheckInStatus.Hostel,
-				"RoomNo":        updatedUser.CheckInStatus.RoomNo,
-			},
+			"userId":        updatedUser.UserID,
+			"checkInStatus": checkInStatusJSON(updatedUser.CheckInStatus),
 		},
 	})
 }
 
-// AdminHostelCheckIn updates accommodation check-in status and hostel assignment.
+// respondHostelErr maps hostel store errors to API errors.
+func respondHostelErr(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		apierr.Respond(c, apierr.NotFound("not_found", "user or hostel not found"))
+	case errors.Is(err, store.ErrHostelFull):
+		apierr.Respond(c, apierr.Conflict("hostel_full", "this hostel is full"))
+	case errors.Is(err, store.ErrHostelGender):
+		apierr.Respond(c, apierr.BadRequest("hostel_gender_mismatch", "this hostel does not accept the participant's gender"))
+	case errors.Is(err, store.ErrHostelInactive):
+		apierr.Respond(c, apierr.BadRequest("hostel_inactive", "this hostel is not active"))
+	case errors.Is(err, store.ErrNotAllotted):
+		apierr.Respond(c, apierr.Conflict("not_allotted", "no hostel allotted yet - send to registration desk"))
+	case errors.Is(err, store.ErrCapacityBelowUsed):
+		apierr.Respond(c, apierr.BadRequest("capacity_below_occupied", "capacity cannot be lower than current occupancy"))
+	default:
+		apierr.Respond(c, apierr.Internal("could not update accommodation status"))
+	}
+}
+
+// resolveHostelAction turns the request (explicit action or legacy booleans)
+// into a store action.
+func resolveHostelAction(req hostelCheckInRequest, cur models.CheckInStatus) string {
+	if req.Action != nil && strings.TrimSpace(*req.Action) != "" {
+		return strings.ToLower(strings.TrimSpace(*req.Action))
+	}
+	if req.Accommodation != nil && !*req.Accommodation {
+		return store.HostelActionRevert
+	}
+	if req.CheckedOut != nil {
+		if *req.CheckedOut {
+			return store.HostelActionCheckOut
+		}
+		if cur.CheckedOut {
+			return store.HostelActionUndoCheckOut
+		}
+	}
+	if req.Accommodation != nil && *req.Accommodation {
+		return store.HostelActionCheckIn
+	}
+	return store.HostelActionItems
+}
+
+// AdminHostelCheckIn updates accommodation check-in status, bedding items and
+// keeps the hostel occupancy counters in step.
 func (a *API) AdminHostelCheckIn(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -425,57 +511,69 @@ func (a *API) AdminHostelCheckIn(c *gin.Context) {
 		return
 	}
 
-	accommodationStatus := u.CheckInStatus.Accommodation
-	if req.Accommodation != nil {
-		accommodationStatus = *req.Accommodation
-	}
-
-	hostel := u.CheckInStatus.Hostel
-	if req.Hostel != nil {
-		hostel = strings.TrimSpace(*req.Hostel)
-	}
-	roomNo := u.CheckInStatus.RoomNo
-	if req.RoomNo != nil {
-		roomNo = strings.TrimSpace(*req.RoomNo)
-	} else if req.RoomNoAlt != nil {
-		roomNo = strings.TrimSpace(*req.RoomNoAlt)
-	}
-	if !accommodationStatus {
-		hostel = ""
-		roomNo = ""
-	}
-
-	fields := map[string]any{
-		"checkInStatus": map[string]any{
-			"fest":          u.CheckInStatus.Fest,
-			"remark":        u.CheckInStatus.Remark,
-			"accommodation": accommodationStatus,
-			"Hostel":        hostel,
-			"RoomNo":        roomNo,
-		},
-	}
-
-	updatedUser, err := a.Store.UpdateUser(ctx, uid, fields)
-	if err != nil {
-		apierr.Respond(c, apierr.Internal("could not update accommodation status"))
+	caller := middleware.CurrentUser(c)
+	action := resolveHostelAction(req, u.CheckInStatus)
+	switch action {
+	case store.HostelActionCheckIn, store.HostelActionCheckOut, store.HostelActionUndoCheckOut, store.HostelActionItems:
+	case store.HostelActionRevert:
+		if !caller.IsHospitalityLead() {
+			apierr.Respond(c, apierr.Forbidden("lead_required", "only EB/EC hospitality can revert a hostel check-in"))
+			return
+		}
+	default:
+		apierr.Respond(c, apierr.BadRequest("invalid_action", "action must be checkin, checkout, undo_checkout, revert or items"))
 		return
 	}
-	a.Store.InvalidateAccommodationCache()
+
+	roomNo := req.RoomNo
+	if roomNo == nil {
+		roomNo = req.RoomNoAlt
+	}
+
+	// A hostel in the body that differs from the current allotment is a
+	// (re-)allotment, which moves the counters.
+	if action != store.HostelActionRevert && req.Hostel != nil {
+		if h := strings.TrimSpace(*req.Hostel); h != "" && h != u.CheckInStatus.Hostel {
+			room := u.CheckInStatus.RoomNo
+			if roomNo != nil {
+				room = strings.TrimSpace(*roomNo)
+			}
+			if _, err := a.Store.AllotHostel(ctx, uid, h, room, callerID(caller)); err != nil {
+				respondHostelErr(c, err)
+				return
+			}
+		}
+	}
+
+	updatedUser, err := a.Store.ApplyHostelAction(ctx, uid, store.HostelActionInput{
+		Action: action,
+		RoomNo: roomNo,
+		Items:  req.Items,
+	})
+	if err != nil {
+		respondHostelErr(c, err)
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Accommodation status updated successfully",
+		"success":    true,
+		"message":    "Accommodation status updated successfully",
+		"unreturned": updatedUser.CheckInStatus.Items.Unreturned(),
 		"data": gin.H{
-			"userId": updatedUser.UserID,
-			"checkInStatus": gin.H{
-				"fest":          updatedUser.CheckInStatus.Fest,
-				"remark":        updatedUser.CheckInStatus.Remark,
-				"accommodation": updatedUser.CheckInStatus.Accommodation,
-				"Hostel":        updatedUser.CheckInStatus.Hostel,
-				"RoomNo":        updatedUser.CheckInStatus.RoomNo,
-			},
+			"userId":        updatedUser.UserID,
+			"checkInStatus": checkInStatusJSON(updatedUser.CheckInStatus),
 		},
 	})
+}
+
+func callerID(u *models.User) string {
+	if u == nil {
+		return ""
+	}
+	if u.Email != "" {
+		return u.Email
+	}
+	return u.UserID
 }
 
 // AdminEventCheckIn updates checkingStatus ("checked-in", "checked in", "rejected", "pending") on an event registration.

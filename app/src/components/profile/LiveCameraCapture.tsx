@@ -11,6 +11,8 @@ import {
 import { CameraView, useCameraPermissions, CameraType } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeStore } from "@/state/themeStore";
+import { showAlert } from "@/components";
+import { scanAndValidateFace } from "@/utils/faceScanner";
 
 interface LiveCameraCaptureProps {
   mode: "selfie" | "document";
@@ -40,6 +42,7 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
   const [facing, setFacing] = useState<CameraType>(mode === "selfie" ? "front" : "back");
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   const [isTakingPhoto, setIsTakingPhoto] = useState(false);
+  const [isScanningFace, setIsScanningFace] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
   useEffect(() => {
@@ -108,19 +111,35 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
   }
 
   const handleCapture = async () => {
-    if (!cameraRef.current || isTakingPhoto) return;
+    if (!cameraRef.current || isTakingPhoto || isScanningFace) return;
     try {
       setIsTakingPhoto(true);
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
       });
+
       if (photo?.uri) {
+        // If selfie mode, scan with on-device ML Kit
+        if (mode === "selfie") {
+          setIsScanningFace(true);
+          const validation = await scanAndValidateFace(photo.uri);
+          setIsScanningFace(false);
+
+          if (!validation.valid) {
+            showAlert(
+              validation.errorTitle || "Face Scan Failed",
+              validation.errorMessage || "Please make sure your face is clearly visible."
+            );
+            return;
+          }
+        }
         setCapturedUri(photo.uri);
       }
     } catch (err) {
       console.error("Failed to capture picture:", err);
     } finally {
       setIsTakingPhoto(false);
+      setIsScanningFace(false);
     }
   };
 
@@ -160,7 +179,9 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
             />
             <View style={styles.successBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-              <Text style={styles.successBadgeText}>Photo Captured</Text>
+              <Text style={styles.successBadgeText}>
+                {mode === "selfie" ? "Face Verified by ML Kit" : "Photo Captured"}
+              </Text>
             </View>
           </View>
         ) : (
@@ -192,6 +213,14 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
                   <View style={styles.liveDot} />
                   <Text style={styles.liveText}>LIVE</Text>
                 </View>
+
+                {/* Face Scanning ML Kit Loading Overlay */}
+                {isScanningFace && (
+                  <View style={styles.scanningOverlay}>
+                    <ActivityIndicator size="large" color="#41B8F0" />
+                    <Text style={styles.scanningText}>Scanning Face with ML Kit...</Text>
+                  </View>
+                )}
               </View>
             </CameraView>
           </View>
@@ -263,20 +292,20 @@ export const LiveCameraCapture: React.FC<LiveCameraCaptureProps> = ({
             <TouchableOpacity
               style={[
                 styles.shutterButtonOuter,
-                { opacity: isTakingPhoto ? 0.6 : 1 },
+                { opacity: isTakingPhoto || isScanningFace ? 0.6 : 1 },
               ]}
               onPress={handleCapture}
-              disabled={isTakingPhoto}
+              disabled={isTakingPhoto || isScanningFace}
               activeOpacity={0.8}
             >
-              {isTakingPhoto ? (
+              {isTakingPhoto || isScanningFace ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <View style={styles.shutterButtonInner} />
               )}
             </TouchableOpacity>
             <Text style={[styles.shutterHint, { color: subTextColor }]}>
-              Tap to capture live photo
+              {isScanningFace ? "Analyzing face..." : "Tap to capture live photo"}
             </Text>
           </View>
         )}
@@ -301,7 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   permissionCard: {
     width: "100%",
@@ -311,17 +340,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   permissionIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: "rgba(65, 184, 240, 0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   permissionTitle: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 18,
+    fontFamily: "Poppins_700Bold",
+    fontSize: 20,
     textAlign: "center",
     marginBottom: 8,
   },
@@ -334,25 +363,26 @@ const styles = StyleSheet.create({
   },
   grantButton: {
     backgroundColor: "#41B8F0",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 16,
     width: "100%",
   },
   grantButtonText: {
     fontFamily: "Poppins_600SemiBold",
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 15,
   },
   backLink: {
-    marginTop: 16,
-    padding: 8,
+    marginTop: 14,
+    paddingVertical: 6,
   },
   headerArea: {
     marginBottom: 14,
+    alignItems: "center",
   },
   title: {
     fontFamily: "Poppins_700Bold",
@@ -361,47 +391,43 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: "Poppins_400Regular",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    textAlign: "center",
   },
   viewfinderCard: {
-    width: "100%",
-    height: SCREEN_WIDTH > 400 ? 330 : 290,
-    borderRadius: 22,
+    borderRadius: 24,
     overflow: "hidden",
+    height: 340,
+    marginBottom: 16,
     backgroundColor: "#000000",
-    marginBottom: 12,
   },
   cameraWrapper: {
     flex: 1,
-    width: "100%",
-    height: "100%",
   },
   camera: {
     flex: 1,
-    width: "100%",
-    height: "100%",
   },
   overlayContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
   },
   selfieGuideOverlay: {
-    width: 210,
+    width: 200,
     height: 240,
-    borderRadius: 110,
-    borderWidth: 2.5,
-    borderColor: "#41B8F0",
+    borderRadius: 100,
+    borderWidth: 3,
+    borderColor: "rgba(65, 184, 240, 0.8)",
     borderStyle: "dashed",
     backgroundColor: "transparent",
   },
   documentGuideOverlay: {
-    width: "88%",
-    height: 185,
+    width: "85%",
+    height: 190,
     borderRadius: 16,
-    borderWidth: 2.5,
-    borderColor: "#41B8F0",
+    borderWidth: 3,
+    borderColor: "rgba(65, 184, 240, 0.8)",
     borderStyle: "dashed",
     backgroundColor: "transparent",
   },
@@ -409,10 +435,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 14,
     right: 14,
-    backgroundColor: "rgba(0,0,0,0.55)",
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -420,12 +446,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 14,
     left: 14,
-    backgroundColor: "rgba(0,0,0,0.6)",
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   liveDot: {
     width: 8,
@@ -436,9 +462,21 @@ const styles = StyleSheet.create({
   },
   liveText: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 10,
     color: "#FFFFFF",
-    letterSpacing: 0.5,
+    fontSize: 11,
+  },
+  scanningOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+  },
+  scanningText: {
+    fontFamily: "Poppins_600SemiBold",
+    color: "#FFFFFF",
+    fontSize: 13,
+    marginTop: 10,
   },
   previewContainer: {
     flex: 1,

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"backend/internal/apierr"
+	"backend/internal/middleware"
 	"backend/internal/models"
 )
 
@@ -124,6 +125,107 @@ func (a *API) GetAppAccommodation(c *gin.Context) {
 	c.JSON(http.StatusOK, acc)
 }
 
+// GetAccommodationAvailability returns current remaining accommodation spots.
+// Privacy rule: Does not disclose female accommodation counts or female presence to male callers.
+func (a *API) GetAccommodationAvailability(c *gin.Context) {
+	ctx := c.Request.Context()
+	avail, err := a.Store.GetAccommodationAvailability(ctx)
+	if err != nil {
+		log.Printf("[GetAccommodationAvailability] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not fetch accommodation availability"))
+		return
+	}
+
+	user := middleware.CurrentUser(c)
+	isAdmin := user.IsAdmin()
+
+	// If admin, they get the full gender breakdown
+	if isAdmin {
+		c.JSON(http.StatusOK, gin.H{
+			"limits": gin.H{
+				"male":   models.MaxMaleAccommodation,
+				"female": models.MaxFemaleAccommodation,
+			},
+			"booked": avail,
+			"remaining": gin.H{
+				"day0": gin.H{
+					"male":   max(0, models.MaxMaleAccommodation-avail.Day0.Male),
+					"female": max(0, models.MaxFemaleAccommodation-avail.Day0.Female),
+				},
+				"day1": gin.H{
+					"male":   max(0, models.MaxMaleAccommodation-avail.Day1.Male),
+					"female": max(0, models.MaxFemaleAccommodation-avail.Day1.Female),
+				},
+				"day2": gin.H{
+					"male":   max(0, models.MaxMaleAccommodation-avail.Day2.Male),
+					"female": max(0, models.MaxFemaleAccommodation-avail.Day2.Female),
+				},
+				"day3": gin.H{
+					"male":   max(0, models.MaxMaleAccommodation-avail.Day3.Male),
+					"female": max(0, models.MaxFemaleAccommodation-avail.Day3.Female),
+				},
+				"day4": gin.H{
+					"male":   max(0, models.MaxMaleAccommodation-avail.Day4.Male),
+					"female": max(0, models.MaxFemaleAccommodation-avail.Day4.Female),
+				},
+			},
+		})
+		return
+	}
+
+	// For standard participants:
+	// If caller is Female, return Female availability.
+	// If caller is Male (or unauthenticated), return Male availability.
+	// Crucially: Never disclose female statistics/presence to male callers.
+	gender := "male"
+	if user != nil {
+		gender = models.NormalizeGender(user.Gender)
+	}
+
+	isFemale := gender == "female"
+	limit := models.MaxMaleAccommodation
+	if isFemale {
+		limit = models.MaxFemaleAccommodation
+	}
+
+	buildDay := func(bookedCount int) gin.H {
+		rem := max(0, limit-bookedCount)
+		return gin.H{
+			"remaining": rem,
+			"total":     limit,
+			"isSoldOut": rem <= 0,
+		}
+	}
+
+	var d0, d1, d2, d3, d4 int
+	if isFemale {
+		d0, d1, d2, d3, d4 = avail.Day0.Female, avail.Day1.Female, avail.Day2.Female, avail.Day3.Female, avail.Day4.Female
+	} else {
+		d0, d1, d2, d3, d4 = avail.Day0.Male, avail.Day1.Male, avail.Day2.Male, avail.Day3.Male, avail.Day4.Male
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"days": gin.H{
+			"day0": buildDay(d0),
+			"day1": buildDay(d1),
+			"day2": buildDay(d2),
+			"day3": buildDay(d3),
+			"day4": buildDay(d4),
+		},
+	})
+}
+
+// AdminReconcileAccommodation recalculates accommodation counts from existing users and updates counters.
+func (a *API) AdminReconcileAccommodation(c *gin.Context) {
+	doc, err := a.Store.ReconcileAccommodationAvailability(c.Request.Context())
+	if err != nil {
+		log.Printf("[AdminReconcileAccommodation] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not reconcile accommodation counts"))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "availability": doc})
+}
+
 // AdminUpdateAppAccommodation updates the accommodation pricing (app/accommodation).
 func (a *API) AdminUpdateAppAccommodation(c *gin.Context) {
 	var body models.AppAccommodation
@@ -160,4 +262,102 @@ func (a *API) AdminUpdateAppAccommodation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"accommodation": body})
+}
+
+// GetAdminNavigation returns the admin screens filtered on the backend for the current user.
+func (a *API) GetAdminNavigation(c *gin.Context) {
+	ctx := c.Request.Context()
+	user := middleware.CurrentUser(c)
+	if user == nil || !user.IsStaffOrAdmin() {
+		apierr.Respond(c, apierr.Forbidden("not_staff", "access denied"))
+		return
+	}
+
+	screens, err := a.Store.GetAdminScreens(ctx)
+	if err != nil {
+		log.Printf("[GetAdminNavigation] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not load admin navigation"))
+		return
+	}
+
+	visible := make([]models.AdminScreenConfig, 0, len(screens))
+	for _, s := range screens {
+		if user.IsAdmin() || user.HasAnyRole(s.RequiredRoles...) {
+			visible = append(visible, s)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"items": visible})
+}
+
+// AdminGetAdminScreens returns all admin screen configs with their required roles.
+func (a *API) AdminGetAdminScreens(c *gin.Context) {
+	ctx := c.Request.Context()
+	screens, err := a.Store.GetAdminScreens(ctx)
+	if err != nil {
+		log.Printf("[AdminGetAdminScreens] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not load admin screens config"))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"screens": screens})
+}
+
+// AdminUpdateAdminScreens updates the admin screen role mappings.
+func (a *API) AdminUpdateAdminScreens(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var body struct {
+		Screens []models.AdminScreenConfig `json:"screens"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		var rawList []models.AdminScreenConfig
+		if err2 := c.ShouldBindJSON(&rawList); err2 != nil {
+			apierr.Respond(c, apierr.BadRequest("invalid_body", "screens array is required"))
+			return
+		}
+		body.Screens = rawList
+	}
+
+	if len(body.Screens) == 0 {
+		apierr.Respond(c, apierr.BadRequest("empty_screens", "screens list cannot be empty"))
+		return
+	}
+
+	if err := a.Store.SetAdminScreens(ctx, body.Screens); err != nil {
+		log.Printf("[AdminUpdateAdminScreens] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not update admin screens configuration"))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"screens": body.Screens})
+}
+
+// GetMealPassScannerStatus returns whether the user meal pass scanner is active.
+func (a *API) GetMealPassScannerStatus(c *gin.Context) {
+	enabled, err := a.Store.GetUserMealPassScanner(c.Request.Context())
+	if err != nil {
+		log.Printf("[GetMealPassScannerStatus] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not check meal pass scanner status"))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"enabled": enabled})
+}
+
+// AdminUpdateMealPassScanner updates the user meal pass scanner status.
+func (a *API) AdminUpdateMealPassScanner(c *gin.Context) {
+	var body struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.Enabled == nil {
+		apierr.Respond(c, apierr.BadRequest("invalid_body", "enabled boolean is required"))
+		return
+	}
+
+	if err := a.Store.SetUserMealPassScanner(c.Request.Context(), *body.Enabled); err != nil {
+		log.Printf("[AdminUpdateMealPassScanner] error: %v", err)
+		apierr.Respond(c, apierr.Internal("could not update meal pass scanner status"))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"enabled": *body.Enabled})
 }

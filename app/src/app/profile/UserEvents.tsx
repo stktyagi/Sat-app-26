@@ -79,8 +79,12 @@ const UserEventsScreen: React.FC = () => {
       : "Archived Event";
 
     const fallbackName = row.registration?.eventName || (formattedSlugTitle || "Archived Event");
-    
+    const responses = row.team?.responses || row.registration?.responses || [];
+    const trackResp = responses.find((r: any) => r.fieldId === "project_track" || r.fieldId === "track");
+    const trackName = trackResp?.value ? String(trackResp.value).split("\n")[0] : null;
+
     return {
+      trackName,
       ...row.registration,
       eventId: row.event?.eventId || row.event?.id || row.registration?.eventId,
       eventName: row.event?.title || fallbackName,
@@ -314,12 +318,19 @@ const UserEventsScreen: React.FC = () => {
                       <Text style={{ fontFamily: 'Poppins_600SemiBold', color: textColor, fontSize: 17, marginBottom: 4 }}>
                         {event.eventName}
                       </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                         <View style={{ backgroundColor: event.isUnavailable ? (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2') : (isDark ? 'rgba(65, 184, 240, 0.12)' : 'rgba(65, 184, 240, 0.1)'), paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                           <Text style={{ fontFamily: 'Poppins_500Medium', color: event.isUnavailable ? '#EF4444' : '#41B8F0', fontSize: 11, textTransform: 'capitalize' }}>
                             {event.eventCategory}
                           </Text>
                         </View>
+                        {event.trackName ? (
+                          <View style={{ backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : '#E0F2FE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, maxWidth: 200 }}>
+                            <Text style={{ fontFamily: 'Poppins_500Medium', color: '#38BDF8', fontSize: 11 }} numberOfLines={1}>
+                              {event.trackName}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                     </View>
                     <View style={{ backgroundColor: badge.bg, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, flexShrink: 0 }}>

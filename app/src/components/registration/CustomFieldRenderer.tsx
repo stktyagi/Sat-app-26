@@ -16,6 +16,12 @@ interface CustomField {
     maxValue?: number;
 }
 
+export const isProfileRedundantField = (field: any) => {
+  const text = `${field?.fieldId || "" } ${field?.label || "" }`.toLowerCase();
+  const tokens = text.split(/[^a-z0-9]+/);
+  return tokens.some((t) => ["phone", "phonenumber", "mobile", "gender", "age", "dob"].includes(t));
+};
+
 interface CustomFieldsFormProps {
     fields: CustomField[];
     isLoading: boolean;
@@ -78,6 +84,7 @@ const CustomFieldsForm: React.FC<CustomFieldsFormProps> = ({
     children,
 }) => {
     const [customFieldsData, setCustomFieldsData] = useState<Record<string, any>>(initialData);
+    const activeFields = (fields || []).filter((f) => !isProfileRedundantField(f));
     
     
 
@@ -244,11 +251,11 @@ const CustomFieldsForm: React.FC<CustomFieldsFormProps> = ({
         }
     };
 
-    const isFormValid = fields.every(field => isResponseValid(field, customFieldsData[field.fieldId]));
+    const isFormValid = activeFields.every(field => isResponseValid(field, customFieldsData[field.fieldId]));
 
     return (
         <View>
-            {fields.map((field) => (
+            {activeFields.map((field) => (
                 <View key={field.fieldId} className="mb-4">
                     <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-[#2175C0] mb-2">
                         {field.label}

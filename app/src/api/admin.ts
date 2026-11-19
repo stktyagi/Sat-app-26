@@ -161,9 +161,17 @@ export interface AdminBanner {
 }
 
 export interface AccommodationStats {
+  day?: string;
   total: number;
   checkedIn: number;
+  checkedOut?: number;
   pending: number;
+  incomingTotal?: number;
+  incomingCheckedIn?: number;
+  incomingPending?: number;
+  outgoingTotal?: number;
+  outgoingCheckedOut?: number;
+  outgoingPending?: number;
 }
 
 export interface UserAccommodation {
@@ -173,8 +181,10 @@ export interface UserAccommodation {
   phoneNumber?: string;
   collegeName?: string;
   accommodationNeeded: boolean;
-  accommodationStatus?: Record<string, boolean>;
-  foodStatus?: Record<string, boolean>;
+  accommodationStatus?: boolean;
+  foodStatus?: boolean;
+  accommodation?: Record<string, boolean>;
+  food?: Record<string, boolean>;
   checkInStatus?: Record<string, any>;
 }
 
@@ -234,9 +244,6 @@ export async function adminListUsers(_params?: { q?: string; role?: string }): P
   return MOCK_USERS;
 }
 
-export async function adminUpdateUserRole(userId: string, role: string): Promise<void> {
-  console.log('[mock] updateUserRole', userId, role);
-}
 
 export async function adminUpdateUser(email: string, data: Record<string, any>): Promise<AdminUser> {
   const res = await apiFetch(`/admin/users/by-email/${encodeURIComponent(email)}`, {
@@ -334,12 +341,16 @@ export async function updateAccommodationCheckIn(
   userId: string,
   status: boolean,
   hostel?: string,
-  roomNo?: string
+  roomNo?: string,
+  action?: 'checkin' | 'checkout' | 'undo_checkout' | 'revert' | 'items'
 ): Promise<void> {
   const body: Record<string, any> = {
     userId,
     accommodation: status,
   };
+  if (action !== undefined) {
+    body.action = action;
+  }
   if (hostel !== undefined) {
     body.hostel = hostel;
     body.Hostel = hostel;
@@ -356,6 +367,12 @@ export async function updateAccommodationCheckIn(
     throw new Error(await readError(res, 'Failed to update accommodation check-in'));
   }
   await clearAccommodationCache();
+}
+
+export async function checkoutAccommodation(
+  userId: string
+): Promise<void> {
+  return updateAccommodationCheckIn(userId, true, undefined, undefined, 'checkout');
 }
 
 
@@ -1130,9 +1147,24 @@ export interface UserGateData {
     fest: boolean;
     remark?: string | null;
     accommodation: boolean;
+    checkedOut?: boolean;
+    checkedOutAt?: string | null;
     Hostel?: string | null;
     RoomNo?: string | null;
+    gateAt?: string | null;
+    checkedInAt?: string | null;
+    allottedAt?: string | null;
+    allottedBy?: string | null;
+    items?: HostelItems;
   };
+  gender?: string;
+  // Registration desk extras
+  rollNumber?: string;
+  photoUrl?: string;
+  collegeIdUrl?: string;
+  accommodationTier?: string;
+  age?: string;
+  hostels?: AdminHostel[];
   userEvents?: {
     eventId: string;
     eventName: string;
@@ -1217,22 +1249,29 @@ export const updateGateFestStatus = async (
   }
 };
 
+export type HostelAction = 'checkin' | 'checkout' | 'undo_checkout' | 'revert' | 'items';
+
 export const updateHostelStatus = async (
   userId: string,
   accommodation: boolean,
   hostel?: string,
-  roomNo?: string
-): Promise<{ success: boolean; error?: string; message?: string; data?: any }> => {
+  roomNo?: string,
+  action?: HostelAction,
+  items?: HostelItems
+): Promise<{ success: boolean; error?: string; message?: string; data?: any; unreturned?: string[] }> => {
   try {
+    const body: Record<string, any> = { accommodation };
+    if (hostel !== undefined) body.hostel = hostel;
+    if (roomNo !== undefined) body.roomNo = roomNo;
+    if (action) {
+      body.action = action;
+    }
+    if (items) {
+      body.items = items;
+    }
     const res = await apiFetch(`/admin/qr/hostel/${userId}`, {
       method: 'PATCH',
-      body: JSON.stringify({
-        accommodation,
-        hostel,
-        Hostel: hostel,
-        roomNo,
-        RoomNo: roomNo,
-      }),
+      body: JSON.stringify(body),
     }, 'required');
 
     if (!res.ok) {
@@ -1240,7 +1279,8 @@ export const updateHostelStatus = async (
       return { success: false, error: err, message: err };
     }
     const json = await res.json();
-    return { success: true, data: json.data };
+    await clearAccommodationCache();
+    return { success: true, data: json.data, unreturned: json.unreturned || [] };
   } catch (error: any) {
     return {
       success: false,
@@ -1266,21 +1306,156 @@ export const getUserRegisteredEvents = async (
   }
 };
 
-export const getCurrentEventDay = () => 'day1';
-export const updateUserMealStatus = async (
-  _userId?: string,
-  _day?: string,
-  _mealIndex?: number
-): Promise<{ success: boolean; error?: string; message?: string }> => {
-  return { success: true };
+// Fest day0 is 19 Nov 2026 (IST); keep in sync with backend FEST_DAY0_DATE.
+export const FEST_DAY0_IST = '2026-11-19';
+
+/** Current fest day key ("day0".."day4") in IST, clamped to the fest range. */
+export const getCurrentEventDay = (now: Date = new Date()): string => {
+  const ist = new Date(now.getTime() + 5.5 * 3600 * 1000);
+  const today = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
+  const [y, m, d] = FEST_DAY0_IST.split('-').map(Number);
+  const diff = Math.round((today - Date.UTC(y, m - 1, d)) / 86400000);
+  return `day${Math.min(Math.max(diff, 0), 4)}`;
 };
-export const checkMealAvailability = async (
-  _userId?: string,
-  _day?: string,
-  _mealIndex?: number
-): Promise<{ available: boolean; message: string }> => {
-  return { available: true, message: 'Meal available' };
+
+// ─── Hospitality: hostels, desk, meals, EB lists ─────────────────────────────
+
+export interface HostelItems {
+  pillowGiven: boolean;
+  mattressGiven: boolean;
+  bedsheetGiven: boolean;
+  pillowReturned: boolean;
+  mattressReturned: boolean;
+  bedsheetReturned: boolean;
+}
+
+export const EMPTY_ITEMS: HostelItems = {
+  pillowGiven: false,
+  mattressGiven: false,
+  bedsheetGiven: false,
+  pillowReturned: false,
+  mattressReturned: false,
+  bedsheetReturned: false,
 };
+
+export interface AdminHostel {
+  id: string;
+  name: string;
+  gender: 'male' | 'female' | 'any';
+  capacity: number;
+  occupied: number;
+  remaining: number;
+  active: boolean;
+  isFull: boolean;
+}
+
+async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
+  if (!res.ok) throw new Error(await readError(res, fallback));
+  return res.json();
+}
+
+export const getHostels = async (): Promise<{ hostels: AdminHostel[]; totalCapacity: number; totalOccupied: number }> =>
+  jsonOrThrow(await apiFetch('/admin/hostels', { method: 'GET' }, 'required'), 'Failed to load hostels');
+
+export const createHostel = async (h: { name: string; gender: string; capacity: number }): Promise<{ hostel: AdminHostel }> =>
+  jsonOrThrow(
+    await apiFetch('/admin/hostels', { method: 'POST', body: JSON.stringify(h) }, 'required'),
+    'Failed to create hostel'
+  );
+
+export const updateHostel = async (
+  id: string,
+  patch: Partial<{ name: string; gender: string; capacity: number; active: boolean }>
+): Promise<{ hostel: AdminHostel }> =>
+  jsonOrThrow(
+    await apiFetch(`/admin/hostels/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) }, 'required'),
+    'Failed to update hostel'
+  );
+
+export const allotHostel = async (
+  userId: string,
+  hostelId: string,
+  roomNo?: string
+): Promise<{ success: boolean; data?: any; hostel?: AdminHostel; error?: string }> => {
+  try {
+    const res = await apiFetch('/admin/desk/allot', {
+      method: 'POST',
+      body: JSON.stringify({ userId, hostelId, roomNo: roomNo || '' }),
+    }, 'required');
+    if (!res.ok) return { success: false, error: await readError(res, 'Failed to allot hostel') };
+    const json = await res.json();
+    return { success: true, data: json.data, hostel: json.hostel };
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Failed to allot hostel' };
+  }
+};
+
+export interface MealVerifyResult {
+  allowed: boolean;
+  reason: string;
+  day: string;
+  slot: string;
+  userId: string;
+  name: string;
+  email: string;
+  collegeName: string;
+  photoUrl?: string;
+}
+
+export const verifyMealCode = async (code: string): Promise<MealVerifyResult> =>
+  jsonOrThrow(
+    await apiFetch('/admin/food/verify-code', { method: 'POST', body: JSON.stringify({ code }) }, 'required'),
+    'Failed to verify meal code'
+  );
+
+export interface MealLog {
+  userId: string;
+  name: string;
+  email: string;
+  phone: string;
+  college: string;
+  gender: string;
+  day: string;
+  slot: string;
+  at: string;
+  method: string;
+  verifiedBy: string;
+}
+
+export const getMealLogs = async (day: string, slot: string): Promise<{ logs: MealLog[]; count: number }> =>
+  jsonOrThrow(
+    await apiFetch(`/admin/food/logs?day=${encodeURIComponent(day)}&slot=${encodeURIComponent(slot)}`, { method: 'GET' }, 'required'),
+    'Failed to load meal logs'
+  );
+
+export interface HospitalityRow {
+  userId: string;
+  displayName: string;
+  email: string;
+  phoneNumber: string;
+  collegeName: string;
+  gender: string;
+  accommodation?: Record<string, boolean>;
+  food?: Record<string, boolean>;
+  hostel: string;
+  roomNo: string;
+  checkedInAt?: string;
+  checkInStatus: UserGateData['checkInStatus'];
+  unreturned: string[];
+  lastStayDay: number;
+}
+
+export const getInHouse = async (hostel?: string): Promise<{ users: HospitalityRow[]; count: number }> =>
+  jsonOrThrow(
+    await apiFetch(`/admin/accommodation/inhouse${hostel ? `?hostel=${encodeURIComponent(hostel)}` : ''}`, { method: 'GET' }, 'required'),
+    'Failed to load in-house list'
+  );
+
+export const getCheckoutsToday = async (day?: number): Promise<{ users: HospitalityRow[]; count: number; day: number }> =>
+  jsonOrThrow(
+    await apiFetch(`/admin/accommodation/checkouts-today${day !== undefined ? `?day=${day}` : ''}`, { method: 'GET' }, 'required'),
+    'Failed to load checkouts'
+  );
 
 export const adminGenerateFoodQR = async (
   day?: string
@@ -1290,5 +1465,29 @@ export const adminGenerateFoodQR = async (
     body: JSON.stringify({ day: day || '' }),
   }, 'required');
   if (!res.ok) throw new Error(await readError(res, 'Failed to generate food QR'));
+  return res.json();
+};
+
+export const adminGenerateCheckoutQR = async (): Promise<{ qr: string; type: string }> => {
+  const res = await apiFetch("/admin/checkout/generate", {
+    method: "POST",
+  }, "required");
+  if (!res.ok) throw new Error(await readError(res, "Failed to generate checkout QR"));
+  return res.json();
+};
+
+export const submitUserCheckout = async (data: string): Promise<{
+  success: boolean;
+  message: string;
+  hostel?: string;
+  roomNo?: string;
+  already?: boolean;
+  unreturned?: string[];
+}> => {
+  const res = await apiFetch("/hostel/checkout", {
+    method: "POST",
+    body: JSON.stringify({ data }),
+  }, "required");
+  if (!res.ok) throw new Error(await readError(res, "Failed to complete checkout"));
   return res.json();
 };

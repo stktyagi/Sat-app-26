@@ -6,8 +6,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   House,
   CalendarRange as Calendar,
+  ShoppingBag,
   Play,
   User,
+  Trophy,
 } from "lucide-react-native";
 import { GlassView } from "expo-glass-effect";
 import { useThemeStore } from "@/state/themeStore";
@@ -22,6 +24,7 @@ const TAB_ICONS: Record<string, { label: string; Icon: React.ComponentType<any> 
   index: { label: "Home", Icon: House },
   events: { label: "Events", Icon: Calendar },
   reels: { label: "Reels", Icon: Play },
+  leaderboard: { label: "Leaderboard", Icon: Trophy },
   profile: { label: "Profile", Icon: User },
 };
 
@@ -156,9 +159,9 @@ function CustomTabBar({
                 {isFocused ? (
                   <View
                     style={{
-                      width: 72,
-                      height: 54,
-                      borderRadius: 27,
+                      width: 60,
+                      height: 50,
+                      borderRadius: 25,
                       shadowColor: "#000",
                       shadowOffset: { width: 0, height: 3 },
                       shadowOpacity: 0.22,
@@ -169,7 +172,7 @@ function CustomTabBar({
                     <View
                       style={{
                         flex: 1,
-                        borderRadius: 27,
+                        borderRadius: 25,
                         overflow: "hidden",
                         backgroundColor: activePillBg,
                         borderWidth: 1,
@@ -179,7 +182,7 @@ function CustomTabBar({
                       }}
                     >
                       <IconComponent
-                        size={21}
+                        size={20}
                         color={ACTIVE_LOGO_COLOR}
                         strokeWidth={2.5}
                         {...(route.name === "reels" ? { fill: ACTIVE_LOGO_COLOR } : {})}
@@ -187,8 +190,8 @@ function CustomTabBar({
                       <Text
                         style={{
                           fontFamily: "Poppins_600SemiBold",
-                          fontSize: 10,
-                          marginTop: 2,
+                          fontSize: 9.5,
+                          marginTop: 1,
                           color: ACTIVE_LOGO_COLOR,
                         }}
                         numberOfLines={1}
@@ -200,22 +203,22 @@ function CustomTabBar({
                 ) : (
                   <View
                     style={{
-                      width: 72,
-                      height: 54,
+                      width: 60,
+                      height: 50,
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
                     <IconComponent
-                      size={21}
+                      size={20}
                       color={inactiveColor}
                       strokeWidth={1.8}
                     />
                     <Text
                       style={{
                         fontFamily: "Poppins_500Medium",
-                        fontSize: 10,
-                        marginTop: 2,
+                        fontSize: 9.5,
+                        marginTop: 1,
                         color: inactiveColor,
                       }}
                       numberOfLines={1}
@@ -290,6 +293,16 @@ export default function TabLayout() {
             />
           </NativeTabs.Trigger>
           <NativeTabs.Trigger
+            name="leaderboard"
+            contentStyle={{ backgroundColor: isDark ? "#131316" : "#E0E0E0" }}
+          >
+            <NativeTabs.Trigger.Label>Leaderboard</NativeTabs.Trigger.Label>
+            <NativeTabs.Trigger.Icon
+              sf={{ default: "trophy", selected: "trophy.fill" }}
+              md="emoji_events"
+            />
+          </NativeTabs.Trigger>
+          <NativeTabs.Trigger
             name="profile"
             contentStyle={{ backgroundColor: isDark ? "#131316" : "#E0E0E0" }}
           >
@@ -324,6 +337,7 @@ export default function TabLayout() {
         <Tabs.Screen name="index" options={{ title: "Home" }} />
         <Tabs.Screen name="events" options={{ title: "Events" }} />
         <Tabs.Screen name="reels" options={{ title: "Reels" }} />
+        <Tabs.Screen name="leaderboard" options={{ title: "Leaderboard" }} />
         <Tabs.Screen name="profile" options={{ title: "Profile" }} />
       </Tabs>
 

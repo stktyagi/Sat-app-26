@@ -399,16 +399,25 @@ func (a *API) InitiatePayment(c *gin.Context) {
 	// buy their own stay and food; their cart becomes a stay-only checkout.
 	stayEventID := body.EventID
 	if body.EventID != "" && body.TeamID != "" {
-		if team, err := a.Store.GetTeam(ctx, body.TeamID); err == nil && team.EventID == body.EventID && !team.IsLeader(user.UserID) {
+		if team, err := a.Store.GetTeam(ctx, body.TeamID); err == nil && team.EventID == body.EventID {
 			hasAcc, hasFood := anySelected(body.Accommodation), anySelected(body.Food)
-			if !hasAcc && !hasFood {
-				apierr.Respond(c, apierr.Forbidden("leader_only", "only the team leader can pay the team registration fee"))
-				return
-			}
-			body.EventID, body.TeamID = "", ""
-			body.PaymentType = models.PaymentTypeAccommodation
-			if hasFood {
-				body.PaymentType = models.PaymentTypeAccommodationAndFood
+			if !team.IsLeader(user.UserID) {
+				if !hasAcc && !hasFood {
+					apierr.Respond(c, apierr.Forbidden("leader_only", "only the team leader can pay the team registration fee"))
+					return
+				}
+				body.EventID, body.TeamID = "", ""
+				body.PaymentType = models.PaymentTypeAccommodation
+				if hasFood {
+					body.PaymentType = models.PaymentTypeAccommodationAndFood
+				}
+			} else if team.Paid && (hasAcc || hasFood) {
+				// The leader's team fee is already marked paid; convert to a stay-only checkout.
+				body.EventID, body.TeamID = "", ""
+				body.PaymentType = models.PaymentTypeAccommodation
+				if hasFood {
+					body.PaymentType = models.PaymentTypeAccommodationAndFood
+				}
 			}
 		}
 	}
@@ -493,24 +502,47 @@ func (a *API) InitiatePayment(c *gin.Context) {
 
 			remainingDue := max(totalRosterFee-team.PaidTill, 0)
 			if remainingDue == 0 {
-				apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed for all team members"))
-				return
+				hasAcc, hasFood := anySelected(body.Accommodation), anySelected(body.Food)
+				if !hasAcc && !hasFood {
+					apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed for all team members"))
+					return
+				}
+				// The team fee is already covered; demote to a stay-only checkout.
+				body.EventID, body.TeamID = "", ""
+				body.PaymentType = models.PaymentTypeAccommodation
+				if hasFood {
+					body.PaymentType = models.PaymentTypeAccommodationAndFood
+				}
+				event = nil
+				team = nil
+			} else {
+				covered = slices.Clone(team.MemberIDs)
 			}
-			covered = slices.Clone(team.MemberIDs)
 		} else {
 			covered = []string{user.UserID}
 		}
 
-		// The payer must be registered, and (for individual events) not already paid.
-		regID := models.RegistrationID(event.EventID, user.UserID)
-		reg, err := a.Store.GetRegistration(ctx, regID)
-		if err != nil {
-			apierr.Respond(c, apierr.NotFound("not_registered", "you are not registered for this event"))
-			return
-		}
-		if event.EventType != models.EventTypeTeam && (reg.PaymentStatus == models.PaymentStatusSuccess || event.FeeFor(user.IsHostCollegeStudent) == 0) {
-			apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
-			return
+		if event != nil {
+			// The payer must be registered, and (for individual events) not already paid.
+			regID := models.RegistrationID(event.EventID, user.UserID)
+			reg, err := a.Store.GetRegistration(ctx, regID)
+			if err != nil {
+				apierr.Respond(c, apierr.NotFound("not_registered", "you are not registered for this event"))
+				return
+			}
+			if event.EventType != models.EventTypeTeam && (reg.PaymentStatus == models.PaymentStatusSuccess || event.FeeFor(user.IsHostCollegeStudent) == 0) {
+				hasAcc, hasFood := anySelected(body.Accommodation), anySelected(body.Food)
+				if !hasAcc && !hasFood {
+					apierr.Respond(c, apierr.Conflict("already_paid", "payment has already been completed"))
+					return
+				}
+				body.EventID = ""
+				body.PaymentType = models.PaymentTypeAccommodation
+				if hasFood {
+					body.PaymentType = models.PaymentTypeAccommodationAndFood
+				}
+				event = nil
+			}
 		}
 	}
 
@@ -576,6 +608,18 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		}
 	}
 
+	// Check fixed capacity (300 male, 130 female)
+	if len(accommodationMap) > 0 && a.Store != nil {
+		userGender := "male"
+		if user != nil {
+			userGender = user.Gender
+		}
+		if err := a.Store.CheckAccommodationCapacity(ctx, accommodationMap, userGender, user); err != nil {
+			apierr.Respond(c, err)
+			return
+		}
+	}
+
 	if accFee > 0 && body.EventID == "" && a.Store != nil {
 		regs, err := a.Store.ListUserRegistrations(ctx, user.UserID)
 		if err != nil || len(regs) == 0 {
@@ -605,8 +649,14 @@ func (a *API) InitiatePayment(c *gin.Context) {
 	hasAccInCart := len(accommodationMap) > 0 || accUpgradeFee > 0
 	hasExistingAcc := user != nil && len(user.Accommodation) > 0
 	if hasAccInCart || hasExistingAcc {
-		if (event != nil && strings.EqualFold(event.Category, "Technical")) ||
-			(user != nil && strings.EqualFold(user.AccommodationTier, models.AccommodationTierTechnical)) {
+		isTech := (event != nil && strings.EqualFold(event.Category, "Technical")) ||
+			(user != nil && strings.EqualFold(user.AccommodationTier, models.AccommodationTierTechnical))
+		if !isTech && stayEventID != "" && a.Cache != nil {
+			if ev, err := a.Cache.Get(ctx, stayEventID); err == nil && ev != nil && strings.EqualFold(ev.Category, "Technical") {
+				isTech = true
+			}
+		}
+		if isTech {
 			accTier = models.AccommodationTierTechnical
 		} else if user != nil && user.AccommodationTier != "" {
 			accTier = user.AccommodationTier

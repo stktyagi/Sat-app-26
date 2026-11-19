@@ -3,6 +3,8 @@ package middleware
 import (
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"slices"
 
 	"github.com/gin-gonic/gin"
@@ -41,6 +43,21 @@ func Recovery() gin.HandlerFunc {
 
 // CORS allows the Expo dev server and any configured web origin. A single "*"
 // entry disables origin checking, which is the default for local development.
+func isAllowedOrigin(allowed []string, origin string) bool {
+	if origin == "" {
+		return false
+	}
+	if slices.Contains(allowed, origin) {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	h := strings.ToLower(u.Hostname())
+	return h == "localhost" || h == "127.0.0.1" || h == "saturnalia.in" || strings.HasSuffix(h, ".saturnalia.in")
+}
+
 func CORS(allowed []string) gin.HandlerFunc {
 	allowAll := slices.Contains(allowed, "*")
 
@@ -49,7 +66,7 @@ func CORS(allowed []string) gin.HandlerFunc {
 		switch {
 		case allowAll:
 			c.Header("Access-Control-Allow-Origin", "*")
-		case origin != "" && slices.Contains(allowed, origin):
+		case origin != "" && isAllowedOrigin(allowed, origin):
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Vary", "Origin")
 		}

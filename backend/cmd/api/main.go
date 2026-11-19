@@ -59,6 +59,7 @@ func main() {
 	}
 
 	st := store.New(clients.FS, cfg)
+	st.Cache = provider
 	events := store.NewEventCache(st, provider, provider, cfg.EventCacheTTL)
 	events.StartInvalidationListener(ctx)
 	cb := chatbot.NewService(cfg.ChatbotURL)
@@ -69,6 +70,7 @@ func main() {
 	stories := store.NewListCache(provider, store.KeyStories, cfg.EventCacheTTL, st.AllStories)
 	storeItems := store.NewListCache(provider, store.KeyStore, cfg.EventCacheTTL, st.AllStoreItems)
 	api := handlers.New(st, events, faqs, venues, banners, reels, stories, storeItems, qr.New(cfg.QRSecret), cfg, cb, clients, mediaStore, s3Client)
+	api.StartAutomatedNotificationScheduler(ctx)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -131,6 +133,11 @@ func main() {
 			log.Printf("app config defaults init error: %v", err)
 		} else {
 			log.Printf("app config defaults initialized")
+		}
+		if _, err := st.GetAccommodationAvailability(wctx); err != nil {
+			log.Printf("cache warm: accommodation availability: %v", err)
+		} else {
+			log.Printf("cache warm: accommodation availability ready")
 		}
 	}()
 

@@ -79,6 +79,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [showGraduationDropdown, setShowGraduationDropdown] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     displayName: user?.displayName || "",
@@ -189,6 +190,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
           text: "Sign Out",
           style: "destructive",
           onPress: async () => {
+            setIsSigningOut(true);
             try {
               await handleSignOut();
               logout();
@@ -196,6 +198,8 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
             } catch (error) {
               console.error("Sign out error:", error);
               showAlert("Error", "Failed to log out properly");
+            } finally {
+              setIsSigningOut(false);
             }
           },
         },
@@ -341,15 +345,21 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
         <TouchableOpacity
           onPress={handleSignOutPress}
           activeOpacity={0.7}
+          disabled={isSigningOut}
           style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
             paddingHorizontal: 12,
             paddingVertical: 6,
             borderRadius: 12,
             backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
             borderWidth: 1,
             borderColor: cardBorder,
+            opacity: isSigningOut ? 0.6 : 1,
           }}
         >
+          {isSigningOut && <ActivityIndicator size="small" color={subTextColor} />}
           <Text
             style={{
               fontFamily: "Poppins_500Medium",
@@ -357,7 +367,7 @@ export const UserProfileFormScreen: React.FC<UserProfileFormProps> = ({
               color: subTextColor,
             }}
           >
-            Sign Out
+            {isSigningOut ? "Signing Out..." : "Sign Out"}
           </Text>
         </TouchableOpacity>
       </View>

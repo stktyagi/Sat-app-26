@@ -7,6 +7,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Share,
+  Linking,
 } from "react-native";
 import { showAlert } from "@/components";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
@@ -28,12 +29,18 @@ import {
   QrCode,
   ShieldCheck,
   LogOut,
+  FileText,
+  Edit3,
+  ExternalLink,
 } from "lucide-react-native";
 import QRCode from "react-native-qrcode-svg";
 import { useUserStore } from "@/state/userStore";
 import { useThemeStore } from "@/state/themeStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TeamDetailsCard from "@/components/registration/TeamDetailsCard";
+import EditCustomFieldsModal from "@/components/registration/EditCustomFieldsModal";
+import { isProfileRedundantField } from "@/components/registration/RegistrationModal";
+
 import { useEventDetail } from "@/hooks/useEventDetail";
 import {
   useDeleteTeam,
@@ -45,6 +52,7 @@ import { isPerIndividualPayment, isEventPaymentDue, isHostStudent, calculateEven
 
 const MyEventDetailsScreen: React.FC = () => {
   const router = useRouter();
+  const [editCustomFieldsVisible, setEditCustomFieldsVisible] = useState(false);
   const insets = useSafeAreaInsets();
   const { isDark } = useThemeStore();
 
@@ -266,6 +274,31 @@ const MyEventDetailsScreen: React.FC = () => {
     teamData?.size ??
     0;
   const isUnderMinSize = isTeam && teamMemberCount < minTeamSize;
+  const isHostOnlyField = (field: any) => {
+    return Boolean(
+      field.hostOnly ||
+      field.audience === "host_only" ||
+      field.audience === "host" ||
+      field.fieldId?.toLowerCase().includes("host") ||
+      field.fieldId === "ppt_drive_link"
+    );
+  };
+
+  const visibleCustomFields = (eventData?.customFields || []).filter((f: any) => {
+    if (isProfileRedundantField(f)) return false;
+    if (isHostOnlyField(f) && !isHost) return false;
+    return true;
+  });
+
+  const currentResponses: Array<{ fieldId: string; value: any; label?: string; type?: string }> =
+    teamData?.responses || registration?.responses || [];
+  const currentResponsesMap: Record<string, any> = {};
+  for (const r of currentResponses) {
+    if (r.fieldId) currentResponsesMap[r.fieldId] = r.value;
+  }
+  const canEditFields = isTeam ? isLeader : Boolean(registration);
+
+
 
   // Determine computed status: Priority is Rejected > Pending (team incomplete) > Payment Pending (payment due) > Confirmed
   const rawStatus =
@@ -1152,6 +1185,177 @@ const MyEventDetailsScreen: React.FC = () => {
           </View>
         )}
 
+        
+        {/* EVENT REQUIREMENTS / CUSTOM FIELDS CARD */}
+        {visibleCustomFields.length > 0 && (
+          <View
+            style={{
+              backgroundColor: cardBg,
+              borderColor: cardBorder,
+              borderWidth: 1,
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: 16,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", flex: 1, marginRight: 8 }}>
+                <View
+                  style={{
+                    backgroundColor: isDark ? "rgba(56, 189, 248, 0.15)" : "rgba(56, 189, 248, 0.1)",
+                    width: 32,
+                    height: 32,
+                    borderRadius: 10,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: 10,
+                  }}
+                >
+                  <FileText size={16} color="#38BDF8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 15, color: textPrimary }}>
+                    Event Requirements & Track
+                  </Text>
+                  <Text style={{ fontFamily: "Poppins_400Regular", fontSize: 11.5, color: textSecondary }}>
+                    {isTeam
+                      ? isLeader
+                        ? "Configured for your team · Tap Edit to change"
+                        : "Configured by team leader"
+                      : "Your submitted details for this event"}
+                  </Text>
+                </View>
+              </View>
+
+              {canEditFields && (
+                <TouchableOpacity
+                  onPress={() => setEditCustomFieldsVisible(true)}
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: isDark ? "rgba(56, 189, 248, 0.12)" : "rgba(56, 189, 248, 0.1)",
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: isDark ? "rgba(56, 189, 248, 0.25)" : "rgba(56, 189, 248, 0.3)",
+                  }}
+                >
+                  <Edit3 size={13} color="#38BDF8" style={{ marginRight: 4 }} />
+                  <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 12.5, color: "#38BDF8" }}>
+                    Edit
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* List of custom fields and current responses */}
+            <View style={{ gap: 10 }}>
+              {visibleCustomFields.map((field: any) => {
+                const answer = currentResponsesMap[field.fieldId];
+                const hasAnswer = answer !== undefined && answer !== null && answer !== "";
+                const isUrl = hasAnswer && typeof answer === "string" && (field.type === "link" || /^https?:\/\//i.test(answer.trim()));
+
+                const displayStr = Array.isArray(answer) ? answer.join(", ") : String(answer || "");
+                const lines = displayStr.split("\n");
+                const titlePart = lines[0];
+                const descPart = lines.slice(1).join("\n");
+
+                return (
+                  <View
+                    key={field.fieldId}
+                    style={{
+                      backgroundColor: isDark ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
+                      padding: 12,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: dividerColor,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_500Medium",
+                        fontSize: 12,
+                        color: labelColor,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {field.label}
+                    </Text>
+
+                    {hasAnswer ? (
+                      isUrl ? (
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(answer.trim())}
+                          style={{ flexDirection: "row", alignItems: "center" }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: "Poppins_500Medium",
+                              fontSize: 13.5,
+                              color: "#38BDF8",
+                              textDecorationLine: "underline",
+                              flex: 1,
+                            }}
+                            numberOfLines={1}
+                          >
+                            {answer}
+                          </Text>
+                          <ExternalLink size={13} color="#38BDF8" style={{ marginLeft: 6 }} />
+                        </TouchableOpacity>
+                      ) : (
+                        <View>
+                          <Text
+                            style={{
+                              fontFamily: "Poppins_600SemiBold",
+                              fontSize: 13.5,
+                              color: textPrimary,
+                            }}
+                          >
+                            {titlePart}
+                          </Text>
+                          {descPart ? (
+                            <Text
+                              style={{
+                                fontFamily: "Poppins_400Regular",
+                                fontSize: 12,
+                                color: textSecondary,
+                                marginTop: 3,
+                                lineHeight: 17,
+                              }}
+                            >
+                              {descPart}
+                            </Text>
+                          ) : null}
+                        </View>
+                      )
+                    ) : (
+                      <Text
+                        style={{
+                          fontFamily: "Poppins_400Regular",
+                          fontSize: 13,
+                          color: isDark ? "#71717A" : "#9CA3AF",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        Not provided yet
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {/* TEAM DETAILS SECTION (For team events) */}
         {isTeam && teamData && (
           <TeamDetailsCard
@@ -1379,6 +1583,20 @@ const MyEventDetailsScreen: React.FC = () => {
         )}
       </ScrollView>
 
+
+      {/* EDIT CUSTOM FIELDS MODAL */}
+      <EditCustomFieldsModal
+        visible={editCustomFieldsVisible}
+        onClose={() => setEditCustomFieldsVisible(false)}
+        onSuccess={() => refresh()}
+        fields={eventData?.customFields || []}
+        initialResponses={currentResponses}
+        eventId={eventId}
+        teamId={teamData?.teamId}
+        isTeam={isTeam}
+        isLeader={isLeader}
+        isHostStudent={isHost}
+      />
     </View>
   );
 };

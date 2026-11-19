@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   Share,
+  Switch,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -21,23 +22,25 @@ import {
   CheckCircle2,
   Sparkles,
   Layers,
+  Utensils,
 } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import QRCodeLib from 'qrcode';
+import MealCodeEntry from '@/components/qr/MealCodeEntry';
 
 import { useAdminNavigation } from '@/hooks/useAdminNavigation';
 import { useThemeStore } from '@/state/themeStore';
 import { useUserStore } from '@/state/userStore';
 import {
   ROLE_ADMIN,
-  ROLE_EB_HOSPITALITY,
-  ROLE_EC_HOSPITALITY,
+  HOSPITALITY_ROLES,
   hasAnyRole,
 } from '@/utils/roles';
 import { adminGenerateFoodQR } from '@/api/admin';
+import { getMealPassScannerStatus, adminUpdateMealPassScanner } from '@/api/appConfig';
 
 interface DayOption {
   key: string;
@@ -54,11 +57,11 @@ const ALL_DAYS_OPTION: DayOption = {
 };
 
 const PER_DAY_OPTIONS: DayOption[] = [
-  { key: 'day0', name: 'Day 0', dayOfWeek: 'Wednesday', formattedDate: 'Wednesday, Nov 19, 2026' },
-  { key: 'day1', name: 'Day 1', dayOfWeek: 'Thursday', formattedDate: 'Thursday, Nov 20, 2026' },
-  { key: 'day2', name: 'Day 2', dayOfWeek: 'Friday', formattedDate: 'Friday, Nov 21, 2026' },
-  { key: 'day3', name: 'Day 3', dayOfWeek: 'Saturday', formattedDate: 'Saturday, Nov 22, 2026' },
-  { key: 'day4', name: 'Day 4', dayOfWeek: 'Sunday', formattedDate: 'Sunday, Nov 23, 2026' },
+  { key: 'day0', name: 'Day 0', dayOfWeek: 'Thursday', formattedDate: 'Thursday, Nov 19, 2026' },
+  { key: 'day1', name: 'Day 1', dayOfWeek: 'Friday', formattedDate: 'Friday, Nov 20, 2026' },
+  { key: 'day2', name: 'Day 2', dayOfWeek: 'Saturday', formattedDate: 'Saturday, Nov 21, 2026' },
+  { key: 'day3', name: 'Day 3', dayOfWeek: 'Sunday', formattedDate: 'Sunday, Nov 22, 2026' },
+  { key: 'day4', name: 'Day 4', dayOfWeek: 'Monday', formattedDate: 'Monday, Nov 23, 2026' },
 ];
 
 export default function MealPassQRScreen() {
@@ -68,7 +71,7 @@ export default function MealPassQRScreen() {
   const { userData } = useUserStore();
 
   // Top tabs: 'all' (All 5 Days) vs 'perDay' (Per Day)
-  const [activeTab, setActiveTab] = useState<'all' | 'perDay'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'perDay'>('perDay');
   const [selectedPerDayKey, setSelectedPerDayKey] = useState<string>('day1');
   const [selectedDayKey, setSelectedDayKey] = useState<string>('all');
 
@@ -76,10 +79,38 @@ export default function MealPassQRScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [exporting, setExporting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [userScannerEnabled, setUserScannerEnabled] = useState<boolean>(true);
+  const [togglingScanner, setTogglingScanner] = useState<boolean>(false);
+
+  useEffect(() => {
+    let mounted = true;
+    getMealPassScannerStatus().then((enabled) => {
+      if (mounted) {
+        setUserScannerEnabled(enabled);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleToggleScanner = async (nextVal: boolean) => {
+    if (togglingScanner) return;
+    setUserScannerEnabled(nextVal);
+    setTogglingScanner(true);
+    try {
+      await adminUpdateMealPassScanner(nextVal);
+    } catch (err: any) {
+      setUserScannerEnabled(!nextVal);
+      Alert.alert("Error", err?.message || "Failed to update scanner status");
+    } finally {
+      setTogglingScanner(false);
+    }
+  };
 
   // Check elevated permission
   const isAllowed = useMemo(() => {
-    return hasAnyRole(userData, [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY]);
+    return hasAnyRole(userData, [ROLE_ADMIN, ...HOSPITALITY_ROLES]);
   }, [userData]);
 
   const selectedDay = useMemo(() => {
@@ -399,6 +430,79 @@ export default function MealPassQRScreen() {
         contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 36 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* User Meal Pass Scanner Toggle Card */}
+        <View
+          style={{
+            backgroundColor: cardBg,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: cardBorder,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 12 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: userScannerEnabled ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 12,
+                }}
+              >
+                <Utensils size={20} color={userScannerEnabled ? "#22C55E" : "#EF4444"} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={{ fontFamily: "Poppins_600SemiBold", fontSize: 14, color: textPrimary }}>
+                    User Meal Pass Scanner
+                  </Text>
+                  <View
+                    style={{
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                      backgroundColor: userScannerEnabled ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: "Poppins_600SemiBold",
+                        fontSize: 10,
+                        color: userScannerEnabled ? "#22C55E" : "#EF4444",
+                      }}
+                    >
+                      {userScannerEnabled ? "Active" : "Disabled"}
+                    </Text>
+                  </View>
+                </View>
+                <Text
+                  style={{
+                    fontFamily: "Poppins_400Regular",
+                    fontSize: 12,
+                    color: textSecondary,
+                    marginTop: 2,
+                  }}
+                >
+                  Allow participants with a paid meal pass to open the scanner
+                </Text>
+              </View>
+            </View>
+
+            <Switch
+              value={userScannerEnabled}
+              onValueChange={handleToggleScanner}
+              disabled={togglingScanner}
+              trackColor={{ false: "#71717A", true: "#22C55E" }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        </View>
+
         {/* Top-Level Mode Tabs: "All 5 Days" vs "Per Day" */}
         <View
           style={{
@@ -755,6 +859,8 @@ export default function MealPassQRScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <MealCodeEntry />
 
         {/* Note info */}
         <View

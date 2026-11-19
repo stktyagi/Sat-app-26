@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"strings"
+	"cloud.google.com/go/firestore"
+
+	"backend/internal/apierr"
+	"backend/internal/isotime"
 	"backend/internal/models"
 )
 
@@ -43,6 +49,26 @@ func defaultAppAccommodation() models.AppAccommodation {
 	}
 }
 
+func defaultAdminScreens() []models.AdminScreenConfig {
+	return []models.AdminScreenConfig{
+		{Key: "events_management", Label: "Event Management", Icon: "calendar-outline", Route: "/admin/EventsManagement", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEventPOC}},
+		{Key: "qr_scanner", Label: "QR Scanner", Icon: "qr-code-outline", Route: "/admin/QRScanner", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality, models.RoleEBEvents, models.RoleEventPOC}},
+		{Key: "venue_management", Label: "Venue Management", Icon: "location-outline", Route: "/admin/Venue", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents}},
+		{Key: "faq_management", Label: "FAQ Management", Icon: "help-circle-outline", Route: "/admin/FAQ", RequiredRoles: []string{models.RoleAdmin}},
+		{Key: "accommodation", Label: "Accommodation", Icon: "bed-outline", Route: "/admin/Accommodation", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality}},
+		{Key: "hospitality_eb", Label: "Hospitality Control", Icon: "business-outline", Route: "/admin/HospitalityEB", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality}},
+		{Key: "meal_pass_qr", Label: "Meal Pass QR", Icon: "restaurant-outline", Route: "/admin/MealPassQR", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality}},
+		{Key: "checkout_qr", Label: "Checkout QR", Icon: "log-out-outline", Route: "/admin/CheckoutQR", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality, models.RoleECHospitality, models.RoleCoreHospitality}},
+		{Key: "users_management", Label: "Users Management", Icon: "people-outline", Route: "/admin/Users", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEBOutreach, models.RoleEBFinance, models.RoleEBHospitality}},
+		{Key: "payment_management", Label: "Payment Management", Icon: "card-outline", Route: "/admin/Transactions", RequiredRoles: []string{models.RoleAdmin, models.RoleEBOutreach, models.RoleEBFinance}},
+		{Key: "send_notification", Label: "Send Notification", Icon: "notifications-outline", Route: "/admin/SendNotification", RequiredRoles: []string{models.RoleAdmin}},
+		{Key: "story_management", Label: "Story Management", Icon: "film-outline", Route: "/admin/StoryManagement", RequiredRoles: []string{models.RoleAdmin, models.RoleEBMedia}},
+		{Key: "reel_management", Label: "Reel Management", Icon: "videocam-outline", Route: "/admin/ReelsManagement", RequiredRoles: []string{models.RoleAdmin, models.RoleEBMedia}},
+		{Key: "banner_management", Label: "Banner Management", Icon: "image-outline", Route: "/admin/Banner", RequiredRoles: []string{models.RoleAdmin, models.RoleEBEvents, models.RoleEBMedia}},
+		{Key: "app_config", Label: "App Configuration", Icon: "settings-outline", Route: "/admin/AppConfig", RequiredRoles: []string{models.RoleAdmin}},
+	}
+}
+
 func defaultAppConfig() models.AppConfig {
 	return models.AppConfig{
 		Links: models.AppLinks{
@@ -58,7 +84,9 @@ func defaultAppConfig() models.AppConfig {
 			Android: "1.0.1",
 			IOS:     "1.0.0",
 		},
-		Accommodation: defaultAppAccommodation(),
+		Accommodation:       defaultAppAccommodation(),
+		AdminScreens:        defaultAdminScreens(),
+		UserMealPassScanner: true,
 	}
 }
 
@@ -81,8 +109,23 @@ func cloneAccommodation(a models.AppAccommodation) models.AppAccommodation {
 	return a
 }
 
+func cloneAdminScreens(s []models.AdminScreenConfig) []models.AdminScreenConfig {
+	if s == nil {
+		return nil
+	}
+	out := make([]models.AdminScreenConfig, len(s))
+	for i, item := range s {
+		roles := make([]string, len(item.RequiredRoles))
+		copy(roles, item.RequiredRoles)
+		item.RequiredRoles = roles
+		out[i] = item
+	}
+	return out
+}
+
 func cloneAppConfig(c models.AppConfig) models.AppConfig {
 	c.Accommodation = cloneAccommodation(c.Accommodation)
+	c.AdminScreens = cloneAdminScreens(c.AdminScreens)
 	return c
 }
 
@@ -159,10 +202,43 @@ func (s *Store) loadAppConfigLocked() (*models.AppConfig, error) {
 	if parsed.Accommodation.FoodAmount <= 0 {
 		parsed.Accommodation.FoodAmount = 300
 	}
+	if len(parsed.AdminScreens) == 0 {
+		parsed.AdminScreens = defaultAdminScreens()
+	} else {
+		parsed.AdminScreens = mergeDefaultScreens(parsed.AdminScreens)
+	}
 
 	appConfigMemory = &parsed
 	appConfigFileMod = stat.ModTime()
 	return appConfigMemory, nil
+}
+
+// mergeDefaultScreens adds default screens missing from a persisted list and
+// unions each default's roles into the persisted entry, so new screens and
+// newly introduced roles show up without hand-editing the config file.
+func mergeDefaultScreens(screens []models.AdminScreenConfig) []models.AdminScreenConfig {
+	out := cloneAdminScreens(screens)
+	idx := make(map[string]int, len(out))
+	for i, sc := range out {
+		idx[sc.Key] = i
+	}
+	for _, def := range defaultAdminScreens() {
+		i, ok := idx[def.Key]
+		if !ok {
+			out = append(out, def)
+			continue
+		}
+		have := make(map[string]bool, len(out[i].RequiredRoles))
+		for _, r := range out[i].RequiredRoles {
+			have[models.NormalizeRole(r)] = true
+		}
+		for _, r := range def.RequiredRoles {
+			if !have[r] {
+				out[i].RequiredRoles = append(out[i].RequiredRoles, r)
+			}
+		}
+	}
+	return out
 }
 
 func saveAppConfigLocked(filePath string, cfg *models.AppConfig) error {
@@ -327,4 +403,289 @@ func (s *Store) EnsureAppDefaults(ctx context.Context) error {
 
 	_, err := s.loadAppConfigLocked()
 	return err
+}
+
+// GetAdminScreens fetches the admin screen role mappings.
+func (s *Store) GetAdminScreens(ctx context.Context) ([]models.AdminScreenConfig, error) {
+	cfg, err := s.GetAppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(cfg.AdminScreens) == 0 {
+		return defaultAdminScreens(), nil
+	}
+	return cfg.AdminScreens, nil
+}
+
+// SetAdminScreens updates the admin screen role mappings and persists to JSON.
+func (s *Store) SetAdminScreens(ctx context.Context, screens []models.AdminScreenConfig) error {
+	if screens == nil {
+		return fmt.Errorf("screens cannot be nil")
+	}
+	appConfigMu.Lock()
+	defer appConfigMu.Unlock()
+
+	cfg, err := s.loadAppConfigLocked()
+	if err != nil {
+		return err
+	}
+	cfg.AdminScreens = cloneAdminScreens(screens)
+	return saveAppConfigLocked(s.configPath(), cfg)
+}
+
+// GetUserMealPassScanner returns whether the user meal pass scanner is active.
+func (s *Store) GetUserMealPassScanner(ctx context.Context) (bool, error) {
+	appConfigMu.RLock()
+	defer appConfigMu.RUnlock()
+
+	cfg, err := s.loadAppConfigLocked()
+	if err != nil {
+		return false, err
+	}
+	return cfg.UserMealPassScanner, nil
+}
+
+// SetUserMealPassScanner updates whether the user meal pass scanner is active and persists to JSON.
+func (s *Store) SetUserMealPassScanner(ctx context.Context, enabled bool) error {
+	appConfigMu.Lock()
+	defer appConfigMu.Unlock()
+
+	cfg, err := s.loadAppConfigLocked()
+	if err != nil {
+		return err
+	}
+	cfg.UserMealPassScanner = enabled
+	return saveAppConfigLocked(s.configPath(), cfg)
+}
+
+// UserCanAccessScreen checks if the user has permission to access a screen by key or route.
+// Administrators always have full access.
+func (s *Store) UserCanAccessScreen(ctx context.Context, u *models.User, screenKey string) bool {
+	if u == nil {
+		return false
+	}
+	if u.IsAdmin() {
+		return true
+	}
+	screens, err := s.GetAdminScreens(ctx)
+	if err != nil {
+		return false
+	}
+	for _, sc := range screens {
+		if strings.EqualFold(sc.Key, screenKey) || strings.EqualFold(sc.Route, screenKey) {
+			return u.HasAnyRole(sc.RequiredRoles...)
+		}
+	}
+	return false
+}
+
+
+var (
+	availMu        sync.RWMutex
+	availCache     *models.AccommodationAvailabilityDoc
+	availCacheTime time.Time
+	availTTL       = 1 * time.Second
+)
+
+func (s *Store) InvalidateAccommodationAvailabilityCache() {
+	availMu.Lock()
+	defer availMu.Unlock()
+	availCache = nil
+	if s.Cache != nil {
+		_ = s.Cache.Delete(context.Background(), KeyAccommodationAvailability)
+	}
+}
+
+// GetAccommodationAvailability retrieves the counter document.
+// Order of priority:
+// 1. In-memory cache (instant)
+// 2. Redis cache (0 Firestore reads)
+// 3. Firestore document app/accommodation_availability (only on cold cache/restart)
+func (s *Store) GetAccommodationAvailability(ctx context.Context) (*models.AccommodationAvailabilityDoc, error) {
+	availMu.RLock()
+	if availCache != nil && time.Since(availCacheTime) < availTTL {
+		cached := availCache
+		availMu.RUnlock()
+		return cached, nil
+	}
+	availMu.RUnlock()
+
+	availMu.Lock()
+	defer availMu.Unlock()
+
+	if availCache != nil && time.Since(availCacheTime) < availTTL {
+		return availCache, nil
+	}
+
+	// 1. Check Redis first to avoid Firestore reads completely
+	if s.Cache != nil {
+		if raw, err := s.Cache.Get(ctx, KeyAccommodationAvailability); err == nil && len(raw) > 0 {
+			var data models.AccommodationAvailabilityDoc
+			if err := json.Unmarshal(raw, &data); err == nil {
+				availCache = &data
+				availCacheTime = time.Now()
+				return availCache, nil
+			}
+		}
+	}
+
+	if s.FS == nil {
+		return &models.AccommodationAvailabilityDoc{}, nil
+	}
+
+	doc, err := s.FS.Collection(ColApp).Doc("accommodation_availability").Get(ctx)
+	if err != nil {
+		if errors.Is(wrap(err), ErrNotFound) {
+			return s.reconcileAccommodationAvailabilityLocked(ctx)
+		}
+		return nil, err
+	}
+
+	var data models.AccommodationAvailabilityDoc
+	if err := doc.DataTo(&data); err != nil {
+		return nil, err
+	}
+
+	// Populate Redis
+	if s.Cache != nil {
+		if b, err := json.Marshal(data); err == nil {
+			_ = s.Cache.Set(ctx, KeyAccommodationAvailability, b, 0)
+		}
+	}
+
+	availCache = &data
+	availCacheTime = time.Now()
+	return availCache, nil
+}
+
+// ReconcileAccommodationAvailability recalculates counts by querying the users collection
+// and updates app/accommodation_availability.
+func (s *Store) ReconcileAccommodationAvailability(ctx context.Context) (*models.AccommodationAvailabilityDoc, error) {
+	availMu.Lock()
+	defer availMu.Unlock()
+	return s.reconcileAccommodationAvailabilityLocked(ctx)
+}
+
+func (s *Store) reconcileAccommodationAvailabilityLocked(ctx context.Context) (*models.AccommodationAvailabilityDoc, error) {
+	if s.FS == nil {
+		return &models.AccommodationAvailabilityDoc{}, nil
+	}
+
+	iter := s.FS.Collection(ColUsers).WhereEntity(firestore.OrFilter{
+		Filters: []firestore.EntityFilter{
+			firestore.PropertyFilter{Path: "accommodation.day0", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day1", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day2", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day3", Operator: "==", Value: true},
+			firestore.PropertyFilter{Path: "accommodation.day4", Operator: "==", Value: true},
+		},
+	}).Documents(ctx)
+	defer iter.Stop()
+
+	var doc models.AccommodationAvailabilityDoc
+	for {
+		snap, err := iter.Next()
+		if err != nil {
+			break
+		}
+		var u models.User
+		if err := snap.DataTo(&u); err != nil {
+			continue
+		}
+		if u.Accommodation == nil {
+			continue
+		}
+
+		gender := models.NormalizeGender(u.Gender)
+		isFemale := gender == "female"
+
+		if u.Accommodation["day0"] {
+			if isFemale { doc.Day0.Female++ } else { doc.Day0.Male++ }
+		}
+		if u.Accommodation["day1"] {
+			if isFemale { doc.Day1.Female++ } else { doc.Day1.Male++ }
+		}
+		if u.Accommodation["day2"] {
+			if isFemale { doc.Day2.Female++ } else { doc.Day2.Male++ }
+		}
+		if u.Accommodation["day3"] {
+			if isFemale { doc.Day3.Female++ } else { doc.Day3.Male++ }
+		}
+		if u.Accommodation["day4"] {
+			if isFemale { doc.Day4.Female++ } else { doc.Day4.Male++ }
+		}
+	}
+
+	doc.UpdatedAt = isotime.Now()
+	_, err := s.FS.Collection(ColApp).Doc("accommodation_availability").Set(ctx, doc)
+	if err != nil {
+		log.Printf("error saving accommodation_availability: %v", err)
+	}
+
+	// Update Redis cache directly
+	if s.Cache != nil {
+		if b, err := json.Marshal(doc); err == nil {
+			_ = s.Cache.Set(ctx, KeyAccommodationAvailability, b, 0)
+		}
+	}
+
+	availCache = &doc
+	availCacheTime = time.Now()
+	return &doc, nil
+}
+
+// CheckAccommodationCapacity validates that requested days do not exceed capacity for the user's gender.
+func (s *Store) CheckAccommodationCapacity(ctx context.Context, requestedDays map[string]any, gender string, user *models.User) error {
+	avail, err := s.GetAccommodationAvailability(ctx)
+	if err != nil {
+		log.Printf("CheckAccommodationCapacity: error getting availability: %v", err)
+		return nil
+	}
+
+	gender = models.NormalizeGender(gender)
+	isFemale := gender == "female"
+	limit := models.MaxMaleAccommodation
+	if isFemale {
+		limit = models.MaxFemaleAccommodation
+	}
+
+	checkDay := func(day string, bookedCount int) error {
+		if user != nil && user.Accommodation != nil && user.Accommodation[day] {
+			return nil
+		}
+		if bookedCount+1 > limit {
+			return apierr.BadRequest("accommodation_sold_out", fmt.Sprintf("Accommodation is sold out for %s", day))
+		}
+		return nil
+	}
+
+	for day, v := range requestedDays {
+		on, _ := v.(bool)
+		if !on {
+			continue
+		}
+		switch day {
+		case "day0":
+			count := avail.Day0.Male
+			if isFemale { count = avail.Day0.Female }
+			if err := checkDay("day0", count); err != nil { return err }
+		case "day1":
+			count := avail.Day1.Male
+			if isFemale { count = avail.Day1.Female }
+			if err := checkDay("day1", count); err != nil { return err }
+		case "day2":
+			count := avail.Day2.Male
+			if isFemale { count = avail.Day2.Female }
+			if err := checkDay("day2", count); err != nil { return err }
+		case "day3":
+			count := avail.Day3.Male
+			if isFemale { count = avail.Day3.Female }
+			if err := checkDay("day3", count); err != nil { return err }
+		case "day4":
+			count := avail.Day4.Male
+			if isFemale { count = avail.Day4.Female }
+			if err := checkDay("day4", count); err != nil { return err }
+		}
+	}
+	return nil
 }

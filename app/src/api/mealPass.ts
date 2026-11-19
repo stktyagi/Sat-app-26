@@ -7,6 +7,8 @@ export interface MealVerificationResult {
   statusText: string;
   message: string;
   day?: string;
+  slot?: string;
+  reason?: string;
   qrDay?: string;
   needsAccommodationCheckIn?: boolean;
   timestamp: string;
@@ -162,6 +164,12 @@ export async function verifyMealPassQR(
         case "not_fest_day":
           message = "Today is not a scheduled festival day.";
           break;
+        case "no_active_slot":
+          message = "No meal is being served right now. Breakfast 7:00–10:30, Lunch 12:00–15:30, Dinner 19:00–22:30.";
+          break;
+        case "already_availed":
+          message = `You've already had ${responseData?.slot || "this meal"} today.`;
+          break;
         case "invalid_qr":
           message = "The scanned QR code is not a valid mess counter QR.";
           break;
@@ -172,9 +180,11 @@ export async function verifyMealPassQR(
 
     return {
       paid,
-      statusText: paid ? "PAID" : "NOT PAID",
+      statusText: paid ? "PAID" : responseData?.reason === "already_availed" ? "ALREADY AVAILED" : "NOT PAID",
       message,
       day: responseData?.day,
+      slot: responseData?.slot,
+      reason: responseData?.reason,
       qrDay: responseData?.qrDay,
       needsAccommodationCheckIn: Boolean(responseData?.needsAccommodationCheckIn),
       timestamp,
@@ -183,17 +193,8 @@ export async function verifyMealPassQR(
   } catch (err: any) {
     console.warn("Meal pass QR verification request error:", err);
 
-    // Fallback: If network is offline or server unreachable, check user's local booked food status
-    if (user?.food && Object.values(user.food).some(Boolean)) {
-      return {
-        paid: true,
-        statusText: "PAID (OFFLINE VERIFIED)",
-        message: "Active food pass verified from your account record.",
-        needsAccommodationCheckIn: !user?.checkInStatus?.accommodation,
-        timestamp,
-      };
-    }
-
+    // No offline fallback: every meal must be logged server-side so each
+    // slot can only be availed once. Staff can use the meal code instead.
     return {
       paid: false,
       statusText: "NOT VERIFIED",
@@ -201,4 +202,12 @@ export async function verifyMealPassQR(
       timestamp,
     };
   }
+}
+
+/** The caller's typed meal code, for when the mess QR can't be scanned. */
+export async function getMyMealCode(): Promise<string> {
+  const res = await apiFetch("/me/meal-code", { method: "GET" });
+  if (!res.ok) throw new Error(await readError(res, "Could not get meal code"));
+  const json = await res.json();
+  return json.code as string;
 }

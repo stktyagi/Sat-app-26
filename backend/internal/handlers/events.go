@@ -3,6 +3,7 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,40 @@ const (
 	maxLimit     = 200
 )
 
+const websiteDomain = "saturnalia.in"
+
+// isAllowedWebsiteDomain checks if the request originates from saturnalia.in
+// via Origin or Referer headers.
+func isAllowedWebsiteDomain(c *gin.Context) bool {
+	origin := strings.TrimSpace(c.GetHeader("Origin"))
+	referer := strings.TrimSpace(c.GetHeader("Referer"))
+
+	checkMatch := func(rawURL string) bool {
+		if rawURL == "" {
+			return false
+		}
+		u, err := url.Parse(rawURL)
+		if err != nil {
+			return false
+		}
+		host := strings.ToLower(u.Hostname())
+		if host == websiteDomain || strings.HasSuffix(host, "."+websiteDomain) {
+			return true
+		}
+		if host == "localhost" || host == "127.0.0.1" {
+			return true
+		}
+		return false
+	}
+
+	return checkMatch(origin) || checkMatch(referer)
+}
+
+func isPreregisteredEvent(title string) bool {
+	lt := strings.ToLower(title)
+	return strings.Contains(lt, "preregister") || strings.Contains(lt, "pre-register") || strings.Contains(lt, "preregistr") || strings.Contains(lt, "pre-registr")
+}
+
 // ListEvents is the single endpoint for browsing, filtering and searching.
 // Everything runs against the in-memory cache, which is why q is a genuine
 // case-insensitive substring match rather than the whole-word-only match a
@@ -34,6 +69,7 @@ func (a *API) ListEvents(c *gin.Context) {
 
 	user := middleware.CurrentUser(c)
 	isAdmin := user.IsAdmin()
+	isFromWebsite := isAllowedWebsiteDomain(c)
 
 	var (
 		category  = c.Query("category")
@@ -49,6 +85,10 @@ func (a *API) ListEvents(c *gin.Context) {
 	for _, e := range all {
 		// Drafts and cancelled events are admin-only.
 		if !e.IsPublic && !isAdmin {
+			continue
+		}
+		// Preregistered events are only shown on the website, never on the mobile app.
+		if isPreregisteredEvent(e.Title) && !isFromWebsite {
 			continue
 		}
 		if category != "" && !strings.EqualFold(e.Category, category) {
@@ -74,10 +114,12 @@ func (a *API) ListEvents(c *gin.Context) {
 		if !e.Matches(q) {
 			continue
 		}
+		isHost := user != nil && user.IsHostCollegeStudent
 		if user != nil {
 			fee := e.FeeFor(user.IsHostCollegeStudent)
 			e.EffectiveFee = &fee
 		}
+		e.FilterCustomFieldsFor(isHost)
 		filtered = append(filtered, e)
 	}
 
@@ -134,12 +176,20 @@ func (a *API) GetEvent(c *gin.Context) {
 		return
 	}
 
+	isFromWebsite := isAllowedWebsiteDomain(c)
+	if isPreregisteredEvent(event.Title) && !isFromWebsite {
+		apierr.Respond(c, apierr.NotFound("event_not_found", "no such event"))
+		return
+	}
+
 	body := gin.H{"event": event}
 
+	isHost := false
 	// A signed-in caller gets their own pricing and their existing registration
 	// in the same round trip, so the detail screen needs no follow-up call.
 	if user := middleware.CurrentUser(c); user != nil {
-		fee := event.FeeFor(user.IsHostCollegeStudent)
+		isHost = user.IsHostCollegeStudent
+		fee := event.FeeFor(isHost)
 		event.EffectiveFee = &fee
 
 		reg, err := a.Store.GetRegistration(c.Request.Context(), models.RegistrationID(event.EventID, user.UserID))
@@ -186,6 +236,8 @@ func (a *API) GetEvent(c *gin.Context) {
 		}
 	}
 
+	event.FilterCustomFieldsFor(isHost)
+
 	c.JSON(http.StatusOK, body)
 }
 
@@ -199,10 +251,14 @@ func (a *API) GetCategories(c *gin.Context) {
 	}
 
 	isAdmin := middleware.CurrentUser(c).IsAdmin()
+	isFromWebsite := isAllowedWebsiteDomain(c)
 	seen := map[string]bool{}
 	out := []string{}
 	for _, e := range all {
 		if (!e.IsPublic && !isAdmin) || e.Category == "" || seen[e.Category] {
+			continue
+		}
+		if isPreregisteredEvent(e.Title) && !isFromWebsite {
 			continue
 		}
 		seen[e.Category] = true

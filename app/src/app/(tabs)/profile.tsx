@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Coins } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUserStore } from "@/state/userStore";
@@ -26,6 +27,8 @@ import { checkAppStatus } from "@/utils/versionCheck";
 import { runAllDebugChecks } from "@/utils/debugVersion";
 import { promptAndUploadIdentity, isOutsideCollegeStudent, isIdentityVerificationComplete } from "@/utils/identityUpload";
 import { isHostStudent } from "@/utils/paymentHelpers";
+import { formatHostelDisplay } from "@/data/hostels";
+import { getMealPassScannerStatus } from "@/api/appConfig";
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -36,6 +39,8 @@ const ProfileScreen = () => {
   const { openDrawer } = useAdminDrawerStore();
   const [showQRModal, setShowQRModal] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [mealPassScannerEnabled, setMealPassScannerEnabled] = useState<boolean>(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -78,8 +83,52 @@ const ProfileScreen = () => {
   useFocusEffect(
     useCallback(() => {
       refreshUserProfile().catch(() => {});
+      getMealPassScannerStatus()
+        .then((enabled) => setMealPassScannerEnabled(enabled))
+        .catch(() => {});
     }, [refreshUserProfile])
   );
+
+  const hasPaidMeal = Boolean(
+    (userProfile?.food && typeof userProfile.food === "object" && Object.values(userProfile.food).some(Boolean)) ||
+    (userProfile as any)?.hasPaidMeal ||
+    (userProfile as any)?.mealPaid
+  );
+
+  const hasPaidAccommodation = Boolean(
+    (Array.isArray(userProfile?.accommodation) && userProfile.accommodation.length > 0) ||
+    (userProfile?.accommodation && typeof userProfile.accommodation === 'object' && Object.values(userProfile.accommodation).some(Boolean)) ||
+    (Array.isArray((userProfile as any)?.accommodations) && (userProfile as any).accommodations.length > 0) ||
+    (Array.isArray((userProfile as any)?.accommodationTransactionIds) && (userProfile as any).accommodationTransactionIds.length > 0)
+  );
+
+  const hostelRaw =
+    userProfile?.checkInStatus?.Hostel ||
+    (userProfile?.checkInStatus as any)?.hostel ||
+    (userProfile as any)?.hostel ||
+    (userProfile as any)?.Hostel;
+
+  const roomNo =
+    userProfile?.checkInStatus?.RoomNo ||
+    (userProfile?.checkInStatus as any)?.roomNo ||
+    (userProfile as any)?.roomNo ||
+    (userProfile as any)?.RoomNo;
+
+  const isHostelAllotted = Boolean(
+    (hostelRaw && typeof hostelRaw === 'string' && hostelRaw.trim().length > 0) ||
+    (roomNo && typeof roomNo === 'string' && roomNo.trim().length > 0)
+  );
+
+  const isCheckedOut = Boolean(
+    userProfile?.checkInStatus?.checkedOut ||
+    (userProfile?.checkInStatus as any)?.CheckedOut ||
+    (userProfile as any)?.checkedOut
+  );
+
+  const formattedHostel = formatHostelDisplay(hostelRaw, roomNo);
+  const hostelDisplay = formattedHostel && formattedHostel.trim().length > 0
+    ? formattedHostel
+    : 'No hostel alloted for now';
 
   const boysHairStyles = ['turban', 'fonze'];
   const girlsHairStyles = ['full', 'pixie'];
@@ -122,6 +171,7 @@ const ProfileScreen = () => {
         {
           text: "Log Out",
           onPress: async () => {
+            setLoggingOut(true);
             try {
               const { handleSignOut } = await import('@/api/auth');
               await handleSignOut();
@@ -130,6 +180,8 @@ const ProfileScreen = () => {
             } catch (error) {
               console.error('Logout error:', error);
               showAlert('Error', 'Failed to log out properly');
+            } finally {
+              setLoggingOut(false);
             }
           },
           style: "destructive",
@@ -466,77 +518,256 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
 
+          {/* Hostel Check-In / Allotment Field for Users with Paid Accommodation */}
+          {hasPaidAccommodation && (
+            <View
+              style={{
+                marginTop: 16,
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                borderRadius: 14,
+                backgroundColor: isDark ? '#26262B' : '#F3F4F6',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                gap: 8,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                  <Ionicons
+                    name="home-outline"
+                    size={16}
+                    color={isHostelAllotted ? '#38BDF8' : (isDark ? '#9CA3AF' : '#6B7280')}
+                  />
+                  <Text
+                    style={{
+                      fontFamily: 'Poppins_500Medium',
+                      fontSize: 12,
+                      color: isDark ? '#9CA3AF' : '#6B7280',
+                    }}
+                  >
+                    Hostel
+                  </Text>
+                </View>
+
+                {isCheckedOut ? (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#EF4444',
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#EF4444' }}>
+                      Checked Out
+                    </Text>
+                  </View>
+                ) : userProfile?.checkInStatus?.accommodation ? (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(34, 197, 94, 0.18)' : '#DCFCE7',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#22C55E',
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#22C55E' }}>
+                      Checked In
+                    </Text>
+                  </View>
+                ) : isHostelAllotted ? (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#38BDF8',
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#38BDF8' }}>
+                      Allotted
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      backgroundColor: isDark ? 'rgba(251, 191, 36, 0.15)' : '#FEF3C7',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: '#F59E0B',
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#F59E0B' }}>
+                      Pending Allotment
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <Text
+                style={{
+                  fontFamily: 'Poppins_600SemiBold',
+                  fontSize: 14,
+                  lineHeight: 20,
+                  color: isHostelAllotted ? (isDark ? '#FFFFFF' : '#111827') : (isDark ? '#9CA3AF' : '#6B7280'),
+                }}
+              >
+                {hostelDisplay}
+              </Text>
+            </View>
+          )}
+
           {/* Bottom Row: Logout & Delete Account Buttons */}
           <View
             style={{
-              flexDirection: 'row',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              flexWrap: "wrap",
               marginTop: 20,
-              gap: 10,
+              gap: 8,
             }}
           >
             {/* Logout Button */}
             <TouchableOpacity
               activeOpacity={0.8}
+              disabled={loggingOut || deletingAccount}
               onPress={handleSignOutPress}
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingHorizontal: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                paddingHorizontal: 12,
                 paddingVertical: 7,
                 borderRadius: 12,
-                backgroundColor: isDark ? '#1F2228' : '#FEE2E2',
+                backgroundColor: isDark ? "#1F2228" : "#FEE2E2",
                 borderWidth: 1,
-                borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FCA5A5',
+                borderColor: isDark ? "rgba(239, 68, 68, 0.35)" : "#FCA5A5",
+                opacity: loggingOut ? 0.6 : 1,
               }}
             >
-              <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+              {loggingOut ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Ionicons name="log-out-outline" size={15} color="#EF4444" />
+              )}
               <Text
                 style={{
-                  fontFamily: 'Poppins_600SemiBold',
-                  fontSize: 13,
-                  color: '#EF4444',
-                  }}
-                >
-                  Logout
-                </Text>
-              </TouchableOpacity>
-
-              {/* Delete Account Button */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                disabled={deletingAccount}
-                onPress={handleDeleteAccount}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 12,
-                  paddingVertical: 7,
-                  borderRadius: 12,
-                  backgroundColor: isDark ? '#1F2228' : '#FEF2F2',
-                  borderWidth: 1,
-                  borderColor: '#EF4444',
-                  opacity: deletingAccount ? 0.6 : 1,
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 12,
+                  color: "#EF4444",
                 }}
               >
-                {deletingAccount ? (
-                  <ActivityIndicator size="small" color="#EF4444" />
-                ) : (
-                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
-                )}
-                <Text
-                  style={{
-                    fontFamily: 'Poppins_600SemiBold',
-                    fontSize: 13,
-                    color: '#EF4444',
-                  }}
-                >
-                  {deletingAccount ? 'Deleting...' : 'Delete Account'}
-                </Text>
-              </TouchableOpacity>
+                {loggingOut ? "Logging out..." : "Logout"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Delete Account Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              disabled={deletingAccount || loggingOut}
+              onPress={handleDeleteAccount}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                paddingHorizontal: 10,
+                paddingVertical: 7,
+                borderRadius: 12,
+                backgroundColor: isDark ? "#1F2228" : "#FEF2F2",
+                borderWidth: 1,
+                borderColor: "#EF4444",
+                opacity: deletingAccount ? 0.6 : 1,
+              }}
+            >
+              {deletingAccount ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+              )}
+              <Text
+                style={{
+                  fontFamily: "Poppins_600SemiBold",
+                  fontSize: 12,
+                  color: "#EF4444",
+                }}
+              >
+                {deletingAccount ? "Deleting..." : "Delete Account"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Saturnalia Coins Card */}
+        <View
+          style={{
+            backgroundColor: isDark ? '#1C1C20' : '#FFFFFF',
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(234, 179, 8, 0.35)' : 'rgba(234, 179, 8, 0.45)',
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            marginBottom: 16,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: isDark ? 0.15 : 0.08,
+            shadowRadius: 10,
+            elevation: 3,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 10 }}>
+            <View
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 21,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Coins size={22} color={isDark ? '#FACC15' : '#CA8A04'} />
+            </View>
+            <Text
+              style={{
+                fontFamily: 'Poppins_700Bold',
+                fontSize: 16,
+                color: isDark ? '#FFFFFF' : '#111827',
+              }}
+            >
+              Saturnalia Coins
+            </Text>
+          </View>
+
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 50,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: 'Poppins_700Bold',
+                fontSize: 18,
+                color: isDark ? '#FACC15' : '#854D0E',
+              }}
+            >
+              {userProfile?.coins ?? 0}
+            </Text>
           </View>
         </View>
 
@@ -807,18 +1038,51 @@ const ProfileScreen = () => {
 
         {/* Menu Items List matching reference UI */}
         {!isHostCollegeStudent && (
-          <ProfileMenuItem
-            icon="bed-outline"
-            label="Accommodation & Hostel"
-            onPress={() => router.push("/profile/Accommodation")}
-          />
+          <>
+            <ProfileMenuItem
+              icon="bed-outline"
+              label="Accommodation & Hostel"
+              onPress={() => router.push("/profile/Accommodation")}
+            />
+            {hasPaidAccommodation && (
+              <ProfileMenuItem
+                icon="log-out-outline"
+                label={isCheckedOut ? "Hostel Checkout (Completed)" : "Hostel Checkout"}
+                onPress={() => router.push("/profile/CheckoutScan" as any)}
+                extra={
+                  isCheckedOut ? (
+                    <View
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                        backgroundColor: isDark ? "rgba(239, 68, 68, 0.15)" : "#FEE2E2",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: "Poppins_600SemiBold",
+                          fontSize: 11,
+                          color: "#EF4444",
+                        }}
+                      >
+                        Checked Out
+                      </Text>
+                    </View>
+                  ) : null
+                }
+              />
+            )}
+          </>
         )}
 
-        <ProfileMenuItem
-          icon="restaurant-outline"
-          label="Meal Pass"
-          onPress={() => router.push("/profile/MealPass" as any)}
-        />
+        {mealPassScannerEnabled && hasPaidMeal && (
+          <ProfileMenuItem
+            icon="restaurant-outline"
+            label="Meal Pass"
+            onPress={() => router.push("/profile/MealPass" as any)}
+          />
+        )}
 
         <ProfileMenuItem
           icon="calendar-outline"

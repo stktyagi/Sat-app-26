@@ -51,6 +51,16 @@ const toFirebaseEvent = (raw: any): FirebaseEvent => {
   };
 };
 
+export const isPreregisteredEvent = (title: string = "") => {
+  const lt = title.toLowerCase();
+  return (
+    lt.includes("preregister") ||
+    lt.includes("pre-register") ||
+    lt.includes("preregistr") ||
+    lt.includes("pre-registr")
+  );
+};
+
 export async function listEvents(params: { category?: string; q?: string } = {}): Promise<FirebaseEvent[]> {
   const query = new URLSearchParams();
   if (params.category && params.category !== "All") query.set("category", params.category);
@@ -66,7 +76,8 @@ export async function listEvents(params: { category?: string; q?: string } = {})
   }
 
   const data = await response.json();
-  return (data.items ?? []).map(toFirebaseEvent);
+  const all = (data.items ?? []).map(toFirebaseEvent);
+  return all.filter((e: FirebaseEvent) => !isPreregisteredEvent(e.title));
 }
 
 export async function getEvent(eventId: string): Promise<FirebaseEvent> {
@@ -86,6 +97,9 @@ export async function getEventDetail(eventId: string): Promise<{
   const data = await response.json();
   if (!data?.event) {
     throw new Error("Event not found");
+  }
+  if (isPreregisteredEvent(data.event?.title)) {
+    throw new Error("Event not available on mobile");
   }
   return {
     event: toFirebaseEvent(data.event),
@@ -147,6 +161,18 @@ export async function joinEventTeam(eventId: string, inviteCode: string, respons
   );
   if (!response.ok) {
     throw new Error(await readError(response, "Failed to join team"));
+  }
+  return response.json();
+}
+
+export async function updateTeam(teamRef: string, patch: { teamName?: string; responses?: any[] }) {
+  const response = await apiFetch(
+    `/teams/${teamRef}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+    "required",
+  );
+  if (!response.ok) {
+    throw new Error(await readError(response, "Failed to update team"));
   }
   return response.json();
 }

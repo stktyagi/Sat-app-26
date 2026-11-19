@@ -15,9 +15,13 @@ import {
   updateUserCheckingStatus,
   UserRegistrationData,
   UserGateData,
+  fetchAccommodationStats,
+  getCurrentEventDay,
+  HostelAction,
 } from "@/api/admin";
 import GateUserModal from "@/components/qr/GateUserModal";
 import HostelUserModal from "@/components/qr/HostelUserModal";
+import RegistrationDeskModal from "@/components/qr/RegistrationDeskModal";
 import { showAlert } from "@/components";
 import {
   ArrowLeft,
@@ -25,6 +29,7 @@ import {
   Home,
   Building,
   Calendar,
+  IdCard,
 } from "lucide-react-native";
 import { useUserStore } from "@/state/userStore";
 import { useAdminNavigation } from "@/hooks/useAdminNavigation";
@@ -34,10 +39,10 @@ import {
   getUserRoles,
   isFullAdmin,
   ROLE_ADMIN,
-  ROLE_EB_HOSPITALITY,
-  ROLE_EC_HOSPITALITY,
   ROLE_EB_EVENTS,
   ROLE_EVENT_POC,
+  ROLE_CORE_HOSPITALITY,
+  HOSPITALITY_ROLES,
 } from "@/utils/roles";
 
 // Dimensions available if needed
@@ -57,35 +62,77 @@ export default function QRScanner({
   const [scanned, setScanned] = useState(false);
   const [cameraKey, setCameraKey] = useState(Date.now());
   const [cameraReady, setCameraReady] = useState(false);
-  const [activeModal, setActiveModal] = useState<'none' | 'gate' | 'hostel' | 'event'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'gate' | 'hostel' | 'desk' | 'event'>('none');
   const [userData, setUserData] = useState<UserRegistrationData | null>(null);
   const [gateUserData, setGateUserData] = useState<UserGateData | null>(null);
   const [hostelUserData, setHostelUserData] = useState<UserGateData | null>(
     null
   );
+  const [deskUserData, setDeskUserData] = useState<UserGateData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hostelStats, setHostelStats] = useState<{ checkedIn: number; checkedOut: number } | null>(null);
+
+  const loadHostelStats = React.useCallback(async () => {
+    try {
+      const stats = await fetchAccommodationStats(true);
+      const todayKey = getCurrentEventDay();
+      const todayIdx = parseInt(todayKey.replace("day", ""), 10) || 0;
+      const dayStat = stats[todayIdx] || { checkedIn: 0, checkedOut: 0 };
+      setHostelStats({
+        checkedIn: dayStat.incomingCheckedIn ?? dayStat.checkedIn,
+        checkedOut: dayStat.outgoingCheckedOut ?? (dayStat.checkedOut || 0),
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedCategory === "hostel") {
+      loadHostelStats();
+    }
+  }, [selectedCategory, loadHostelStats]);
+
+  const handleHostelActionComplete = (action: HostelAction) => {
+    setHostelStats((prev) => {
+      if (!prev) return prev;
+      if (action === "checkin") {
+        return { ...prev, checkedIn: prev.checkedIn + 1 };
+      } else if (action === "checkout") {
+        return {
+          checkedIn: Math.max(0, prev.checkedIn - 1),
+          checkedOut: prev.checkedOut + 1,
+        };
+      } else if (action === "undo_checkout") {
+        return {
+          checkedIn: prev.checkedIn + 1,
+          checkedOut: Math.max(0, prev.checkedOut - 1),
+        };
+      } else if (action === "revert") {
+        return {
+          ...prev,
+          checkedIn: Math.max(0, prev.checkedIn - 1),
+        };
+      }
+      return prev;
+    });
+    loadHostelStats();
+  };
   const [showCategorySelection, setShowCategorySelection] = useState(true);
   const { userData: userProfile } = useUserStore();
 
   const roles = getUserRoles(userProfile);
   const isSuperOrAdmin = isFullAdmin(userProfile);
 
-  const gateAllowedRoles = [
-    ROLE_ADMIN,
-    ROLE_EB_HOSPITALITY,
-    ROLE_EC_HOSPITALITY,
-  ];
-
-  const hostelAllowedRoles = [
-    ROLE_ADMIN,
-    ROLE_EB_HOSPITALITY,
-    ROLE_EC_HOSPITALITY,
-  ];
+  // Gate, registration desk and hostel are open to every hospitality role.
+  const gateAllowedRoles = [ROLE_ADMIN, ...HOSPITALITY_ROLES];
+  const hostelAllowedRoles = gateAllowedRoles;
 
   const eventAllowedRoles = [
     ROLE_ADMIN,
     ROLE_EB_EVENTS,
     ROLE_EVENT_POC,
+    ROLE_CORE_HOSPITALITY,
   ];
 
   const isHostelAccessAllowed =
@@ -140,6 +187,16 @@ export default function QRScanner({
       borderColor: "border-green-500/30",
       description: "Scan QR codes for fest entry verification",
       isAllowed: isGateAccessAllowed,
+    },
+    {
+      id: "desk",
+      name: "Registration Desk",
+      icon: IdCard,
+      color: "#F59E0B",
+      bgColor: "bg-amber-500/20",
+      borderColor: "border-amber-500/30",
+      description: "Verify participant details and allot a hostel",
+      isAllowed: isHostelAccessAllowed,
     },
     {
       id: "hostel",
@@ -239,6 +296,7 @@ export default function QRScanner({
     setUserData(null);
     setGateUserData(null);
     setHostelUserData(null);
+    setDeskUserData(null);
     setScanned(false);
   };
 
@@ -258,6 +316,9 @@ export default function QRScanner({
         } else if (selectedCategory === "hostel") {
           setHostelUserData(result.data as UserGateData);
           setActiveModal("hostel");
+        } else if (selectedCategory === "desk") {
+          setDeskUserData(result.data as UserGateData);
+          setActiveModal("desk");
         } else {
           setUserData(result.data as UserRegistrationData);
           setActiveModal("event");
@@ -636,6 +697,49 @@ export default function QRScanner({
         <View style={{ width: 44 }} pointerEvents="none" />
       </View>
 
+      {/* Hostel Live Today Counters */}
+      {selectedCategory === "hostel" && hostelStats && (
+        <View
+          style={{
+            position: "absolute",
+            top: Math.max(insets.top + 60, 68),
+            left: 16,
+            right: 16,
+            alignItems: "center",
+            zIndex: 30,
+          }}
+          pointerEvents="none"
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "rgba(0, 0, 0, 0.75)",
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.18)",
+              borderRadius: 16,
+              paddingHorizontal: 16,
+              paddingVertical: 7,
+              gap: 14,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#10B981", marginRight: 6 }} />
+              <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 12 }}>
+                Checked In: {hostelStats.checkedIn}
+              </Text>
+            </View>
+            <View style={{ width: 1, height: 14, backgroundColor: "rgba(255, 255, 255, 0.2)" }} />
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#A855F7", marginRight: 6 }} />
+              <Text style={{ fontFamily: "Poppins_600SemiBold", color: "#FFFFFF", fontSize: 12 }}>
+                Checked Out: {hostelStats.checkedOut}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Bottom Hint Pill */}
       {cameraReady && (
         <View
@@ -1011,6 +1115,15 @@ export default function QRScanner({
         onClose={closeModal}
         userData={hostelUserData}
         onUserDataUpdate={(updatedData) => setHostelUserData(updatedData)}
+        onActionComplete={handleHostelActionComplete}
+      />
+
+      {/* Registration Desk Modal */}
+      <RegistrationDeskModal
+        visible={activeModal === "desk"}
+        onClose={closeModal}
+        userData={deskUserData}
+        onUserDataUpdate={(updatedData) => setDeskUserData(updatedData)}
       />
     </View>
   );

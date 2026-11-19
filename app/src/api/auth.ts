@@ -219,6 +219,10 @@ export const handleEmailSignIn = async (
 
 export const handleSignOut = async (): Promise<void> => {
   try {
+    // Detach this device's push token while we're still authenticated.
+    const { unregisterPushToken } = await import("@/utils/pushSync");
+    await unregisterPushToken();
+
     initializeGoogleSignIn();
     try {
       await GoogleSignin.signOut();

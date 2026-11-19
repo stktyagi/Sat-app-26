@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Pressable,
   Animated,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,9 +21,11 @@ import {
   ROLE_EB_MEDIA,
   ROLE_EB_HOSPITALITY,
   ROLE_EC_HOSPITALITY,
+  ROLE_CORE_HOSPITALITY,
   ROLE_EVENT_POC,
   normalizeRole,
 } from '@/utils/roles';
+import { getAdminNavigation, AdminNavigationItem } from '@/api/appConfig';
 
 interface DrawerItem {
   label: string;
@@ -33,11 +36,12 @@ interface DrawerItem {
 
 const ALL_ITEMS: DrawerItem[] = [
   { label: 'Event Management', icon: 'calendar-outline', route: '/admin/EventsManagement', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EVENT_POC] },
-  { label: 'QR Scanner', icon: 'qr-code-outline', route: '/admin/QRScanner', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_EB_EVENTS, ROLE_EVENT_POC] },
+  { label: 'QR Scanner', icon: 'qr-code-outline', route: '/admin/QRScanner', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_CORE_HOSPITALITY, ROLE_EB_EVENTS, ROLE_EVENT_POC] },
   { label: 'Venue Management', icon: 'location-outline', route: '/admin/Venue', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS] },
   { label: 'FAQ Management', icon: 'help-circle-outline', route: '/admin/FAQ', requiredRoles: [ROLE_ADMIN] },
-  { label: 'Accommodation', icon: 'bed-outline', route: '/admin/Accommodation', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY] },
-  { label: 'Meal Pass QR', icon: 'restaurant-outline', route: '/admin/MealPassQR', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY] },
+  { label: 'Accommodation', icon: 'bed-outline', route: '/admin/Accommodation', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_CORE_HOSPITALITY] },
+  { label: 'Hospitality Control', icon: 'business-outline', route: '/admin/HospitalityEB', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY] },
+  { label: 'Meal Pass QR', icon: 'restaurant-outline', route: '/admin/MealPassQR', requiredRoles: [ROLE_ADMIN, ROLE_EB_HOSPITALITY, ROLE_EC_HOSPITALITY, ROLE_CORE_HOSPITALITY] },
   { label: 'Users Management', icon: 'people-outline', route: '/admin/Users', requiredRoles: [ROLE_ADMIN, ROLE_EB_EVENTS, ROLE_EB_OUTREACH, ROLE_EB_FINANCE, ROLE_EB_HOSPITALITY] },
   { label: 'Payment Management', icon: 'card-outline', route: '/admin/Transactions', requiredRoles: [ROLE_ADMIN, ROLE_EB_OUTREACH, ROLE_EB_FINANCE] },
   { label: 'Send Notification', icon: 'notifications-outline', route: '/admin/SendNotification', requiredRoles: [ROLE_ADMIN] },
@@ -61,9 +65,43 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
   const { isDark } = useThemeStore();
 
   const [isModalVisible, setIsModalVisible] = useState(visible);
+  const [navItems, setNavItems] = useState<AdminNavigationItem[]>([]);
+  const [isLoadingNav, setIsLoadingNav] = useState(false);
+  const [hasLoadedNav, setHasLoadedNav] = useState(false);
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pendingRouteRef = useRef<string | null>(null);
+
+  // Fetch backend-filtered navigation on mount and whenever drawer opens
+  const loadBackendNavigation = useCallback(async () => {
+    try {
+      setIsLoadingNav(true);
+      const items = await getAdminNavigation();
+      if (Array.isArray(items)) {
+        setNavItems(items);
+        setHasLoadedNav(true);
+      }
+    } catch (e) {
+      console.warn('[AdminDrawer] could not load backend nav, using fallback:', e);
+      // Don't keep showing items from before a role change.
+      setNavItems([]);
+      setHasLoadedNav(false);
+    } finally {
+      setIsLoadingNav(false);
+    }
+  }, []);
+
+  // Refetch when the user's roles change (e.g. via a live profile refresh).
+  const rolesKey = [...userRoles].sort().join(',');
+  useEffect(() => {
+    loadBackendNavigation();
+  }, [loadBackendNavigation, rolesKey]);
+
+  useEffect(() => {
+    if (visible) {
+      loadBackendNavigation();
+    }
+  }, [visible, loadBackendNavigation]);
 
   useEffect(() => {
     if (visible) {
@@ -105,21 +143,23 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
     }
   }, [visible, slideAnim, fadeAnim]);
 
-  const visibleItems = useMemo(() => {
+  // Fallback items in case network request fails or is still loading
+  const fallbackItems = useMemo(() => {
     const normalized = (Array.isArray(userRoles) ? userRoles : []).map((r) =>
       typeof r === 'string' ? normalizeRole(r) : ''
     );
 
-    // If admin, show all items
     if (normalized.includes(ROLE_ADMIN)) {
       return ALL_ITEMS;
     }
 
-    // Filter items based on user's roles
     return ALL_ITEMS.filter((item) =>
       item.requiredRoles.some((r) => normalized.includes(normalizeRole(r)))
     );
   }, [userRoles]);
+
+  // Primary source is backend-filtered navItems; fall back to local items ONLY if not yet loaded from backend
+  const displayItems = hasLoadedNav ? navItems : fallbackItems;
 
   const navigate = (route: string) => {
     pendingRouteRef.current = route;
@@ -229,7 +269,7 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          {visibleItems.map((item) => (
+          {displayItems.map((item) => (
             <TouchableOpacity
               key={item.route}
               onPress={() => navigate(item.route)}
@@ -271,6 +311,19 @@ const AdminDrawer: React.FC<AdminDrawerProps> = ({ visible, onClose, userRoles =
               <Ionicons name="chevron-forward" size={18} color={textSecondary} />
             </TouchableOpacity>
           ))}
+          {isLoadingNav && navItems.length === 0 && (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#41B8F0" />
+            </View>
+          )}
+          {!isLoadingNav && displayItems.length === 0 && (
+            <View style={{ padding: 24, alignItems: 'center' }}>
+              <Ionicons name="shield-outline" size={36} color={textSecondary} />
+              <Text style={{ fontFamily: 'Poppins_500Medium', color: textSecondary, fontSize: 13, marginTop: 10, textAlign: 'center' }}>
+                No admin screens assigned to your role yet.
+              </Text>
+            </View>
+          )}
         </ScrollView>
       </Animated.View>
     </Modal>

@@ -123,4 +123,15 @@ func TestCountPaidRegistrationsEmulator(t *testing.T) {
 	if allCounts[emptyEventID] != 0 {
 		t.Errorf("CountAllRegistrations[empty] = %d, want 0", allCounts[emptyEventID])
 	}
+
+	// Test HasUserPaidForEvent
+	if paid, err := s.HasUserPaidForEvent(ctx, paidEventID, "u4"); err != nil || !paid {
+		t.Errorf("HasUserPaidForEvent(u4) = %v, %v, want true, nil", paid, err)
+	}
+	if paid, err := s.HasUserPaidForEvent(ctx, paidEventID, "u3"); err != nil || paid {
+		t.Errorf("HasUserPaidForEvent(u3) = %v, %v, want false, nil", paid, err)
+	}
+	if paid, err := s.HasUserPaidForEvent(ctx, paidEventID, "nobody"); err != nil || paid {
+		t.Errorf("HasUserPaidForEvent(nobody) = %v, %v, want false, nil", paid, err)
+	}
 }

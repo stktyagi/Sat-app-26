@@ -30,6 +30,8 @@ import {
   Globe,
   Apple,
   Calendar,
+  Plus,
+  X,
 } from 'lucide-react-native';
 import { useAdminNavigation } from '@/hooks/useAdminNavigation';
 import { useThemeStore } from '@/state/themeStore';
@@ -40,10 +42,14 @@ import {
   adminUpdateAppLinks,
   adminUpdateAppMaintenance,
   adminUpdateAppVersions,
+  adminGetScreensConfig,
+  adminUpdateScreensConfig,
+  adminUpdateMealPassScanner,
   AppAccommodation,
   AppLinks,
   AppMaintenance,
   AppVersions,
+  AdminScreenConfig,
 } from '@/api/appConfig';
 
 const DAY_LIST = [
@@ -54,7 +60,9 @@ const DAY_LIST = [
   { key: 'day4', title: 'Day 4', date: '23 Nov (Sun)' },
 ];
 
-type TabKey = 'accommodation' | 'maintenance' | 'versions' | 'links';
+type TabKey = 'accommodation' | 'maintenance' | 'versions' | 'links' | 'screens';
+
+const ALL_STAFF_ROLES = ['admin', 'eb_events', 'eb_hospitality', 'ec_hospitality', 'core_hospitality', 'eb_outreach', 'eb_finance', 'eb_media', 'event_poc'];
 
 export default function AppConfigScreen() {
   const navigation = useAdminNavigation();
@@ -92,6 +100,12 @@ export default function AppConfigScreen() {
     ios: '1.0.0',
   });
 
+  const [userMealPassScanner, setUserMealPassScanner] = useState<boolean>(true);
+  const [savingScanner, setSavingScanner] = useState<boolean>(false);
+
+  const [screens, setScreens] = useState<AdminScreenConfig[]>([]);
+  const [customScreenRoles, setCustomScreenRoles] = useState<string[]>([]);
+  const [newRoleInputs, setNewRoleInputs] = useState<Record<string, string>>({});
   const [links, setLinks] = useState<AppLinks>({
     appleStore: '',
     playStore: '',
@@ -145,6 +159,17 @@ export default function AppConfigScreen() {
           appleStore: data.links.appleStore || '',
           playStore: data.links.playStore || '',
         });
+      }
+      if (data.userMealPassScanner !== undefined) {
+        setUserMealPassScanner(Boolean(data.userMealPassScanner));
+      }
+      try {
+        const screensData = await adminGetScreensConfig();
+        if (Array.isArray(screensData) && screensData.length > 0) {
+          setScreens(screensData);
+        }
+      } catch (scErr) {
+        console.warn("Could not load screens config:", scErr);
       }
     } catch (err: any) {
       console.error('Failed to load app config:', err);
@@ -239,6 +264,20 @@ export default function AppConfigScreen() {
   };
 
   // Save Versions
+  const handleToggleUserMealPassScanner = async (val: boolean) => {
+    setUserMealPassScanner(val);
+    setSavingScanner(true);
+    try {
+      await adminUpdateMealPassScanner(val);
+      showAlert("Saved", `User meal pass scanner is now ${val ? "enabled" : "disabled"}!`);
+    } catch (err: any) {
+      setUserMealPassScanner(!val);
+      showAlert("Save Error", err?.message || "Failed to update scanner status");
+    } finally {
+      setSavingScanner(false);
+    }
+  };
+
   const handleSaveVersions = async () => {
     if (!versions.android.trim() || !versions.ios.trim()) {
       showAlert('Invalid Input', 'Both Android and iOS minimum versions must be provided');
@@ -257,6 +296,58 @@ export default function AppConfigScreen() {
     } finally {
       setSavingTab(null);
     }
+  };
+
+  // Save Admin Screens
+  const handleSaveScreens = async () => {
+    setSavingTab('screens');
+    try {
+      const updated = await adminUpdateScreensConfig(screens);
+      setScreens(updated);
+      showAlert('Saved', 'Admin screen role permissions updated successfully on the backend!');
+    } catch (err: any) {
+      showAlert('Save Error', err?.message || 'Failed to update admin screen permissions');
+    } finally {
+      setSavingTab(null);
+    }
+  };
+
+  const toggleRoleForScreen = (screenKey: string, role: string) => {
+    setScreens((prev) =>
+      prev.map((s) => {
+        if (s.key !== screenKey) return s;
+        const exists = s.requiredRoles.includes(role);
+        const nextRoles = exists
+          ? s.requiredRoles.filter((r) => r !== role)
+          : [...s.requiredRoles, role];
+        return { ...s, requiredRoles: nextRoles };
+      })
+    );
+  };
+
+  const getRolesForScreen = (screen: AdminScreenConfig) => {
+    const set = new Set<string>(ALL_STAFF_ROLES);
+    screen.requiredRoles?.forEach((r) => {
+      if (r && r.trim()) set.add(r.trim().toLowerCase());
+    });
+    customScreenRoles.forEach((r) => set.add(r));
+    return Array.from(set);
+  };
+
+  const handleAddRoleToScreen = (screenKey: string) => {
+    const raw = (newRoleInputs[screenKey] || '').trim().toLowerCase().replace(/\s+/g, '_');
+    if (!raw) return;
+
+    setScreens((prev) =>
+      prev.map((s) => {
+        if (s.key !== screenKey) return s;
+        if (s.requiredRoles.includes(raw)) return s;
+        return { ...s, requiredRoles: [...s.requiredRoles, raw] };
+      })
+    );
+
+    setCustomScreenRoles((prev) => (prev.includes(raw) ? prev : [...prev, raw]));
+    setNewRoleInputs((prev) => ({ ...prev, [screenKey]: '' }));
   };
 
   // Save Links
@@ -298,6 +389,7 @@ export default function AppConfigScreen() {
     { key: 'maintenance', label: 'Maintenance', icon: Wrench },
     { key: 'versions', label: 'Versions', icon: Smartphone },
     { key: 'links', label: 'Links', icon: Link2 },
+    { key: 'screens', label: 'Admin Screens', icon: Layers },
   ];
 
   return (
@@ -1352,6 +1444,100 @@ export default function AppConfigScreen() {
                     )}
                   </TouchableOpacity>
                 </View>
+
+                {/* Feature Toggles: User Meal Pass Scanner Card */}
+                <View
+                  style={{
+                    backgroundColor: cardBg,
+                    borderRadius: 20,
+                    padding: 20,
+                    borderWidth: 1,
+                    borderColor: cardBorder,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <View
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 12,
+                        backgroundColor: 'rgba(65, 184, 240, 0.15)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Utensils size={20} color={accentColor} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: textPrimary }}>
+                        Feature Toggles
+                      </Text>
+                      <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 12, color: textSecondary }}>
+                        Operational and participant-facing feature switches
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: isDark ? '#18181B' : '#F9FAFB',
+                      borderRadius: 14,
+                      padding: 14,
+                      borderWidth: 1,
+                      borderColor: cardBorder,
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: textPrimary }}>
+                          User Meal Pass Scanner
+                        </Text>
+                        <View
+                          style={{
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 6,
+                            backgroundColor: userMealPassScanner ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontFamily: 'Poppins_600SemiBold',
+                              fontSize: 10,
+                              color: userMealPassScanner ? '#22C55E' : '#EF4444',
+                            }}
+                          >
+                            {userMealPassScanner ? 'Active' : 'Disabled'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text
+                        style={{
+                          fontFamily: 'Poppins_400Regular',
+                          fontSize: 12,
+                          color: textSecondary,
+                          marginTop: 2,
+                        }}
+                      >
+                        When active, participants who have paid for meals will see and access the Meal Pass scanner.
+                      </Text>
+                    </View>
+
+                    {savingScanner ? (
+                      <ActivityIndicator size="small" color={accentColor} />
+                    ) : (
+                      <Switch
+                        value={userMealPassScanner}
+                        onValueChange={handleToggleUserMealPassScanner}
+                        trackColor={{ false: '#71717A', true: '#22C55E' }}
+                        thumbColor="#FFFFFF"
+                      />
+                    )}
+                  </View>
+                </View>
               </View>
             )}
 
@@ -1670,6 +1856,167 @@ export default function AppConfigScreen() {
                         <Save size={18} color="#FFFFFF" />
                         <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 15 }}>
                           Save Store Links
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {activeTab === 'screens' && (
+              <View style={{ gap: 16 }}>
+                <View
+                  style={{
+                    backgroundColor: cardBg,
+                    borderWidth: 1,
+                    borderColor: cardBorder,
+                    borderRadius: 20,
+                    padding: 20,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <Layers size={22} color={accentColor} />
+                    <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 17, color: textPrimary }}>
+                      Admin Screen Role Permissions
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: textSecondary, marginBottom: 16 }}>
+                    Configure which roles can view and access each admin screen on the fly. Changes apply immediately to the mobile app drawer without an app update.
+                  </Text>
+
+                  {screens.map((screen) => (
+                    <View
+                      key={screen.key}
+                      style={{
+                        backgroundColor: isDark ? '#23232D' : '#F9FAFB',
+                        borderWidth: 1,
+                        borderColor: cardBorder,
+                        borderRadius: 16,
+                        padding: 16,
+                        marginBottom: 14,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 15, color: textPrimary }}>
+                          {screen.label}
+                        </Text>
+                        <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 11, color: textSecondary }}>
+                          {screen.route}
+                        </Text>
+                      </View>
+
+                      <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 11, color: textSecondary, marginBottom: 8 }}>
+                        Allowed Roles:
+                      </Text>
+
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        {getRolesForScreen(screen).map((role) => {
+                          const isAssigned = screen.requiredRoles.includes(role);
+                          const isCustom = !ALL_STAFF_ROLES.includes(role);
+                          return (
+                            <TouchableOpacity
+                              key={role}
+                              onPress={() => toggleRoleForScreen(screen.key, role)}
+                              activeOpacity={0.75}
+                              style={{
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 10,
+                                backgroundColor: isAssigned
+                                  ? (role === 'admin' ? '#EF4444' : role.includes('hospitality') ? '#14B8A6' : isCustom ? '#8B5CF6' : accentColor)
+                                  : isDark ? '#1A1A22' : '#E5E7EB',
+                                borderWidth: 1,
+                                borderColor: isAssigned ? 'transparent' : cardBorder,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontFamily: isAssigned ? 'Poppins_600SemiBold' : 'Poppins_400Regular',
+                                  fontSize: 12,
+                                  color: isAssigned ? '#FFFFFF' : textSecondary,
+                                }}
+                              >
+                                {role}
+                              </Text>
+                              {isAssigned && isCustom && (
+                                <X size={12} color="#FFFFFF" />
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      {/* Add custom role to this screen */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                        <TextInput
+                          value={newRoleInputs[screen.key] || ''}
+                          onChangeText={(t) => setNewRoleInputs((prev) => ({ ...prev, [screen.key]: t }))}
+                          placeholder="Add custom role (e.g. sponsor_lead)..."
+                          placeholderTextColor={textSecondary}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          style={{
+                            flex: 1,
+                            height: 38,
+                            backgroundColor: isDark ? '#1A1A22' : '#FFFFFF',
+                            borderRadius: 10,
+                            paddingHorizontal: 12,
+                            fontSize: 12,
+                            fontFamily: 'Poppins_400Regular',
+                            color: textPrimary,
+                            borderWidth: 1,
+                            borderColor: cardBorder,
+                          }}
+                        />
+                        <TouchableOpacity
+                          onPress={() => handleAddRoleToScreen(screen.key)}
+                          style={{
+                            height: 38,
+                            paddingHorizontal: 14,
+                            borderRadius: 10,
+                            backgroundColor: accentColor,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                          }}
+                          activeOpacity={0.75}
+                        >
+                          <Plus size={14} color="#FFFFFF" />
+                          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: '#FFFFFF' }}>
+                            Add
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={handleSaveScreens}
+                    disabled={savingTab === 'screens'}
+                    style={{
+                      backgroundColor: accentColor,
+                      paddingVertical: 14,
+                      borderRadius: 14,
+                      flexDirection: 'row',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: 8,
+                      marginTop: 10,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    {savingTab === 'screens' ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Save size={18} color="#FFFFFF" />
+                        <Text style={{ fontFamily: 'Poppins_600SemiBold', color: '#FFFFFF', fontSize: 15 }}>
+                          Save Screen Permissions
                         </Text>
                       </>
                     )}

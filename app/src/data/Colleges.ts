@@ -200,6 +200,7 @@ export const defaultColleges = [
     "Centre for Development of Advanced Computing",
     "Centre for Environmental Planning and Technology",
     "CET Karnataka Information and Counselling",
+    "CGC University, Mohali",
     "Chaitanya Bharati Institute of Technology",
     "Chaityana Institute of Science and Technology",
     "Chamelidevi Institute of Technology and Management",
@@ -225,6 +226,7 @@ export const defaultColleges = [
     "Christ University",
     "Christu Jayanthi Jubilee College",
     "CIT-Changa",
+    
     "CMF College",
     "CMR College of Engineering and Technology",
     "CMR College of Engineering Technology (CMRCET)",
@@ -777,6 +779,7 @@ export const defaultColleges = [
     "Marian Engineering College",
     "Marine Engineering College - MERI",
     "Marudhar Engineering College",
+    "Masters Union",
     "Matrusri Institute of Post Graduate Studies",
     "Maulana Azad College",
     "Maulana Azad College",

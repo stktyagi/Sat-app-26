@@ -25,6 +25,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore } from '@/state/userStore';
 import { useAuthListener } from '@/hooks/useAuthListener';
 import { useNotifications } from '@/hooks/useNotifications';
+import { setupBackgroundMessageHandler } from '@/utils/fcm';
+import { isProfileUpdateMessage, markProfileStale } from '@/utils/pushSync';
 import { AlertProvider } from '@/components/ui/CustomAlert';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient } from '@tanstack/react-query';
@@ -37,6 +39,18 @@ import { loadCollegesAsync } from '@/data/Colleges';
 import ConnectivityWrapper from '@/components/system/ConnectivityWrapper';
 import Constants from 'expo-constants';
 import Sentry from '@/config/sentry';
+
+// Register background message handler outside React component lifecycle
+if (Platform.OS !== 'web') {
+  try {
+    setupBackgroundMessageHandler(async (message) => {
+      // Role/profile changed while backgrounded: refetch on next foreground.
+      if (isProfileUpdateMessage(message.data)) await markProfileStale();
+    });
+  } catch (e) {
+    console.warn('Failed to setup background message handler:', e);
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,6 +137,7 @@ function RootLayout() {
                 <Stack.Screen name="admin" />
                 <Stack.Screen name="events" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
                 <Stack.Screen name="profile" />
+                <Stack.Screen name="store" />
                 <Stack.Screen name="map" />
               </Stack>
             </SafeAreaView>

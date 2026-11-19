@@ -37,11 +37,15 @@ func (a *API) Register(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if isPreregisteredEvent(event.Title) && !isAllowedWebsiteDomain(c) {
+		apierr.Respond(c, apierr.BadRequest("website_only", "Registration for this event is only open via the official website."))
+		return
+	}
 	if err := a.checkRegistrable(ctx, event, user, models.EventTypeIndividual); err != nil {
 		apierr.Respond(c, err)
 		return
 	}
-	if err := validateResponses(event, body.Responses); err != nil {
+	if err := validateResponses(event, user, body.Responses); err != nil {
 		apierr.Respond(c, err)
 		return
 	}
@@ -197,6 +201,22 @@ func (a *API) checkRegistrable(ctx context.Context, e *models.Event, u *models.U
 		return apierr.Forbidden("host_college_only", "this event is open to host college students only")
 	}
 
+	// If event title includes "[Preregistered]", user must have registered and paid for the prerequisite event.
+	const PreregRequiredEventID = "iqY8KPrQ7oau2bFB4thB"
+	lowerTitle := strings.ToLower(e.Title)
+	if e.EventID != PreregRequiredEventID && (strings.Contains(lowerTitle, "[preregistered]") || strings.Contains(lowerTitle, "[pre-registered]")) {
+		if a.Store != nil {
+			paid, err := a.Store.HasUserPaidForEvent(ctx, PreregRequiredEventID, u.UserID)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return apierr.Internal("could not verify preregistration requirements")
+			}
+			if !paid {
+				return apierr.Forbidden("preregistration_required",
+					"Registration for this event is only available to participants who have registered and paid for the prerequisite event.")
+			}
+		}
+	}
+
 	// Capacity. Without a stored counter this is a count immediately before the
 	// write, so simultaneous requests for the final seat can both pass. Adding
 	// registeredCount to the event document and incrementing it inside the
@@ -216,10 +236,11 @@ func (a *API) checkRegistrable(ctx context.Context, e *models.Event, u *models.U
 
 // validateResponses checks the submitted answers against the custom fields the
 // event defines.
-func validateResponses(e *models.Event, given []models.Response) *apierr.Error {
+func validateResponses(e *models.Event, user *models.User, given []models.Response) *apierr.Error {
 	if len(e.CustomFields) == 0 {
 		return nil
 	}
+	isHost := user != nil && user.IsHostCollegeStudent
 	supplied := map[string]bool{}
 	for _, r := range given {
 		if r.Value != nil && r.Value != "" {
@@ -227,7 +248,14 @@ func validateResponses(e *models.Event, given []models.Response) *apierr.Error {
 		}
 	}
 	for _, f := range e.CustomFields {
-		if f.Required && !supplied[f.FieldID] {
+		if models.IsProfileRedundantField(f.FieldID, f.Label) {
+			continue
+		}
+		if f.IsHostOnly() && !isHost {
+			continue
+		}
+		isRequired := f.Required || (isHost && (f.IsHostOnly() || strings.Contains(strings.ToLower(f.FieldID), "ppt") || strings.Contains(strings.ToLower(f.Label), "presentation")))
+		if isRequired && !supplied[f.FieldID] {
 			return apierr.BadRequest("missing_response", "a required answer is missing").
 				WithDetails(gin.H{"fieldId": f.FieldID, "label": f.Label})
 		}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -32,6 +33,9 @@ type API struct {
 	Clients    *fb.Clients
 	Storage    *storage.Store
 	S3         *s3storage.Client
+
+	// Now overrides the clock in tests; nil means time.Now.
+	Now func() time.Time
 }
 
 func New(

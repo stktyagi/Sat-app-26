@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"sync"
 	"time"
@@ -491,6 +492,26 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 			}
 			evictUserFromCache(user.UserID)
 			s.InvalidateAccommodationCache()
+
+			// Update accommodation availability counters atomically
+			userGender := models.NormalizeGender(user.Gender)
+			var availUpdates []firestore.Update
+			for day, v := range p.ProcessedIntentions.Accommodation {
+				if on, _ := v.(bool); on {
+					if user.Accommodation == nil || !user.Accommodation[day] {
+						availUpdates = append(availUpdates, firestore.Update{
+							Path:  fmt.Sprintf("%s.%s", day, userGender),
+							Value: firestore.Increment(1),
+						})
+					}
+				}
+			}
+			if len(availUpdates) > 0 {
+				availUpdates = append(availUpdates, firestore.Update{Path: "updatedAt", Value: now})
+				availRef := s.FS.Collection(ColApp).Doc("accommodation_availability")
+				_ = tx.Update(availRef, availUpdates)
+				s.InvalidateAccommodationAvailabilityCache()
+			}
 		}
 
 		if p.CouponCode != "" {

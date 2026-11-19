@@ -4,6 +4,7 @@ import { uploadProfilePhoto, uploadCollegeId } from '@/api/auth';
 import { useUserStore } from '@/state/userStore';
 import type { UserProfile } from '@/types/models';
 import { isHostStudent } from './paymentHelpers';
+import { scanAndValidateFace } from './faceScanner';
 
 /**
  * Checks if the user is considered an outside (non-host) college student.
@@ -49,8 +50,8 @@ export function getMissingIdentityRequirements(user?: UserProfile | null): strin
 }
 
 /**
- * Prompts the user to choose Camera or Gallery, then uploads the selected image
- * as either their profile photo or college ID.
+ * Prompts the user to capture a live photo or ID card, verifies faces with ML Kit,
+ * and uploads the verified image to the backend.
  */
 export async function promptAndUploadIdentity(
   type: 'photo' | 'collegeId',
@@ -67,11 +68,28 @@ export async function promptAndUploadIdentity(
         quality: 0.8,
       });
       if (picked.canceled || !picked.assets?.[0]?.uri) return null;
+
+      const fileUri = picked.assets[0].uri;
+
+      // On-device ML Kit Face Scan verification for profile photos
+      if (type === 'photo') {
+        onLoadingChange?.(true);
+        const faceScan = await scanAndValidateFace(fileUri);
+        if (!faceScan.valid) {
+          onLoadingChange?.(false);
+          showAlert(
+            faceScan.errorTitle || 'Face Scan Failed',
+            faceScan.errorMessage || 'Please select a photo with a clearly visible face.'
+          );
+          return null;
+        }
+      }
+
       onLoadingChange?.(true);
       const updated =
         type === 'photo'
-          ? await uploadProfilePhoto(picked.assets[0].uri)
-          : await uploadCollegeId(picked.assets[0].uri);
+          ? await uploadProfilePhoto(fileUri)
+          : await uploadCollegeId(fileUri);
       useUserStore.getState().setUserData(updated);
       await useUserStore.getState().refreshUserProfile().catch(() => {});
       return updated;
@@ -97,8 +115,23 @@ export async function promptAndUploadIdentity(
       return null;
     }
 
-    onLoadingChange?.(true);
     const fileUri = result.assets[0].uri;
+
+    // On-device ML Kit Face Scan verification for profile photos
+    if (type === 'photo') {
+      onLoadingChange?.(true);
+      const faceScan = await scanAndValidateFace(fileUri);
+      if (!faceScan.valid) {
+        onLoadingChange?.(false);
+        showAlert(
+          faceScan.errorTitle || 'Face Scan Failed',
+          faceScan.errorMessage || 'Please ensure your face is clearly visible and retake the photo.'
+        );
+        return null;
+      }
+    }
+
+    onLoadingChange?.(true);
     const updated =
       type === 'photo'
         ? await uploadProfilePhoto(fileUri)
@@ -110,7 +143,7 @@ export async function promptAndUploadIdentity(
     showAlert(
       'Success',
       type === 'photo'
-        ? 'Profile photo uploaded successfully!'
+        ? 'Profile photo verified and uploaded successfully!'
         : 'College ID card uploaded successfully!'
     );
     return updated;

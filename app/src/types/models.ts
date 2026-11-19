@@ -62,6 +62,7 @@ export interface UserProfile {
   fullyRegistered: boolean; // to check if the person has not only done Oauth but also filled his details.
   isAmbassador: boolean;
   coins: number;
+  dailyGameRewards?: Record<string, string>;
   collegeState: string;
   graduationYear: string;
   points?: number;
@@ -70,6 +71,8 @@ export interface UserProfile {
     fest: boolean;
     remark?: string | null;
     accommodation: boolean;
+    checkedOut?: boolean;
+    checkedOutAt?: string | null;
     Hostel?: string | null;
     RoomNo?: string | null;
   };

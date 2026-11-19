@@ -126,3 +126,39 @@ func TestAppConfigJSONPersistence(t *testing.T) {
 		t.Fatalf("expected auto-detected external change to 2.0.0, got: %+v", externalVers)
 	}
 }
+
+func TestMergeDefaultScreens(t *testing.T) {
+	persisted := []models.AdminScreenConfig{
+		{Key: "qr_scanner", Label: "Custom", Route: "/admin/QRScanner", RequiredRoles: []string{models.RoleAdmin, models.RoleEBHospitality}},
+	}
+	merged := mergeDefaultScreens(persisted)
+
+	var qr *models.AdminScreenConfig
+	hasEB := false
+	for i := range merged {
+		if merged[i].Key == "qr_scanner" {
+			qr = &merged[i]
+		}
+		if merged[i].Key == "hospitality_eb" {
+			hasEB = true
+		}
+	}
+	if !hasEB {
+		t.Error("missing default screen hospitality_eb was not merged in")
+	}
+	if qr == nil || qr.Label != "Custom" {
+		t.Fatal("persisted entry should be kept with its label")
+	}
+	found := false
+	for _, r := range qr.RequiredRoles {
+		if r == models.RoleCoreHospitality {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("core_hospitality should be unioned into qr_scanner roles, got %v", qr.RequiredRoles)
+	}
+	if len(persisted[0].RequiredRoles) != 2 {
+		t.Error("merge must not mutate the input slice")
+	}
+}

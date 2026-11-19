@@ -2,7 +2,7 @@
   "expo": {
     "name": "Saturnalia",
     "slug": "saturnalia",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icons/adaptive-icon.png",
     "scheme": "app",
@@ -125,7 +125,9 @@
       "expo-image",
       "expo-web-browser",
       "./plugins/withSceneLifecycle.js",
-      "./plugins/withSwift5Pods.js"
+      "./plugins/withSwift5Pods.js",
+      "./plugins/withGradleMemory.js",
+      "./plugins/withHardwareFeatures.js"
     ],
     "experiments": {
       "typedRoutes": true,

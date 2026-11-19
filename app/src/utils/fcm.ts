@@ -130,10 +130,12 @@ export function setupForegroundNotificationHandler(
  * Setup background message handler
  * Must be called outside of the component lifecycle
  */
-export function setupBackgroundMessageHandler(): void {
+export function setupBackgroundMessageHandler(
+  handler?: (message: RemoteMessage) => Promise<void>
+): void {
   const messagingInstance = getMessaging();
   setBackgroundMessageHandler(messagingInstance, async remoteMessage => {
-    console.log('Message handled in the background!', remoteMessage);
+    await handler?.(remoteMessage);
   });
 }
 
