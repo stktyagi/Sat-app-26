@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	defaultLimit = 50
-	maxLimit     = 200
+	defaultLimit = 2000
+	maxLimit     = 100000
 )
 
 const websiteDomain = "saturnalia.in"
