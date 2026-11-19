@@ -226,7 +226,7 @@ export async function adminDeleteEvent(id: string): Promise<void> {
 }
 
 export async function adminListRegistrations(eventId: string): Promise<AdminRegistration[]> {
-  const res = await apiFetch(`/admin/events/${eventId}/registrations?limit=500`, {}, 'required');
+  const res = await apiFetch(`/admin/events/${eventId}/registrations`, {}, 'required');
   if (!res.ok) throw new Error(await readError(res, 'Failed to load registrations'));
   const data = await res.json();
   return data.items ?? [];

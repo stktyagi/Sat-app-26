@@ -107,7 +107,13 @@ func (s *Store) ListUserRegistrations(ctx context.Context, uid string) ([]*model
 }
 
 func (s *Store) ListEventRegistrations(ctx context.Context, eventID string, limit, offset int) ([]*models.Registration, error) {
-	q := s.FS.Collection(ColRegistrations).Where("eventId", "==", eventID).Offset(offset).Limit(limit)
+	q := s.FS.Collection(ColRegistrations).Where("eventId", "==", eventID)
+	if offset > 0 {
+		q = q.Offset(offset)
+	}
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
 	return s.collectRegistrations(ctx, q)
 }
 

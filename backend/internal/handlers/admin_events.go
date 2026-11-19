@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -268,7 +269,14 @@ func (a *API) ListEventRegistrations(c *gin.Context) {
 		}
 	}
 
-	limit, offset := page(c)
+	limit := 0
+	if v, err := strconv.Atoi(c.Query("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	offset := 0
+	if v, err := strconv.Atoi(c.Query("offset")); err == nil && v > 0 {
+		offset = v
+	}
 	regs, err := a.Store.ListEventRegistrations(ctx, event.EventID, limit, offset)
 	if err != nil {
 		apierr.Respond(c, apierr.Internal("could not load registrations"))

@@ -18,7 +18,6 @@ import (
 
 const (
 	defaultLimit = 2000
-	maxLimit     = 100000
 )
 
 const websiteDomain = "saturnalia.in"
@@ -162,7 +161,7 @@ func sortEvents(list []*models.Event, mode string) {
 func page(c *gin.Context) (limit, offset int) {
 	limit = defaultLimit
 	if v, err := strconv.Atoi(c.Query("limit")); err == nil && v > 0 {
-		limit = min(v, maxLimit)
+		limit = v
 	}
 	if v, err := strconv.Atoi(c.Query("offset")); err == nil && v > 0 {
 		offset = v
