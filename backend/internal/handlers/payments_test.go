@@ -582,3 +582,67 @@ func TestAccommodationUpgradeCalculation(t *testing.T) {
 		}
 	})
 }
+
+func TestInitiatePayment_FreeEventWithAccommodation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	freeEv := &models.Event{
+		ID:              "free-1",
+		EventID:         "free-1",
+		Title:           "Through The Lens",
+		Category:        "Cultural",
+		IsPublic:        true,
+		PaymentRequired: false,
+	}
+	src := &stubEventSource{events: map[string]*models.Event{
+		"free-1": freeEv,
+	}}
+	mem := cache.NewMemory()
+	ec := store.NewEventCache(src, mem, mem, time.Minute)
+
+	user := &models.User{
+		UserID:               "test_user",
+		DisplayName:          "Test User",
+		Email:                "test@example.com",
+		Gender:               "male",
+		IsHostCollegeStudent: false,
+	}
+
+	t.Run("Free event without accommodation rejects with no_payment_required", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		bodyJSON := `{"eventId":"free-1","paymentType":"event"}`
+		c.Request = httptest.NewRequest(http.MethodPost, "/payments/initiate", strings.NewReader(bodyJSON))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Set("auth.user", user)
+
+		api := &API{Cache: ec}
+		api.InitiatePayment(c)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "no_payment_required") {
+			t.Errorf("expected no_payment_required error, got: %s", w.Body.String())
+		}
+	})
+
+	t.Run("Free event with accommodation does not reject with no_payment_required", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		bodyJSON := `{"eventId":"free-1","paymentType":"event_and_accommodation","accommodation":{"day3":true,"day4":true}}`
+		c.Request = httptest.NewRequest(http.MethodPost, "/payments/initiate", strings.NewReader(bodyJSON))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Set("auth.user", user)
+
+		api := &API{
+			Cache: ec,
+			Cfg:   &config.Config{PaymentsDummy: true},
+		}
+		api.InitiatePayment(c)
+
+		if strings.Contains(w.Body.String(), "no_payment_required") {
+			t.Fatalf("unexpected no_payment_required error: %s", w.Body.String())
+		}
+	})
+}

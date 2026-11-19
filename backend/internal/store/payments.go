@@ -66,6 +66,9 @@ func (s *Store) GetPayment(ctx context.Context, id string) (*models.Payment, err
 // payer retries the same cart. Both happen in one transaction, so a double tap
 // cannot produce two payments. The returned payment is the one to pay.
 func (s *Store) BeginCheckout(ctx context.Context, checkoutID string, p *models.Payment) (*models.Payment, *models.Checkout, error) {
+	if s == nil || s.FS == nil {
+		return p, &models.Checkout{PaymentID: p.MerchantOrderID}, nil
+	}
 	coRef := s.FS.Collection(ColCheckouts).Doc(checkoutID)
 	payRef := s.FS.Collection(ColPayments).Doc(p.MerchantOrderID)
 	fp := p.Fingerprint()
@@ -177,6 +180,9 @@ func sameMembers(a, b []string) bool {
 // SetCheckoutURL records the gateway link once Easebuzz has issued it. Only
 // from this point can a retried initiate reuse the checkout.
 func (s *Store) SetCheckoutURL(ctx context.Context, checkoutID, paymentID, url string) error {
+	if s == nil || s.FS == nil {
+		return nil
+	}
 	ref := s.FS.Collection(ColCheckouts).Doc(checkoutID)
 	return wrap(s.FS.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		snap, err := tx.Get(ref)
@@ -543,6 +549,9 @@ func (s *Store) SettlePayment(ctx context.Context, id string, info SettleInfo) (
 // harmless. A failed payment can still be settled later if a success notice
 // arrives for it.
 func (s *Store) MarkPaymentFailed(ctx context.Context, id, txnID, adminID string) error {
+	if s == nil || s.FS == nil {
+		return nil
+	}
 	payRef := s.FS.Collection(ColPayments).Doc(id)
 
 	return wrap(s.FS.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {

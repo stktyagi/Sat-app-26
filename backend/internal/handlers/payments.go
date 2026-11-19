@@ -447,11 +447,22 @@ func (a *API) InitiatePayment(c *gin.Context) {
 		}
 
 		if !event.PaymentRequired {
-			apierr.Respond(c, apierr.BadRequest("no_payment_required", "this event does not require payment"))
-			return
+			hasAcc, hasFood := anySelected(body.Accommodation), anySelected(body.Food)
+			if !hasAcc && !hasFood {
+				apierr.Respond(c, apierr.BadRequest("no_payment_required", "this event does not require payment"))
+				return
+			}
+			body.EventID, body.TeamID = "", ""
+			body.PaymentType = models.PaymentTypeAccommodation
+			if hasFood {
+				body.PaymentType = models.PaymentTypeAccommodationAndFood
+			}
+			paymentType = body.PaymentType
+			event = nil
+			team = nil
 		}
 
-		if event.EventType == models.EventTypeTeam {
+		if event != nil && event.EventType == models.EventTypeTeam {
 			eventPaymentType = models.EventPaymentTypeTeam
 			if body.TeamID == "" {
 				apierr.Respond(c, apierr.BadRequest("missing_team_id", "teamId is required for team events"))
@@ -513,12 +524,13 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				if hasFood {
 					body.PaymentType = models.PaymentTypeAccommodationAndFood
 				}
+				paymentType = body.PaymentType
 				event = nil
 				team = nil
 			} else {
 				covered = slices.Clone(team.MemberIDs)
 			}
-		} else {
+		} else if event != nil {
 			covered = []string{user.UserID}
 		}
 
@@ -541,6 +553,7 @@ func (a *API) InitiatePayment(c *gin.Context) {
 				if hasFood {
 					body.PaymentType = models.PaymentTypeAccommodationAndFood
 				}
+				paymentType = body.PaymentType
 				event = nil
 			}
 		}
