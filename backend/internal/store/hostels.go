@@ -266,7 +266,16 @@ func (s *Store) ApplyHostelAction(ctx context.Context, uid string, in HostelActi
 		switch in.Action {
 		case HostelActionCheckIn:
 			if st.Hostel == "" {
-				return ErrNotAllotted
+				ups = append(ups,
+					firestore.Update{Path: "checkInStatus.accommodation", Value: true},
+					firestore.Update{Path: "checkInStatus.fest", Value: true},
+					firestore.Update{Path: "checkInStatus.checkedOut", Value: false},
+					firestore.Update{Path: "checkInStatus.checkedOutAt", Value: ""},
+				)
+				if !st.Accommodation || st.CheckedOut || st.CheckedInAt == "" {
+					ups = append(ups, firestore.Update{Path: "checkInStatus.checkedInAt", Value: now})
+				}
+				break
 			}
 			if st.CheckedOut {
 				delta = 1

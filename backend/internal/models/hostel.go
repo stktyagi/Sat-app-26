@@ -45,9 +45,9 @@ type MealSlot struct {
 }
 
 var MealSlots = []MealSlot{
-	{Key: "breakfast", Label: "Breakfast", Start: "07:00", End: "10:30"},
-	{Key: "lunch", Label: "Lunch", Start: "12:00", End: "15:30"},
-	{Key: "dinner", Label: "Dinner", Start: "19:00", End: "22:30"},
+	{Key: "breakfast", Label: "Breakfast", Start: "07:00", End: "10:00"},
+	{Key: "lunch", Label: "Lunch", Start: "12:00", End: "15:00"},
+	{Key: "dinner", Label: "Dinner", Start: "19:00", End: "22:00"},
 }
 
 func IsMealSlot(k string) bool {

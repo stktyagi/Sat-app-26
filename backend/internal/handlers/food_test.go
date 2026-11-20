@@ -367,13 +367,13 @@ func TestCurrentMealSlot(t *testing.T) {
 	}{
 		{d(6, 59), "", false},
 		{d(7, 0), "breakfast", true},
-		{d(10, 29), "breakfast", true},
-		{d(10, 30), "", false},
+		{d(9, 59), "breakfast", true},
+		{d(10, 0), "", false},
 		{d(12, 0), "lunch", true},
-		{d(15, 30), "", false},
+		{d(15, 0), "", false},
 		{d(19, 0), "dinner", true},
-		{d(22, 29), "dinner", true},
-		{d(22, 30), "", false},
+		{d(21, 59), "dinner", true},
+		{d(22, 0), "", false},
 		{time.Date(2026, 11, 20, 7, 30, 0, 0, time.UTC), "lunch", true}, // 13:00 IST
 	}
 	for _, tc := range cases {
