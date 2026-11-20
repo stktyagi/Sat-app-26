@@ -606,7 +606,7 @@ var (
 	paymentsMu        sync.RWMutex
 	paymentsCache     []*models.Payment
 	paymentsCacheTime time.Time
-	paymentsTTL       = 10 * time.Minute
+	paymentsTTL       = 15 * time.Second
 )
 
 // InvalidatePaymentsCache clears the cached payments slice.

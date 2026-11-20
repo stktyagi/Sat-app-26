@@ -57,6 +57,8 @@ func Router(cfg *config.Config, clients *fb.Clients, s *store.Store, cache *stor
 	// Public browsing. The optional token is what lets a signed-in caller see
 	// their own fee and registration without a second request.
 	open := v1.Group("", optional)
+	open.GET("/payments/clear-cache", api.ClearPaymentsCache)
+	r.GET("/clear-payments-cache", api.ClearPaymentsCache)
 	open.GET("/events", api.ListEvents)
 	open.GET("/events/categories", api.GetCategories)
 	open.GET("/events/:id", api.GetEvent)
