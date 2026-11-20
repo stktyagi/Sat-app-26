@@ -1211,13 +1211,3 @@ func (a *API) GetPayment(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"payment": payment})
 }
-
-// ClearPaymentsCache invalidates the in-memory payments cache on the server.
-func (a *API) ClearPaymentsCache(c *gin.Context) {
-	a.Store.InvalidatePaymentsCache()
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "payments cache cleared successfully",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	})
-}
