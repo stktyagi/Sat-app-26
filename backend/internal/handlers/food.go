@@ -127,11 +127,7 @@ func (a *API) checkAndLogMeal(ctx context.Context, u *models.User, qrDay, method
 			Method:     method,
 			VerifiedBy: by,
 		})
-		if errors.Is(err, store.ErrMealAvailed) {
-			r.Reason = "already_availed"
-			return r
-		}
-		if err != nil {
+		if err != nil && !errors.Is(err, store.ErrMealAvailed) {
 			log.Printf("[food] could not log meal for %s: %v", u.UserID, err)
 			r.Reason = "log_failed"
 			return r
@@ -142,7 +138,7 @@ func (a *API) checkAndLogMeal(ctx context.Context, u *models.User, qrDay, method
 }
 
 // ScanFoodQR checks the caller has food booked for the current day and meal
-// slot, and logs the meal so each slot can be availed once.
+// slot, and logs the meal so each slot can be availed.
 // Supports day-specific mess QRs ("food:dayX") as well as all-day QRs ("food:all").
 // Blocked scans are 200 with allowed=false.
 // Accommodation check-in is not mandatory to receive food, but an alert flag is returned.

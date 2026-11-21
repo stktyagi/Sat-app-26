@@ -15,19 +15,11 @@ const ColMealLogs = "mealLogs"
 
 var ErrMealAvailed = errors.New("meal already availed for this slot")
 
-func mealLogID(day, slot, uid string) string { return day + "_" + slot + "_" + uid }
-
-// LogMeal records an availed meal. A second log for the same user, day and
-// slot fails with ErrMealAvailed.
+// LogMeal records an availed meal. Each meal availed is logged as an independent record
+// allowing participants to avail meals as many times as needed while preserving an audit log.
 func (s *Store) LogMeal(ctx context.Context, l *models.MealLog) error {
-	_, err := s.FS.Collection(ColMealLogs).Doc(mealLogID(l.Day, l.Slot, l.UserID)).Create(ctx, l)
-	if err != nil {
-		if errors.Is(wrap(err), ErrExists) {
-			return ErrMealAvailed
-		}
-		return wrap(err)
-	}
-	return nil
+	_, _, err := s.FS.Collection(ColMealLogs).Add(ctx, l)
+	return wrap(err)
 }
 
 // ListMealLogs returns logs for a day, optionally narrowed to one slot, oldest first.
